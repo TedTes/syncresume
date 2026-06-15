@@ -7,12 +7,15 @@ import {
   UploadCloud,
   XCircle,
 } from "lucide-react";
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
-import { ResumeReview } from "./components/ResumeReview";
+import { ChangeEvent, FormEvent, lazy, Suspense, useMemo, useState } from "react";
 import { optimizeResume } from "./lib/aiResume";
 import { extractResumeText, type ExtractedFile } from "./lib/fileExtract";
 import { DEFAULT_MODEL, openAIErrorMessage, validateApiKey } from "./lib/openai";
 import { resumeToPlainText, type StructuredResume } from "./lib/resume";
+
+const ResumeReview = lazy(() =>
+  import("./components/ResumeReview").then((module) => ({ default: module.ResumeReview })),
+);
 
 type KeyStatus =
   | { state: "idle"; message: string }
@@ -307,13 +310,22 @@ export default function App() {
         </div>
 
         {optimizedResume ? (
-          <ResumeReview
-            apiKey={validatedKey}
-            jobDescription={jobDescription}
-            originalResumeText={resumeText}
-            resume={optimizedResume}
-            onResumeChange={setOptimizedResume}
-          />
+          <Suspense
+            fallback={
+              <div className="review-loading">
+                <Loader2 className="spin" aria-hidden="true" />
+                Loading review workspace...
+              </div>
+            }
+          >
+            <ResumeReview
+              apiKey={validatedKey}
+              jobDescription={jobDescription}
+              originalResumeText={resumeText}
+              resume={optimizedResume}
+              onResumeChange={setOptimizedResume}
+            />
+          </Suspense>
         ) : null}
       </section>
     </main>

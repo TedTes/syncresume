@@ -114,7 +114,7 @@ export function ResumeReview({
         setExportStatus("DOCX downloaded.");
       }
       if (action === "pdf") {
-        downloadPdf(resume);
+        await downloadPdf(resume);
         setExportStatus("PDF downloaded.");
       }
       if (action === "copy") {

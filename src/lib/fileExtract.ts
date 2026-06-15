@@ -1,9 +1,3 @@
-import mammoth from "mammoth";
-import * as pdfjs from "pdfjs-dist";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-
 export type ExtractedFile = {
   name: string;
   text: string;
@@ -28,6 +22,12 @@ export async function extractResumeText(file: File): Promise<ExtractedFile> {
 }
 
 async function extractPdfText(file: File): Promise<ExtractedFile> {
+  const [pdfjs, worker] = await Promise.all([
+    import("pdfjs-dist"),
+    import("pdfjs-dist/build/pdf.worker.mjs?url"),
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+
   const data = new Uint8Array(await file.arrayBuffer());
   const pdf = await pdfjs.getDocument({ data }).promise;
   const pages: string[] = [];
@@ -50,7 +50,8 @@ async function extractPdfText(file: File): Promise<ExtractedFile> {
 }
 
 async function extractDocxText(file: File): Promise<ExtractedFile> {
-  const result = await mammoth.extractRawText({
+  const mammoth = await import("mammoth");
+  const result = await mammoth.default.extractRawText({
     arrayBuffer: await file.arrayBuffer(),
   });
 

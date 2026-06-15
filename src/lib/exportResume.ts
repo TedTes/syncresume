@@ -1,15 +1,9 @@
-import {
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-} from "docx";
-import { jsPDF } from "jspdf";
 import { resumeToPlainText, type StructuredResume } from "./resume";
 
 const FILE_BASENAME = "syncresume-optimized-resume";
 
 export async function downloadDocx(resume: StructuredResume) {
+  const { Document, Packer } = await import("docx");
   const document = new Document({
     creator: "SyncResume",
     title: "Optimized resume",
@@ -17,7 +11,7 @@ export async function downloadDocx(resume: StructuredResume) {
     sections: [
       {
         properties: {},
-        children: buildDocxParagraphs(resume),
+        children: await buildDocxParagraphs(resume),
       },
     ],
   });
@@ -25,7 +19,8 @@ export async function downloadDocx(resume: StructuredResume) {
   saveBlob(blob, `${FILE_BASENAME}.docx`);
 }
 
-export function downloadPdf(resume: StructuredResume) {
+export async function downloadPdf(resume: StructuredResume) {
+  const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "pt", format: "letter" });
   const page = {
     width: pdf.internal.pageSize.getWidth(),
@@ -105,8 +100,9 @@ export async function copyPlainText(resume: StructuredResume) {
   await navigator.clipboard.writeText(resumeToPlainText(resume));
 }
 
-function buildDocxParagraphs(resume: StructuredResume): Paragraph[] {
-  const paragraphs: Paragraph[] = [];
+async function buildDocxParagraphs(resume: StructuredResume) {
+  const { Paragraph, TextRun } = await import("docx");
+  const paragraphs: InstanceType<typeof Paragraph>[] = [];
   const addHeading = (text: string) => {
     paragraphs.push(
       new Paragraph({
