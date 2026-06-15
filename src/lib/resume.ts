@@ -255,7 +255,7 @@ export function replaceSection(
     return {
       ...resume,
       experience: resume.experience.map((role) =>
-        role.id === roleId ? { ...role, bullets: linesToBullets(value) } : role,
+        role.id === roleId ? parseExperienceRoleText(value, role) : role,
       ),
     };
   }
@@ -275,12 +275,22 @@ export function sectionText(resume: StructuredResume, sectionId: string): string
   }
   if (sectionId.startsWith("experience:")) {
     const roleId = sectionId.replace("experience:", "");
-    return resume.experience
-      .find((role) => role.id === roleId)
-      ?.bullets.map((bullet) => `- ${bullet}`)
-      .join("\n") ?? "";
+    const role = resume.experience.find((item) => item.id === roleId);
+    return role ? experienceRoleToText(role) : "";
   }
   return "";
+}
+
+export function experienceRoleToText(role: ExperienceRole): string {
+  return [
+    `Title: ${role.title}`,
+    `Company: ${role.company}`,
+    `Location: ${role.location}`,
+    `Dates: ${role.dates}`,
+    ...role.bullets.map((bullet) => `- ${bullet}`),
+  ]
+    .filter((line) => line.replace(/^[A-Za-z]+:\s*/, "").trim())
+    .join("\n");
 }
 
 function normalizeExperience(value: unknown): ExperienceRole[] {
@@ -330,6 +340,39 @@ function linesToBullets(value: string): string[] {
     .split("\n")
     .map((line) => line.replace(/^\s*[-*•]\s*/, "").trim())
     .filter(Boolean);
+}
+
+function parseExperienceRoleText(value: string, fallback: ExperienceRole): ExperienceRole {
+  const lines = value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const nextRole = { ...fallback, bullets: [] as string[] };
+  const bulletLines: string[] = [];
+
+  for (const line of lines) {
+    const fieldMatch = line.match(/^(title|company|location|dates):\s*(.*)$/i);
+    if (fieldMatch) {
+      const [, field, fieldValue] = fieldMatch;
+      if (field.toLowerCase() === "title") {
+        nextRole.title = fieldValue.trim();
+      }
+      if (field.toLowerCase() === "company") {
+        nextRole.company = fieldValue.trim();
+      }
+      if (field.toLowerCase() === "location") {
+        nextRole.location = fieldValue.trim();
+      }
+      if (field.toLowerCase() === "dates") {
+        nextRole.dates = fieldValue.trim();
+      }
+    } else {
+      bulletLines.push(line);
+    }
+  }
+
+  nextRole.bullets = bulletLines.length > 0 ? linesToBullets(bulletLines.join("\n")) : fallback.bullets;
+  return nextRole;
 }
 
 function asText(value: unknown): string {

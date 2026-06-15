@@ -8,6 +8,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ResumeReview } from "./components/ResumeReview";
 import { optimizeResume } from "./lib/aiResume";
 import { extractResumeText, type ExtractedFile } from "./lib/fileExtract";
 import { DEFAULT_MODEL, openAIErrorMessage, validateApiKey } from "./lib/openai";
@@ -304,6 +305,16 @@ export default function App() {
             {optimizeError ? <div className="inline-error">{optimizeError}</div> : null}
           </section>
         </div>
+
+        {optimizedResume ? (
+          <ResumeReview
+            apiKey={validatedKey}
+            jobDescription={jobDescription}
+            originalResumeText={resumeText}
+            resume={optimizedResume}
+            onResumeChange={setOptimizedResume}
+          />
+        ) : null}
       </section>
     </main>
   );

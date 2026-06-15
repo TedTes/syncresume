@@ -1,5 +1,5 @@
-import { createStructuredResumeResponse } from "./openai";
-import type { StructuredResume } from "./resume";
+import { createStructuredResumeResponse, createTextResponse } from "./openai";
+import { resumeToPlainText, type StructuredResume } from "./resume";
 
 type OptimizeResumeOptions = {
   apiKey: string;
@@ -37,5 +37,50 @@ export async function optimizeResume({
     ].join("\n"),
     maxOutputTokens: 7000,
     timeoutMs: 90000,
+  });
+}
+
+type ReviseSectionOptions = {
+  apiKey: string;
+  jobDescription: string;
+  resume: StructuredResume;
+  sectionLabel: string;
+  sectionText: string;
+  instruction: string;
+};
+
+export async function reviseResumeSection({
+  apiKey,
+  jobDescription,
+  resume,
+  sectionLabel,
+  sectionText,
+  instruction,
+}: ReviseSectionOptions): Promise<string> {
+  return createTextResponse({
+    apiKey,
+    instructions: [
+      "You revise exactly one resume section at a time.",
+      "Follow the user's instruction while aligning the section to the job description.",
+      "Do not fabricate employers, titles, dates, degrees, certifications, tools, metrics, responsibilities, or achievements.",
+      "Return only replacement text for the requested section. No Markdown fences or commentary.",
+    ].join(" "),
+    input: [
+      `SECTION: ${sectionLabel}`,
+      "",
+      "USER INSTRUCTION:",
+      instruction.trim(),
+      "",
+      "JOB DESCRIPTION:",
+      jobDescription.trim(),
+      "",
+      "FULL CURRENT RESUME:",
+      resumeToPlainText(resume),
+      "",
+      "CURRENT SECTION TEXT:",
+      sectionText.trim(),
+    ].join("\n"),
+    maxOutputTokens: 1200,
+    timeoutMs: 45000,
   });
 }
