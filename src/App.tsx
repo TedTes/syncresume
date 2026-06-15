@@ -1,37 +1,154 @@
-import { FileText, KeyRound, Sparkles } from "lucide-react";
+import { CheckCircle2, FileText, KeyRound, Loader2, Sparkles, XCircle } from "lucide-react";
+import { FormEvent, useState } from "react";
+import { DEFAULT_MODEL, openAIErrorMessage, validateApiKey } from "./lib/openai";
+
+type KeyStatus =
+  | { state: "idle"; message: string }
+  | { state: "checking"; message: string }
+  | { state: "valid"; message: string }
+  | { state: "error"; message: string };
 
 export default function App() {
+  const [apiKey, setApiKey] = useState("");
+  const [validatedKey, setValidatedKey] = useState("");
+  const [keyStatus, setKeyStatus] = useState<KeyStatus>({
+    state: "idle",
+    message: "Enter an OpenAI API key to unlock the optimizer.",
+  });
+
+  async function handleKeySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const key = apiKey.trim();
+
+    if (!key) {
+      setKeyStatus({ state: "error", message: "API key is required." });
+      return;
+    }
+
+    setValidatedKey("");
+    setKeyStatus({ state: "checking", message: "Validating key with a lightweight call..." });
+
+    try {
+      await validateApiKey(key);
+      setValidatedKey(key);
+      setKeyStatus({
+        state: "valid",
+        message: "Key validated for this browser session.",
+      });
+    } catch (error) {
+      setKeyStatus({ state: "error", message: openAIErrorMessage(error) });
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="workspace">
-        <div className="brand-strip">
-          <div className="brand-mark" aria-hidden="true">
-            SR
+        <header className="topbar">
+          <div className="brand-strip">
+            <div className="brand-mark" aria-hidden="true">
+              SR
+            </div>
+            <div>
+              <p className="eyebrow">syncresume.io</p>
+              <h1>Resume optimizer workspace</h1>
+            </div>
           </div>
           <div>
-            <p className="eyebrow">syncresume.io</p>
-            <h1>Resume optimizer workspace</h1>
+            <span className="model-pill">{DEFAULT_MODEL}</span>
           </div>
-        </div>
+        </header>
 
-        <div className="starter-grid">
-          <article>
-            <KeyRound aria-hidden="true" />
-            <h2>Session key</h2>
-            <p>Validate a user-provided LLM key without storing it.</p>
-          </article>
-          <article>
-            <FileText aria-hidden="true" />
-            <h2>Resume inputs</h2>
-            <p>Paste text or extract resume content from PDF and DOCX files.</p>
-          </article>
-          <article>
-            <Sparkles aria-hidden="true" />
-            <h2>AI rewrite</h2>
-            <p>Optimize sections, review diffs, edit inline, and export clean files.</p>
-          </article>
+        <div className="workflow-grid">
+          <section className="panel key-panel" aria-labelledby="api-key-title">
+            <div className="panel-heading">
+              <KeyRound aria-hidden="true" />
+              <div>
+                <p className="eyebrow">Step 1</p>
+                <h2 id="api-key-title">API key setup</h2>
+              </div>
+            </div>
+
+            <form className="key-form" onSubmit={handleKeySubmit}>
+              <label htmlFor="api-key">LLM API key</label>
+              <div className="key-row">
+                <input
+                  id="api-key"
+                  autoComplete="off"
+                  type="password"
+                  value={apiKey}
+                  placeholder="sk-..."
+                  onChange={(event) => {
+                    setApiKey(event.target.value);
+                    setValidatedKey("");
+                    setKeyStatus({
+                      state: "idle",
+                      message: "Enter an OpenAI API key to unlock the optimizer.",
+                    });
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={keyStatus.state === "checking" || apiKey.trim().length === 0}
+                >
+                  {keyStatus.state === "checking" ? (
+                    <Loader2 className="spin" aria-hidden="true" />
+                  ) : (
+                    <KeyRound aria-hidden="true" />
+                  )}
+                  Validate
+                </button>
+              </div>
+            </form>
+
+            <StatusMessage status={keyStatus} />
+            <p className="privacy-note">
+              The key lives only in React state, is never persisted, and clears on reload.
+            </p>
+          </section>
+
+          <section className="panel locked-panel" aria-disabled={validatedKey ? undefined : true}>
+            <div className="panel-heading">
+              <FileText aria-hidden="true" />
+              <div>
+                <p className="eyebrow">Step 2</p>
+                <h2>Inputs</h2>
+              </div>
+            </div>
+            <p>
+              Job description, resume paste, and PDF/DOCX extraction unlock after key validation.
+            </p>
+          </section>
+
+          <section className="panel locked-panel" aria-disabled={validatedKey ? undefined : true}>
+            <div className="panel-heading">
+              <Sparkles aria-hidden="true" />
+              <div>
+                <p className="eyebrow">Step 3</p>
+                <h2>Optimization</h2>
+              </div>
+            </div>
+            <p>Structured AI rewrite, review, section revision, and export are queued next.</p>
+          </section>
         </div>
       </section>
     </main>
+  );
+}
+
+function StatusMessage({ status }: { status: KeyStatus }) {
+  const Icon =
+    status.state === "valid"
+      ? CheckCircle2
+      : status.state === "error"
+        ? XCircle
+        : status.state === "checking"
+          ? Loader2
+          : KeyRound;
+
+  return (
+    <div className={`status-message ${status.state}`} role="status">
+      <Icon className={status.state === "checking" ? "spin" : ""} aria-hidden="true" />
+      <span>{status.message}</span>
+    </div>
   );
 }
