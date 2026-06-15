@@ -106,8 +106,9 @@ h1 {
 
 .workflow-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 1.4fr) repeat(2, minmax(220px, 0.8fr));
+  grid-template-columns: minmax(300px, 0.85fr) minmax(420px, 1.4fr) minmax(220px, 0.75fr);
   gap: 16px;
+  align-items: start;
 }
 
 .panel {
@@ -125,7 +126,8 @@ h1 {
   min-height: 240px;
 }
 
-.locked-panel[aria-disabled="true"] {
+.locked-panel[aria-disabled="true"],
+.inputs-panel[aria-disabled="true"] {
   opacity: 0.58;
 }
 
@@ -163,25 +165,62 @@ h1 {
   font-weight: 800;
 }
 
+.input-stack {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.input-stack label,
+.label-row label:first-child {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.label-row {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .key-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
 }
 
-.key-row input {
+.key-row input,
+textarea {
   width: 100%;
-  min-height: 46px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 0 12px;
   background: #ffffff;
   color: var(--ink);
 }
 
-.key-row input:focus {
+.key-row input {
+  min-height: 46px;
+  padding: 0 12px;
+}
+
+textarea {
+  min-height: 172px;
+  resize: vertical;
+  padding: 12px;
+  line-height: 1.5;
+}
+
+.key-row input:focus,
+textarea:focus {
   border-color: var(--accent);
   outline: 3px solid rgba(15, 118, 110, 0.15);
+}
+
+textarea:disabled,
+input:disabled {
+  cursor: not-allowed;
 }
 
 button {
@@ -207,6 +246,60 @@ button:disabled {
 button svg {
   width: 18px;
   height: 18px;
+}
+
+.upload-button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #e7f1ee;
+  color: var(--accent-strong);
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.upload-button.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.upload-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.upload-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.input-meta {
+  display: flex;
+  min-height: 28px;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.input-meta strong {
+  color: var(--danger);
+}
+
+.optimize-button {
+  width: 100%;
+  margin-top: 18px;
 }
 
 .status-message {

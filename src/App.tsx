@@ -1,5 +1,14 @@
-import { CheckCircle2, FileText, KeyRound, Loader2, Sparkles, XCircle } from "lucide-react";
-import { FormEvent, useState } from "react";
+import {
+  CheckCircle2,
+  FileText,
+  KeyRound,
+  Loader2,
+  Sparkles,
+  UploadCloud,
+  XCircle,
+} from "lucide-react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { extractResumeText, type ExtractedFile } from "./lib/fileExtract";
 import { DEFAULT_MODEL, openAIErrorMessage, validateApiKey } from "./lib/openai";
 
 type KeyStatus =
@@ -11,10 +20,23 @@ type KeyStatus =
 export default function App() {
   const [apiKey, setApiKey] = useState("");
   const [validatedKey, setValidatedKey] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [resumeText, setResumeText] = useState("");
+  const [extractedFile, setExtractedFile] = useState<ExtractedFile | null>(null);
+  const [fileError, setFileError] = useState("");
+  const [isExtracting, setIsExtracting] = useState(false);
   const [keyStatus, setKeyStatus] = useState<KeyStatus>({
     state: "idle",
     message: "Enter an OpenAI API key to unlock the optimizer.",
   });
+  const canOptimize = useMemo(
+    () =>
+      Boolean(validatedKey) &&
+      jobDescription.trim().length > 0 &&
+      resumeText.trim().length > 0 &&
+      !isExtracting,
+    [isExtracting, jobDescription, resumeText, validatedKey],
+  );
 
   async function handleKeySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,8 +47,9 @@ export default function App() {
       return;
     }
 
-    setValidatedKey("");
-    setKeyStatus({ state: "checking", message: "Validating key with a lightweight call..." });
+      setValidatedKey("");
+      setExtractedFile(null);
+      setKeyStatus({ state: "checking", message: "Validating key with a lightweight call..." });
 
     try {
       await validateApiKey(key);
@@ -37,6 +60,29 @@ export default function App() {
       });
     } catch (error) {
       setKeyStatus({ state: "error", message: openAIErrorMessage(error) });
+    }
+  }
+
+  async function handleResumeFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setIsExtracting(true);
+    setFileError("");
+    setExtractedFile(null);
+
+    try {
+      const extracted = await extractResumeText(file);
+      setResumeText(extracted.text);
+      setExtractedFile(extracted);
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : "Could not extract resume text.");
+    } finally {
+      setIsExtracting(false);
     }
   }
 
@@ -106,7 +152,7 @@ export default function App() {
             </p>
           </section>
 
-          <section className="panel locked-panel" aria-disabled={validatedKey ? undefined : true}>
+          <section className="panel inputs-panel" aria-disabled={validatedKey ? undefined : true}>
             <div className="panel-heading">
               <FileText aria-hidden="true" />
               <div>
@@ -114,9 +160,64 @@ export default function App() {
                 <h2>Inputs</h2>
               </div>
             </div>
-            <p>
-              Job description, resume paste, and PDF/DOCX extraction unlock after key validation.
-            </p>
+
+            <div className="input-stack">
+              <label htmlFor="job-description">Job description</label>
+              <textarea
+                id="job-description"
+                value={jobDescription}
+                disabled={!validatedKey || isExtracting}
+                placeholder="Paste the full job description..."
+                onChange={(event) => setJobDescription(event.target.value)}
+              />
+            </div>
+
+            <div className="input-stack">
+              <div className="label-row">
+                <label htmlFor="resume-text">Resume text</label>
+                <label className={`upload-button ${!validatedKey ? "disabled" : ""}`}>
+                  {isExtracting ? (
+                    <Loader2 className="spin" aria-hidden="true" />
+                  ) : (
+                    <UploadCloud aria-hidden="true" />
+                  )}
+                  Upload
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    disabled={!validatedKey || isExtracting}
+                    onChange={handleResumeFile}
+                  />
+                </label>
+              </div>
+              <textarea
+                id="resume-text"
+                value={resumeText}
+                disabled={!validatedKey || isExtracting}
+                placeholder="Paste resume text or upload a PDF/DOCX..."
+                onChange={(event) => {
+                  setResumeText(event.target.value);
+                  setExtractedFile(null);
+                }}
+              />
+            </div>
+
+            <div className="input-meta">
+              {extractedFile ? (
+                <span>
+                  {extractedFile.name} · {extractedFile.characterCount.toLocaleString()} characters
+                  extracted
+                </span>
+              ) : (
+                <span>PDF and DOCX extraction runs locally in this browser.</span>
+              )}
+              {fileError ? <strong>{fileError}</strong> : null}
+            </div>
+
+            <button className="optimize-button" type="button" disabled={!canOptimize}>
+              <Sparkles aria-hidden="true" />
+              Optimize resume
+            </button>
           </section>
 
           <section className="panel locked-panel" aria-disabled={validatedKey ? undefined : true}>
