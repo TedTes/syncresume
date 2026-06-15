@@ -529,6 +529,35 @@ button svg {
   outline: 3px solid rgba(15, 118, 110, 0.15);
 }
 
+.export-panel {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f9f7f0;
+}
+
+.export-panel h2 {
+  margin-bottom: 0;
+  font-size: 1.05rem;
+}
+
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.export-status {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
 .status-message {
   display: flex;
   align-items: flex-start;
@@ -586,7 +615,8 @@ button svg {
   .diff-grid,
   .editor-grid,
   .section-heading,
-  .revision-row {
+  .revision-row,
+  .export-panel {
     grid-template-columns: 1fr;
   }
 
@@ -598,6 +628,14 @@ button svg {
   .score-grid {
     width: 100%;
     min-width: 0;
+  }
+
+  .export-actions {
+    justify-content: stretch;
+  }
+
+  .export-actions button {
+    flex: 1 1 140px;
   }
 
   .brand-strip {

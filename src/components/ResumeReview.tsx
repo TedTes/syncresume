@@ -1,6 +1,15 @@
 import { FormEvent, useMemo, useState } from "react";
-import { CheckCircle2, Loader2, RefreshCw, WandSparkles } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardCopy,
+  Download,
+  FileDown,
+  Loader2,
+  RefreshCw,
+  WandSparkles,
+} from "lucide-react";
 import { reviseResumeSection } from "../lib/aiResume";
+import { copyPlainText, downloadDocx, downloadPdf } from "../lib/exportResume";
 import { openAIErrorMessage } from "../lib/openai";
 import {
   diffWords,
@@ -36,6 +45,8 @@ export function ResumeReview({
   const [revisionInstructions, setRevisionInstructions] = useState<Record<string, string>>({});
   const [revisingSectionId, setRevisingSectionId] = useState("");
   const [revisionError, setRevisionError] = useState("");
+  const [exportStatus, setExportStatus] = useState("");
+  const [exportError, setExportError] = useState("");
   const optimizedText = useMemo(() => resumeToPlainText(resume), [resume]);
   const diff = useMemo(
     () => diffWords(originalResumeText, optimizedText),
@@ -90,6 +101,28 @@ export function ResumeReview({
       setRevisionError(openAIErrorMessage(error));
     } finally {
       setRevisingSectionId("");
+    }
+  }
+
+  async function handleExport(action: "docx" | "pdf" | "copy") {
+    setExportStatus("");
+    setExportError("");
+
+    try {
+      if (action === "docx") {
+        await downloadDocx(resume);
+        setExportStatus("DOCX downloaded.");
+      }
+      if (action === "pdf") {
+        downloadPdf(resume);
+        setExportStatus("PDF downloaded.");
+      }
+      if (action === "copy") {
+        await copyPlainText(resume);
+        setExportStatus("Plain text copied.");
+      }
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Export failed.");
     }
   }
 
@@ -151,6 +184,29 @@ export function ResumeReview({
       </div>
 
       {revisionError ? <div className="inline-error">{revisionError}</div> : null}
+
+      <section className="export-panel" aria-labelledby="export-title">
+        <div>
+          <p className="eyebrow">Step 5</p>
+          <h2 id="export-title">Export</h2>
+        </div>
+        <div className="export-actions">
+          <button type="button" onClick={() => handleExport("docx")}>
+            <FileDown aria-hidden="true" />
+            DOCX
+          </button>
+          <button type="button" onClick={() => handleExport("pdf")}>
+            <Download aria-hidden="true" />
+            PDF
+          </button>
+          <button type="button" onClick={() => handleExport("copy")}>
+            <ClipboardCopy aria-hidden="true" />
+            Copy text
+          </button>
+        </div>
+        {exportStatus ? <span className="export-status">{exportStatus}</span> : null}
+        {exportError ? <div className="inline-error">{exportError}</div> : null}
+      </section>
     </section>
   );
 }
