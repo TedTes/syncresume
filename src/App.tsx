@@ -8,8 +8,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { optimizeResume } from "./lib/aiResume";
 import { extractResumeText, type ExtractedFile } from "./lib/fileExtract";
 import { DEFAULT_MODEL, openAIErrorMessage, validateApiKey } from "./lib/openai";
+import { resumeToPlainText, type StructuredResume } from "./lib/resume";
 
 type KeyStatus =
   | { state: "idle"; message: string }
@@ -22,6 +24,9 @@ export default function App() {
   const [validatedKey, setValidatedKey] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [resumeText, setResumeText] = useState("");
+  const [optimizedResume, setOptimizedResume] = useState<StructuredResume | null>(null);
+  const [optimizeError, setOptimizeError] = useState("");
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const [extractedFile, setExtractedFile] = useState<ExtractedFile | null>(null);
   const [fileError, setFileError] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
@@ -37,6 +42,7 @@ export default function App() {
       !isExtracting,
     [isExtracting, jobDescription, resumeText, validatedKey],
   );
+  const optimizedText = optimizedResume ? resumeToPlainText(optimizedResume) : "";
 
   async function handleKeySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,6 +60,8 @@ export default function App() {
     try {
       await validateApiKey(key);
       setValidatedKey(key);
+      setOptimizedResume(null);
+      setOptimizeError("");
       setKeyStatus({
         state: "valid",
         message: "Key validated for this browser session.",
@@ -78,11 +86,35 @@ export default function App() {
     try {
       const extracted = await extractResumeText(file);
       setResumeText(extracted.text);
+      setOptimizedResume(null);
+      setOptimizeError("");
       setExtractedFile(extracted);
     } catch (error) {
       setFileError(error instanceof Error ? error.message : "Could not extract resume text.");
     } finally {
       setIsExtracting(false);
+    }
+  }
+
+  async function handleOptimize() {
+    if (!canOptimize) {
+      return;
+    }
+
+    setIsOptimizing(true);
+    setOptimizeError("");
+
+    try {
+      const result = await optimizeResume({
+        apiKey: validatedKey,
+        jobDescription,
+        resumeText,
+      });
+      setOptimizedResume(result);
+    } catch (error) {
+      setOptimizeError(openAIErrorMessage(error));
+    } finally {
+      setIsOptimizing(false);
     }
   }
 
@@ -126,6 +158,8 @@ export default function App() {
                   onChange={(event) => {
                     setApiKey(event.target.value);
                     setValidatedKey("");
+                    setOptimizedResume(null);
+                    setOptimizeError("");
                     setKeyStatus({
                       state: "idle",
                       message: "Enter an OpenAI API key to unlock the optimizer.",
@@ -166,9 +200,13 @@ export default function App() {
               <textarea
                 id="job-description"
                 value={jobDescription}
-                disabled={!validatedKey || isExtracting}
+                disabled={!validatedKey || isExtracting || isOptimizing}
                 placeholder="Paste the full job description..."
-                onChange={(event) => setJobDescription(event.target.value)}
+                onChange={(event) => {
+                  setJobDescription(event.target.value);
+                  setOptimizedResume(null);
+                  setOptimizeError("");
+                }}
               />
             </div>
 
@@ -185,7 +223,7 @@ export default function App() {
                   <input
                     type="file"
                     accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    disabled={!validatedKey || isExtracting}
+                    disabled={!validatedKey || isExtracting || isOptimizing}
                     onChange={handleResumeFile}
                   />
                 </label>
@@ -193,10 +231,12 @@ export default function App() {
               <textarea
                 id="resume-text"
                 value={resumeText}
-                disabled={!validatedKey || isExtracting}
+                disabled={!validatedKey || isExtracting || isOptimizing}
                 placeholder="Paste resume text or upload a PDF/DOCX..."
                 onChange={(event) => {
                   setResumeText(event.target.value);
+                  setOptimizedResume(null);
+                  setOptimizeError("");
                   setExtractedFile(null);
                 }}
               />
@@ -214,9 +254,18 @@ export default function App() {
               {fileError ? <strong>{fileError}</strong> : null}
             </div>
 
-            <button className="optimize-button" type="button" disabled={!canOptimize}>
-              <Sparkles aria-hidden="true" />
-              Optimize resume
+            <button
+              className="optimize-button"
+              type="button"
+              disabled={!canOptimize || isOptimizing}
+              onClick={handleOptimize}
+            >
+              {isOptimizing ? (
+                <Loader2 className="spin" aria-hidden="true" />
+              ) : (
+                <Sparkles aria-hidden="true" />
+              )}
+              {isOptimizing ? "Optimizing..." : "Optimize resume"}
             </button>
           </section>
 
@@ -228,7 +277,31 @@ export default function App() {
                 <h2>Optimization</h2>
               </div>
             </div>
-            <p>Structured AI rewrite, review, section revision, and export are queued next.</p>
+            {isOptimizing ? (
+              <div className="progress-box">
+                <Loader2 className="spin" aria-hidden="true" />
+                <div>
+                  <strong>Generating structured resume</strong>
+                  <span>Estimated wait: 20-45 seconds.</span>
+                </div>
+              </div>
+            ) : optimizedResume ? (
+              <div className="result-box">
+                <CheckCircle2 aria-hidden="true" />
+                <div>
+                  <strong>Optimized draft ready</strong>
+                  <span>
+                    {optimizedResume.experience.length} role
+                    {optimizedResume.experience.length === 1 ? "" : "s"} ·{" "}
+                    {optimizedResume.skills.length} skills · {optimizedText.length.toLocaleString()}{" "}
+                    characters
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p>Structured AI rewrite, review, section revision, and export are queued next.</p>
+            )}
+            {optimizeError ? <div className="inline-error">{optimizeError}</div> : null}
           </section>
         </div>
       </section>

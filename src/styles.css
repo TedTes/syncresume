@@ -302,6 +302,49 @@ button svg {
   margin-top: 18px;
 }
 
+.progress-box,
+.result-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f9f7f0;
+}
+
+.progress-box > svg,
+.result-box > svg {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+}
+
+.progress-box strong,
+.progress-box span,
+.result-box strong,
+.result-box span {
+  display: block;
+}
+
+.progress-box span,
+.result-box span {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.inline-error {
+  margin-top: 12px;
+  border: 1px solid rgba(180, 35, 24, 0.24);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff1ef;
+  color: var(--danger);
+  line-height: 1.45;
+}
+
 .status-message {
   display: flex;
   align-items: flex-start;
