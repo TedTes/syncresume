@@ -21,6 +21,22 @@ npm run dev
 npm run build
 ```
 
+## Cloudflare Environment
+
+The Cloudflare backend lives in `cloudflare/` and is configured by `wrangler.toml`.
+
+```bash
+npm run cf:typecheck
+npm run cf:dev
+npm run cf:d1:apply
+npm run cf:deploy
+npm run cf:pages:deploy
+```
+
+Before deploying, create a D1 database and R2 bucket in Cloudflare, then replace
+`REPLACE_WITH_D1_DATABASE_ID` in `wrangler.toml`. Store `OPENAI_API_KEY` as a
+Worker secret.
+
 ## Supabase Environment
 
 Create `.env.local` from `.env.example`:
