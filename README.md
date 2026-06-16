@@ -27,8 +27,8 @@ The Cloudflare backend lives in `cloudflare/` and is configured by `wrangler.tom
 
 ```bash
 npm run cf:typecheck
+npm run cf:d1:apply:local
 npm run cf:dev
-npm run cf:d1:apply
 npm run cf:deploy
 npm run cf:pages:deploy
 ```

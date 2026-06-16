@@ -10,7 +10,8 @@
     "cf:typecheck": "tsc -p tsconfig.worker.json",
     "cf:dev": "WRANGLER_WRITE_LOGS=false wrangler dev --local",
     "cf:deploy": "WRANGLER_WRITE_LOGS=false wrangler deploy",
-    "cf:d1:apply": "WRANGLER_WRITE_LOGS=false wrangler d1 migrations apply syncresume",
+    "cf:d1:apply:local": "WRANGLER_WRITE_LOGS=false wrangler d1 migrations apply syncresume --local",
+    "cf:d1:apply": "WRANGLER_WRITE_LOGS=false wrangler d1 migrations apply syncresume --remote",
     "cf:pages:deploy": "npm run build && WRANGLER_WRITE_LOGS=false wrangler pages deploy dist --project-name syncresume"
   },
   "dependencies": {
