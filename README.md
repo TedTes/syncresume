@@ -35,7 +35,8 @@ npm run cf:pages:deploy
 
 Before deploying, create a D1 database and R2 bucket in Cloudflare, then replace
 `REPLACE_WITH_D1_DATABASE_ID` in `wrangler.toml`. Store `OPENAI_API_KEY` as a
-Worker secret.
+Worker secret. For production magic-link email, store `RESEND_API_KEY` as a
+Worker secret and set `AUTH_DEV_MODE = "false"`.
 
 ## Supabase Environment
 
