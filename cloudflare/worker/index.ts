@@ -117,6 +117,11 @@ export default {
         return handleDeleteResume(request, env, corsHeaders, resumeMatch[1]);
       }
 
+      const resumeUsageMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/usage$/);
+      if (resumeUsageMatch && request.method === "PATCH") {
+        return handleIncrementResumeUsage(request, env, corsHeaders, resumeUsageMatch[1]);
+      }
+
       if (url.pathname === "/api/runs" && request.method === "GET") {
         return handleListRuns(request, env, corsHeaders);
       }
@@ -376,6 +381,32 @@ async function handleDeleteResume(
   if (resume?.storage_key) {
     await env.RESUME_BUCKET.delete(resume.storage_key);
   }
+
+  return json({ ok: true }, { headers });
+}
+
+async function handleIncrementResumeUsage(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  resumeId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const resume = await env.DB.prepare(
+    "select usage_count from resumes where user_id = ? and id = ?",
+  )
+    .bind(user.id, resumeId)
+    .first<{ usage_count: number }>();
+
+  if (!resume) {
+    return json({ error: "Resume not found." }, { status: 404, headers });
+  }
+
+  await env.DB.prepare(
+    "update resumes set usage_count = ?, updated_at = current_timestamp where user_id = ? and id = ?",
+  )
+    .bind(resume.usage_count + 1, user.id, resumeId)
+    .run();
 
   return json({ ok: true }, { headers });
 }

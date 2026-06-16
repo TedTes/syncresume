@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useAuth } from "./AuthContext";
+import { CloudflareStorageAdapter } from "../lib/storage/cloudflareAdapter";
 import { LocalStorageAdapter } from "../lib/storage/localAdapter";
 import { SupabaseStorageAdapter } from "../lib/storage/supabaseAdapter";
 import type {
@@ -39,13 +40,17 @@ const AppDataContext = createContext<AppDataContextValue | null>(null);
 const localStorageAdapter = new LocalStorageAdapter();
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
+  const { isConfigured: hasBackend, isLoading: isAuthLoading, provider, user } = useAuth();
   const [resumes, setResumes] = useState<ResumeRecord[]>([]);
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const storage = useMemo<StorageAdapter>(
-    () => (hasBackend ? new SupabaseStorageAdapter() : localStorageAdapter),
-    [hasBackend, user?.id],
+    () => {
+      if (provider === "cloudflare") return new CloudflareStorageAdapter();
+      if (provider === "supabase") return new SupabaseStorageAdapter();
+      return localStorageAdapter;
+    },
+    [provider, user?.id],
   );
 
   const refresh = useCallback(async () => {
