@@ -40,7 +40,7 @@ export default function OptimizerPage() {
     setActiveResume,
     addRun,
     incrementResumeUsage,
-    updateRunStatus,
+    recordExport,
     refresh,
   } = useAppData();
   const { provider, toggles } = useSettings();
@@ -343,9 +343,9 @@ export default function OptimizerPage() {
               resume={optimizedResume}
               provider={provider}
               onResumeChange={setOptimizedResume}
-              onExported={() => {
+              onExported={(exportType) => {
                 if (currentRunId) {
-                  void updateRunStatus(currentRunId, "exported");
+                  return recordExport(currentRunId, exportType);
                 }
               }}
             />

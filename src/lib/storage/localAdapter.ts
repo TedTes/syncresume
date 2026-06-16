@@ -4,6 +4,7 @@ import type {
   ResumeRecord,
   RunRecord,
   RunStatus,
+  ExportType,
   StorageAdapter,
 } from "./types";
 
@@ -101,5 +102,9 @@ export class LocalStorageAdapter implements StorageAdapter {
       RUNS_KEY,
       runs.map((run) => (run.id === id ? { ...run, status } : run)),
     );
+  }
+
+  async recordExport(runId: string, _exportType: ExportType): Promise<void> {
+    await this.updateRunStatus(runId, "exported");
   }
 }

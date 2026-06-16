@@ -25,6 +25,7 @@ import {
   type KeywordScore,
   type StructuredResume,
 } from "../lib/resume";
+import type { ExportType } from "../lib/storage";
 
 type ResumeReviewProps = {
   jobDescription: string;
@@ -32,7 +33,7 @@ type ResumeReviewProps = {
   resume: StructuredResume;
   provider: LLMProvider;
   onResumeChange: (resume: StructuredResume) => void;
-  onExported?: () => void;
+  onExported?: (exportType: ExportType) => void | Promise<void>;
 };
 
 type SectionConfig = {
@@ -121,16 +122,17 @@ export function ResumeReview({
     try {
       if (action === "docx") {
         await downloadDocx(resume);
+        await onExported?.(action);
         setExportStatus("DOCX downloaded.");
-        onExported?.();
       }
       if (action === "pdf") {
         await downloadPdf(resume);
+        await onExported?.(action);
         setExportStatus("PDF downloaded.");
-        onExported?.();
       }
       if (action === "copy") {
         await copyPlainText(resume);
+        await onExported?.(action);
         setExportStatus("Copied to clipboard.");
       }
     } catch (error) {

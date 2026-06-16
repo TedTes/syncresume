@@ -13,6 +13,7 @@ import { SupabaseStorageAdapter } from "../lib/storage/supabaseAdapter";
 import type {
   NewResumeInput,
   NewRunInput,
+  ExportType,
   ResumeRecord,
   RunRecord,
   RunStatus,
@@ -30,6 +31,7 @@ type AppDataContextValue = {
   incrementResumeUsage: (id: string) => Promise<void>;
   addRun: (input: NewRunInput) => Promise<RunRecord>;
   updateRunStatus: (id: string, status: RunStatus) => Promise<void>;
+  recordExport: (runId: string, exportType: ExportType) => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -109,6 +111,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     await refresh();
   }
 
+  async function recordExport(runId: string, exportType: ExportType) {
+    await storage.recordExport(runId, exportType);
+    await refresh();
+  }
+
   const activeResume = resumes.find((resume) => resume.isActive) ?? null;
 
   const value: AppDataContextValue = {
@@ -122,6 +129,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     incrementResumeUsage,
     addRun,
     updateRunStatus,
+    recordExport,
     refresh,
   };
 

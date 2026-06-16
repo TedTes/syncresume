@@ -12,6 +12,7 @@ export type ResumeRecord = {
 };
 
 export type RunStatus = "draft" | "exported";
+export type ExportType = "docx" | "pdf" | "copy";
 
 export type RunRecord = {
   id: string;
@@ -48,4 +49,5 @@ export interface StorageAdapter {
   listRuns(): Promise<RunRecord[]>;
   saveRun(input: NewRunInput): Promise<RunRecord>;
   updateRunStatus(id: string, status: RunStatus): Promise<void>;
+  recordExport(runId: string, exportType: ExportType): Promise<void>;
 }

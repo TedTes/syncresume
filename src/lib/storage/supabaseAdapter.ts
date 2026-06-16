@@ -4,6 +4,7 @@ import type {
   ResumeRecord,
   RunRecord,
   RunStatus,
+  ExportType,
   StorageAdapter,
 } from "./types";
 import { getSupabaseClient, SUPABASE_RESUME_BUCKET } from "../supabase/client";
@@ -233,5 +234,26 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       .eq("id", id);
 
     if (error) throw new Error(error.message);
+  }
+
+  async recordExport(runId: string, exportType: ExportType): Promise<void> {
+    const userId = await this.requireUserId();
+    const supabase = getSupabaseClient();
+
+    const { error: eventError } = await supabase.from("export_events").insert({
+      user_id: userId,
+      run_id: runId,
+      export_type: exportType,
+    });
+
+    if (eventError) throw new Error(eventError.message);
+
+    const { error: statusError } = await supabase
+      .from("optimization_runs")
+      .update({ status: "exported" })
+      .eq("user_id", userId)
+      .eq("id", runId);
+
+    if (statusError) throw new Error(statusError.message);
   }
 }
