@@ -1,6 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { getProviderInfo, type LLMProvider } from "../lib/providers/types";
-import { getSessionApiKey, setSessionApiKey } from "../lib/runtimeConfig";
 
 type OptimizationToggles = {
   autoDetectRequirements: boolean;
@@ -35,8 +34,6 @@ function readProvider(): LLMProvider {
 type SettingsContextValue = {
   provider: LLMProvider;
   setProvider: (provider: LLMProvider) => void;
-  apiKey: string;
-  setApiKey: (key: string) => void;
   model: string;
   toggles: OptimizationToggles;
   setToggle: (key: keyof OptimizationToggles, value: boolean) => void;
@@ -46,8 +43,6 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [provider, setProviderState] = useState<LLMProvider>(() => readProvider());
-  // Seeded from runtimeConfig (memory-only) — never read from/written to localStorage.
-  const [apiKey, setApiKeyState] = useState<string>(() => getSessionApiKey());
   const [toggles, setToggles] = useState<OptimizationToggles>(() => readToggles());
 
   useEffect(() => {
@@ -58,11 +53,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(TOGGLES_KEY, JSON.stringify(toggles));
   }, [toggles]);
 
-  function setApiKey(key: string) {
-    setSessionApiKey(key);
-    setApiKeyState(key.trim());
-  }
-
   function setToggle(key: keyof OptimizationToggles, value: boolean) {
     setToggles((current) => ({ ...current, [key]: value }));
   }
@@ -70,8 +60,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const value: SettingsContextValue = {
     provider,
     setProvider: setProviderState,
-    apiKey,
-    setApiKey,
     model: getProviderInfo(provider).model,
     toggles,
     setToggle,

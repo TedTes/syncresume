@@ -1333,11 +1333,50 @@ a {
   color: var(--accent-strong);
 }
 
-.api-key-input-row {
+.auth-email-form {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 280px;
+  width: min(100%, 420px);
+}
+
+.auth-email-input {
+  position: relative;
+  flex: 1;
+}
+
+.auth-email-input svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.auth-email-input .field-input {
+  padding-left: 36px;
+}
+
+.settings-row-stacked {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.settings-inline-error,
+.settings-inline-success {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.settings-inline-error {
+  color: var(--danger);
+}
+
+.settings-inline-success {
+  color: var(--success);
 }
 
 .toggle-switch {
