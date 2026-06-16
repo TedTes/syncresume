@@ -1,18 +1,31 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import {
+  clearCloudflareSessionToken,
+  cloudflareRequest,
+  getCloudflareSessionToken,
+  hasCloudflareConfig,
+  setCloudflareSessionToken,
+  type CloudflareUser,
+} from "../lib/cloudflare/client";
 import { getSupabaseClient, hasSupabaseConfig } from "../lib/supabase/client";
 import type { Database } from "../lib/supabase/database.types";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type SupabaseProfile = Database["public"]["Tables"]["profiles"]["Row"];
+type AuthProviderKind = "cloudflare" | "supabase" | "local";
+type AuthUser = (Pick<User, "id" | "email"> & { plan?: string }) | CloudflareUser;
+type Profile = Pick<SupabaseProfile, "id" | "email" | "plan">;
+type AuthSession = Session | { provider: "cloudflare"; token: string } | null;
 
 type AuthContextValue = {
   isConfigured: boolean;
   isLoading: boolean;
-  user: User | null;
-  session: Session | null;
+  provider: AuthProviderKind;
+  user: AuthUser | null;
+  session: AuthSession;
   profile: Profile | null;
   authError: string | null;
-  signInWithEmail: (email: string) => Promise<void>;
+  signInWithEmail: (email: string) => Promise<string | void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -24,9 +37,14 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const isConfigured = hasSupabaseConfig();
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const provider: AuthProviderKind = hasCloudflareConfig()
+    ? "cloudflare"
+    : hasSupabaseConfig()
+      ? "supabase"
+      : "local";
+  const isConfigured = provider !== "local";
+  const [session, setSession] = useState<AuthSession>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(isConfigured);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -35,6 +53,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isConfigured) {
       setIsLoading(false);
       return;
+    }
+
+    if (provider === "cloudflare") {
+      let active = true;
+      const params = new URLSearchParams(window.location.search);
+      const magicToken = params.get("cf_token");
+      const existingToken = getCloudflareSessionToken();
+
+      async function loadCloudflareSession() {
+        try {
+          if (magicToken) {
+            const data = await cloudflareRequest<{ sessionToken: string; user: CloudflareUser }>(
+              "/api/auth/verify",
+              {
+                method: "POST",
+                body: { token: magicToken },
+                auth: false,
+              },
+            );
+            setCloudflareSessionToken(data.sessionToken);
+            if (active) {
+              setSession({ provider: "cloudflare", token: data.sessionToken });
+              setUser(data.user);
+              setProfile({ id: data.user.id, email: data.user.email, plan: data.user.plan });
+            }
+            params.delete("cf_token");
+            const nextQuery = params.toString();
+            window.history.replaceState(
+              null,
+              "",
+              `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`,
+            );
+            return;
+          }
+
+          if (existingToken) {
+            const data = await cloudflareRequest<{ user: CloudflareUser }>("/api/me");
+            if (active) {
+              setSession({ provider: "cloudflare", token: existingToken });
+              setUser(data.user);
+              setProfile({ id: data.user.id, email: data.user.email, plan: data.user.plan });
+            }
+          }
+        } catch (error) {
+          clearCloudflareSessionToken();
+          if (active) setAuthError(getErrorMessage(error));
+        } finally {
+          if (active) setIsLoading(false);
+        }
+      }
+
+      void loadCloudflareSession();
+
+      return () => {
+        active = false;
+      };
     }
 
     let active = true;
@@ -67,11 +141,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
       subscription.unsubscribe();
     };
-  }, [isConfigured]);
+  }, [isConfigured, provider]);
 
   const refreshProfile = useCallback(async () => {
     if (!isConfigured || !user) {
       setProfile(null);
+      return;
+    }
+
+    if (provider === "cloudflare") {
+      setProfile({
+        id: user.id,
+        email: user.email ?? null,
+        plan: "plan" in user && user.plan ? user.plan : "Free",
+      });
       return;
     }
 
@@ -87,18 +170,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setProfile(data);
-  }, [isConfigured, user]);
+  }, [isConfigured, provider, user]);
 
   useEffect(() => {
     void refreshProfile();
   }, [refreshProfile]);
 
-  async function signInWithEmail(email: string) {
+  async function signInWithEmail(email: string): Promise<string | void> {
     if (!isConfigured) {
-      throw new Error("Supabase is not configured.");
+      throw new Error("Backend is not configured.");
     }
 
     setAuthError(null);
+
+    if (provider === "cloudflare") {
+      const data = await cloudflareRequest<{ sent?: boolean; devLink?: string }>(
+        "/api/auth/login",
+        {
+          method: "POST",
+          body: { email },
+          auth: false,
+        },
+      );
+      return data.devLink
+        ? `Development sign-in link: ${data.devLink}`
+        : "Check your inbox for the sign-in link.";
+    }
+
     const { error } = await getSupabaseClient().auth.signInWithOtp({
       email,
       options: {
@@ -115,6 +213,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     if (!isConfigured) return;
     setAuthError(null);
+
+    if (provider === "cloudflare") {
+      await cloudflareRequest("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+      clearCloudflareSessionToken();
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      return;
+    }
+
     const { error } = await getSupabaseClient().auth.signOut();
     if (error) {
       setAuthError(error.message);
@@ -126,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     isConfigured,
     isLoading,
+    provider,
     user,
     session,
     profile,

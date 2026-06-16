@@ -6,7 +6,7 @@ import { PROVIDERS } from "../lib/providers/types";
 
 export default function SettingsPage() {
   const { provider, setProvider, model, toggles, setToggle } = useSettings();
-  const { isConfigured, isLoading, user, profile, authError, signInWithEmail, signOut } = useAuth();
+  const { isConfigured, isLoading, provider: authProvider, user, profile, authError, signInWithEmail, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
@@ -19,8 +19,8 @@ export default function SettingsPage() {
     setIsSubmittingAuth(true);
     setAuthNotice(null);
     try {
-      await signInWithEmail(trimmedEmail);
-      setAuthNotice("Check your inbox for the sign-in link.");
+      const notice = await signInWithEmail(trimmedEmail);
+      setAuthNotice(notice || "Check your inbox for the sign-in link.");
     } catch (error) {
       setAuthNotice(error instanceof Error ? error.message : "Sign-in failed.");
     } finally {
@@ -127,7 +127,11 @@ export default function SettingsPage() {
                 <div className="settings-row">
                   <div>
                     <p className="settings-row-label">Session</p>
-                    <p className="settings-row-desc">Supabase keeps the account session active.</p>
+                    <p className="settings-row-desc">
+                      {authProvider === "cloudflare"
+                        ? "Cloudflare keeps the account session active."
+                        : "Supabase keeps the account session active."}
+                    </p>
                   </div>
                   <button className="btn btn-secondary btn-sm" type="button" onClick={() => void signOut()}>
                     <LogOut aria-hidden="true" />
