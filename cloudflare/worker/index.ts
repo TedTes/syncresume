@@ -1,3 +1,7 @@
+import { fetchJobPageText } from "./jobPage";
+import { optimizeResume, reviseResumeSection } from "./openai";
+import { normalizeStructuredResume, resumeToPlainText, scoreKeywords } from "./resume";
+
 export interface Env {
   DB: D1Database;
   RESUME_BUCKET: R2Bucket;
@@ -130,6 +134,18 @@ export default {
         return handleRecordExport(request, env, corsHeaders);
       }
 
+      if (url.pathname === "/api/optimize" && request.method === "POST") {
+        return handleOptimize(request, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/revise-section" && request.method === "POST") {
+        return handleReviseSection(request, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/fetch-job-page" && request.method === "POST") {
+        return handleFetchJobPage(request, corsHeaders);
+      }
+
       return json({ error: "Not found" }, { status: 404, headers: corsHeaders });
     } catch (error) {
       return json(
@@ -139,6 +155,121 @@ export default {
     }
   },
 };
+
+async function handleOptimize(request: Request, env: Env, headers: Headers): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const provider = String(body.provider || "openai");
+  const jobDescription = asNonEmptyString(body.jobDescription);
+  const resumeId = asNonEmptyString(body.resumeId);
+  let resumeText = asNonEmptyString(body.resumeText);
+  let resumeName = asNonEmptyString(body.resumeName) || "Resume";
+  let usageCount = 0;
+
+  if (provider !== "openai") {
+    return json({ error: `${provider} optimization is not wired on Cloudflare yet.` }, { status: 400, headers });
+  }
+
+  if (jobDescription.length < 20) {
+    return json({ error: "Paste a complete job description before optimizing." }, { status: 400, headers });
+  }
+
+  if (resumeId) {
+    const resume = await env.DB.prepare(
+      "select name, extracted_text, usage_count from resumes where user_id = ? and id = ?",
+    )
+      .bind(user.id, resumeId)
+      .first<{ name: string; extracted_text: string; usage_count: number }>();
+
+    if (!resume) {
+      return json({ error: "Resume not found." }, { status: 404, headers });
+    }
+
+    resumeText = resume.extracted_text;
+    resumeName = resume.name;
+    usageCount = resume.usage_count;
+  }
+
+  if (resumeText.length < 50) {
+    return json({ error: "Upload or paste a readable resume before optimizing." }, { status: 400, headers });
+  }
+
+  const optimizedResume = await optimizeResume(env, { jobDescription, resumeText });
+  const score = scoreKeywords(jobDescription, resumeToPlainText(optimizedResume));
+  let run = null;
+
+  if (resumeId) {
+    await env.DB.prepare(
+      "update resumes set usage_count = ?, updated_at = current_timestamp where user_id = ? and id = ?",
+    )
+      .bind(usageCount + 1, user.id, resumeId)
+      .run();
+  }
+
+  if (body.saveRunHistory !== false && resumeId) {
+    const row = await env.DB.prepare(
+      [
+        "insert into optimization_runs",
+        "(id, user_id, resume_id, resume_name, title, job_description, optimized_resume, score, status)",
+        "values (?, ?, ?, ?, ?, ?, ?, ?, 'draft')",
+        "returning id, title, resume_id, resume_name, job_description, score, status, created_at",
+      ].join(" "),
+    )
+      .bind(
+        crypto.randomUUID(),
+        user.id,
+        resumeId,
+        resumeName,
+        asNonEmptyString(body.title) || deriveRunTitle(jobDescription),
+        jobDescription,
+        JSON.stringify(optimizedResume),
+        score,
+      )
+      .first<RunRow>();
+
+    run = row ? mapRun(row) : null;
+  }
+
+  return json({ resume: optimizedResume, score, run }, { headers });
+}
+
+async function handleReviseSection(request: Request, env: Env, headers: Headers): Promise<Response> {
+  await requireSession(request, env);
+  const body = await readJson(request);
+  const provider = String(body.provider || "openai");
+  const jobDescription = asNonEmptyString(body.jobDescription);
+  const instruction = asNonEmptyString(body.instruction);
+  const sectionText = asNonEmptyString(body.sectionText);
+  const sectionLabel = asNonEmptyString(body.sectionLabel) || "Resume section";
+
+  if (provider !== "openai") {
+    return json({ error: `${provider} section revision is not wired on Cloudflare yet.` }, { status: 400, headers });
+  }
+
+  if (!instruction) {
+    return json({ error: "Add a revision instruction before submitting." }, { status: 400, headers });
+  }
+
+  if (jobDescription.length < 20 || sectionText.length < 5) {
+    return json({ error: "Missing job description or section text." }, { status: 400, headers });
+  }
+
+  const revisedText = await reviseResumeSection(env, {
+    jobDescription,
+    resume: normalizeStructuredResume(body.resume),
+    sectionLabel,
+    sectionText,
+    instruction,
+  });
+
+  return json({ revisedText }, { headers });
+}
+
+async function handleFetchJobPage(request: Request, headers: Headers): Promise<Response> {
+  const body = await readJson(request);
+  const text = await fetchJobPageText(asNonEmptyString(body.url));
+  return json({ text }, { headers });
+}
 
 async function handleListResumes(request: Request, env: Env, headers: Headers): Promise<Response> {
   const { user } = await requireSession(request, env);
@@ -612,6 +743,16 @@ function sanitizeFileName(name: string): string {
 
 function asNonEmptyString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function deriveRunTitle(jobDescription: string): string {
+  const firstLine = jobDescription
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+
+  if (!firstLine) return "Untitled role";
+  return firstLine.length > 70 ? `${firstLine.slice(0, 67)}...` : firstLine;
 }
 
 function isFileLike(value: unknown): value is File {
