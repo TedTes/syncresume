@@ -1,6 +1,6 @@
 # SyncResume
 
-SyncResume is a client-side resume optimization workspace. Users provide a session-only LLM API key, paste a job description and resume, optimize the resume into structured sections, review changes, edit targeted sections, and export the result.
+SyncResume is a resume optimization workspace. Users keep a resume library, add a target job description, run an LLM optimization, review structured sections, and export ATS-safe files.
 
 ## Implementation checkpoints
 
@@ -20,3 +20,14 @@ npm install
 npm run dev
 npm run build
 ```
+
+## Supabase Environment
+
+Create `.env.local` from `.env.example`:
+
+```bash
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+LLM provider keys should be stored as Supabase Edge Function secrets, not browser environment variables.
