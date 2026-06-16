@@ -11,9 +11,10 @@ import {
   RefreshCw,
   WandSparkles,
 } from "lucide-react";
-import { reviseResumeSection } from "../lib/aiResume";
 import { copyPlainText, downloadDocx, downloadPdf } from "../lib/exportResume";
 import { openAIErrorMessage } from "../lib/openai";
+import { reviseResumeSectionWithProvider } from "../lib/providers/dispatch";
+import type { LLMProvider } from "../lib/providers/types";
 import {
   diffWords,
   replaceSection,
@@ -29,6 +30,7 @@ type ResumeReviewProps = {
   jobDescription: string;
   originalResumeText: string;
   resume: StructuredResume;
+  provider: LLMProvider;
   onResumeChange: (resume: StructuredResume) => void;
   onExported?: () => void;
 };
@@ -44,6 +46,7 @@ export function ResumeReview({
   jobDescription,
   originalResumeText,
   resume,
+  provider,
   onResumeChange,
   onExported,
 }: ResumeReviewProps) {
@@ -94,7 +97,8 @@ export function ResumeReview({
     setRevisionError("");
 
     try {
-      const revisedText = await reviseResumeSection({
+      const revisedText = await reviseResumeSectionWithProvider({
+        provider,
         jobDescription,
         resume,
         sectionLabel: section.label,

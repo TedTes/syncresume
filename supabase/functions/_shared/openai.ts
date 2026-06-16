@@ -1,11 +1,10 @@
-import { getApiKey } from "./runtimeConfig";
 import {
   normalizeStructuredResume,
   parseResumeJson,
+  resumeToPlainText,
   type StructuredResume,
-} from "./resume";
+} from "./resume.ts";
 
-export const DEFAULT_MODEL = "gpt-5.4-mini";
 const RESPONSES_URL = "https://api.openai.com/v1/responses";
 
 type ResponseFormat = {
@@ -53,15 +52,96 @@ export class OpenAIRequestError extends Error {
   }
 }
 
-export async function createTextResponse({
+export async function optimizeResume({
+  jobDescription,
+  resumeText,
+}: {
+  jobDescription: string;
+  resumeText: string;
+}): Promise<StructuredResume> {
+  return createStructuredResumeResponse({
+    instructions: [
+      "You are an expert resume optimizer for ATS-friendly resumes.",
+      "Rewrite the resume to match the job description language while preserving truthfulness.",
+      "Adjust the summary, rewrite bullets, inject matching keywords, and reorder skills by relevance.",
+      "Do not fabricate employers, titles, dates, degrees, certifications, tools, metrics, responsibilities, or achievements.",
+      "If a detail is not present in the original resume, do not add it.",
+      "Return only the requested structured JSON object.",
+    ].join(" "),
+    input: [
+      "JOB DESCRIPTION:",
+      jobDescription.trim(),
+      "",
+      "ORIGINAL RESUME:",
+      resumeText.trim(),
+      "",
+      "Required output notes:",
+      "- Preserve the candidate's real experience and education.",
+      "- Convert experience into roles with stable ids role-1, role-2, etc.",
+      "- Use concise, impact-oriented bullets without inventing metrics.",
+      "- Keep the resume ATS-safe and single-column friendly.",
+    ].join("\n"),
+    maxOutputTokens: 7000,
+    timeoutMs: 90000,
+  });
+}
+
+export async function reviseResumeSection({
+  jobDescription,
+  resume,
+  sectionLabel,
+  sectionText,
+  instruction,
+}: {
+  jobDescription: string;
+  resume: StructuredResume;
+  sectionLabel: string;
+  sectionText: string;
+  instruction: string;
+}): Promise<string> {
+  return createTextResponse({
+    instructions: [
+      "You revise exactly one resume section at a time.",
+      "Follow the user's instruction while aligning the section to the job description.",
+      "Do not fabricate employers, titles, dates, degrees, certifications, tools, metrics, responsibilities, or achievements.",
+      "Return only replacement text for the requested section. No Markdown fences or commentary.",
+    ].join(" "),
+    input: [
+      `SECTION: ${sectionLabel}`,
+      "",
+      "USER INSTRUCTION:",
+      instruction.trim(),
+      "",
+      "JOB DESCRIPTION:",
+      jobDescription.trim(),
+      "",
+      "FULL CURRENT RESUME:",
+      resumeToPlainText(resume),
+      "",
+      "CURRENT SECTION TEXT:",
+      sectionText.trim(),
+    ].join("\n"),
+    maxOutputTokens: 1200,
+    timeoutMs: 45000,
+  });
+}
+
+async function createTextResponse({
   input,
   instructions,
   maxOutputTokens = 1800,
   responseFormat,
   timeoutMs = 60000,
 }: CreateResponseOptions): Promise<string> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) {
+    throw new OpenAIRequestError("OPENAI_API_KEY is not configured in Supabase secrets.", {
+      status: 500,
+    });
+  }
+
   const body = {
-    model: DEFAULT_MODEL,
+    model: Deno.env.get("OPENAI_MODEL") ?? "gpt-5.4-mini",
     input,
     instructions,
     max_output_tokens: maxOutputTokens,
@@ -80,7 +160,7 @@ export async function createTextResponse({
   const response = await fetchWithTimeout(RESPONSES_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${getApiKey()}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -89,11 +169,7 @@ export async function createTextResponse({
 
   const payload = (await response.json().catch(() => ({}))) as OpenAIResponseBody;
 
-  if (!response.ok) {
-    throw normalizeOpenAIError(payload, response.status);
-  }
-
-  if (payload.error) {
+  if (!response.ok || payload.error) {
     throw normalizeOpenAIError(payload, response.status);
   }
 
@@ -114,7 +190,7 @@ export async function createTextResponse({
   return text;
 }
 
-export async function createStructuredResumeResponse(
+async function createStructuredResumeResponse(
   options: Omit<CreateResponseOptions, "responseFormat">,
 ): Promise<StructuredResume> {
   const text = await createTextResponse({
@@ -127,27 +203,6 @@ export async function createStructuredResumeResponse(
   } catch {
     return normalizeStructuredResume(JSON.parse(text));
   }
-}
-
-export function openAIErrorMessage(error: unknown): string {
-  if (error instanceof OpenAIRequestError) {
-    if (error.status === 401) {
-      return "Provider credentials are missing or invalid. Check the Supabase Edge Function secrets.";
-    }
-    if (error.status === 429 || error.code === "rate_limit_exceeded") {
-      return "Rate limit reached. Wait a moment, then retry.";
-    }
-    if (error.code === "timeout") {
-      return "The request timed out. Retry when the network is stable.";
-    }
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Something went wrong. Retry the request.";
 }
 
 const resumeResponseFormat: ResponseFormat = {
@@ -196,7 +251,7 @@ async function fetchWithTimeout(
   options: RequestInit & { timeoutMs: number },
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), options.timeoutMs);
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs);
 
   try {
     return await fetch(url, {
@@ -209,7 +264,7 @@ async function fetchWithTimeout(
     }
     throw error;
   } finally {
-    window.clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
   }
 }
 
@@ -217,7 +272,7 @@ function normalizeOpenAIError(payload: OpenAIResponseBody, status: number): Open
   const message =
     payload.error?.message ??
     (status === 401
-      ? "Invalid API key."
+      ? "Invalid OpenAI API key."
       : status === 429
         ? "Rate limit reached."
         : "The OpenAI request failed.");

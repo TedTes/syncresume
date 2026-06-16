@@ -1,5 +1,13 @@
 import { optimizeResume as openaiOptimizeResume, reviseResumeSection as openaiReviseSection } from "../aiResume";
-import type { StructuredResume } from "../resume";
+import {
+  normalizeStructuredResume,
+  resumeToPlainText,
+  scoreKeywords,
+  type StructuredResume,
+} from "../resume";
+import type { RunRecord } from "../storage";
+import { hasSupabaseConfig } from "../supabase/client";
+import { invokeEdgeFunction } from "../supabase/functions";
 import { getProviderInfo, type LLMProvider } from "./types";
 
 function notImplemented(provider: LLMProvider): never {
@@ -10,17 +18,69 @@ function notImplemented(provider: LLMProvider): never {
   );
 }
 
-type OptimizeArgs = { provider: LLMProvider; jobDescription: string; resumeText: string };
+type OptimizeArgs = {
+  provider: LLMProvider;
+  jobDescription: string;
+  resumeText: string;
+  resumeId?: string;
+  resumeName?: string;
+  saveRunHistory?: boolean;
+  title?: string;
+};
+
+type OptimizeEdgeResponse = {
+  resume?: unknown;
+  score?: number;
+  run?: RunRecord | null;
+};
+
+export type OptimizeProviderResult = {
+  resume: StructuredResume;
+  score: number;
+  run?: RunRecord;
+  persisted: boolean;
+};
 
 export async function optimizeResumeWithProvider({
   provider,
   jobDescription,
   resumeText,
-}: OptimizeArgs): Promise<StructuredResume> {
+  resumeId,
+  resumeName,
+  saveRunHistory,
+  title,
+}: OptimizeArgs): Promise<OptimizeProviderResult> {
   if (provider !== "openai") {
     notImplemented(provider);
   }
-  return openaiOptimizeResume({ jobDescription, resumeText });
+
+  if (hasSupabaseConfig()) {
+    const data = await invokeEdgeFunction<OptimizeEdgeResponse>("optimize-resume", {
+      provider,
+      jobDescription,
+      resumeId,
+      resumeText,
+      resumeName,
+      saveRunHistory,
+      title,
+    });
+    const resume = normalizeStructuredResume(data.resume);
+    const score =
+      typeof data.score === "number"
+        ? data.score
+        : Math.round(scoreKeywords(jobDescription, resumeToPlainText(resume)).ratio * 100);
+
+    return {
+      resume,
+      score,
+      run: data.run ?? undefined,
+      persisted: true,
+    };
+  }
+
+  const resume = await openaiOptimizeResume({ jobDescription, resumeText });
+  const score = Math.round(scoreKeywords(jobDescription, resumeToPlainText(resume)).ratio * 100);
+  return { resume, score, persisted: false };
 }
 
 type ReviseArgs = {
@@ -43,5 +103,23 @@ export async function reviseResumeSectionWithProvider({
   if (provider !== "openai") {
     notImplemented(provider);
   }
+
+  if (hasSupabaseConfig()) {
+    const data = await invokeEdgeFunction<{ revisedText?: string }>("revise-section", {
+      provider,
+      jobDescription,
+      resume,
+      sectionLabel,
+      sectionText,
+      instruction,
+    });
+
+    if (!data.revisedText?.trim()) {
+      throw new Error("The backend returned an empty revision.");
+    }
+
+    return data.revisedText.trim();
+  }
+
   return openaiReviseSection({ jobDescription, resume, sectionLabel, sectionText, instruction });
 }

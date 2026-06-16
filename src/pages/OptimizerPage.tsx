@@ -16,7 +16,7 @@ import { useSettings } from "../context/SettingsContext";
 import { fetchJobPageText } from "../lib/fetchJobPage";
 import { openAIErrorMessage } from "../lib/openai";
 import { optimizeResumeWithProvider } from "../lib/providers/dispatch";
-import { resumeToPlainText, scoreKeywords, type StructuredResume } from "../lib/resume";
+import type { StructuredResume } from "../lib/resume";
 
 const ResumeReview = lazy(() =>
   import("../components/ResumeReview").then((module) => ({ default: module.ResumeReview })),
@@ -34,8 +34,15 @@ function deriveRunTitle(jobDescription: string): string {
 }
 
 export default function OptimizerPage() {
-  const { resumes, activeResume, setActiveResume, addRun, incrementResumeUsage, updateRunStatus } =
-    useAppData();
+  const {
+    resumes,
+    activeResume,
+    setActiveResume,
+    addRun,
+    incrementResumeUsage,
+    updateRunStatus,
+    refresh,
+  } = useAppData();
   const { provider, toggles } = useSettings();
 
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
@@ -85,19 +92,27 @@ export default function OptimizerPage() {
         provider,
         jobDescription,
         resumeText: activeResume.text,
+        resumeId: activeResume.id,
+        resumeName: activeResume.name,
+        saveRunHistory: toggles.saveRunHistory,
+        title: deriveRunTitle(jobDescription),
       });
-      setOptimizedResume(result);
+      setOptimizedResume(result.resume);
 
-      const score = Math.round(scoreKeywords(jobDescription, resumeToPlainText(result)).ratio * 100);
+      if (result.persisted) {
+        await refresh();
+        if (result.run) setCurrentRunId(result.run.id);
+        return;
+      }
+
       await incrementResumeUsage(activeResume.id);
-
       if (toggles.saveRunHistory) {
         const run = await addRun({
           title: deriveRunTitle(jobDescription),
           resumeId: activeResume.id,
           resumeName: activeResume.name,
           jobDescription,
-          score,
+          score: result.score,
           status: "draft",
         });
         setCurrentRunId(run.id);
@@ -326,6 +341,7 @@ export default function OptimizerPage() {
               jobDescription={jobDescription}
               originalResumeText={activeResume?.text ?? ""}
               resume={optimizedResume}
+              provider={provider}
               onResumeChange={setOptimizedResume}
               onExported={() => {
                 if (currentRunId) {
