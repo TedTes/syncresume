@@ -1,5 +1,9 @@
 import { fetchJobPageText } from "./jobPage";
-import { optimizeResume, reviseResumeSection } from "./openai";
+import {
+  normalizeLLMProvider,
+  optimizeResumeWithProvider,
+  reviseSectionWithProvider,
+} from "./llm/dispatch";
 import { normalizeStructuredResume, resumeToPlainText, scoreKeywords } from "./resume";
 
 export interface Env {
@@ -12,6 +16,10 @@ export interface Env {
   RESEND_API_KEY?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
+  ANTHROPIC_API_KEY?: string;
+  ANTHROPIC_MODEL?: string;
+  GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
 }
 
 type JsonBody = Record<string, unknown> | Array<unknown>;
@@ -164,16 +172,12 @@ export default {
 async function handleOptimize(request: Request, env: Env, headers: Headers): Promise<Response> {
   const { user } = await requireSession(request, env);
   const body = await readJson(request);
-  const provider = String(body.provider || "openai");
+  const provider = normalizeLLMProvider(String(body.provider || "openai"));
   const jobDescription = asNonEmptyString(body.jobDescription);
   const resumeId = asNonEmptyString(body.resumeId);
   let resumeText = asNonEmptyString(body.resumeText);
   let resumeName = asNonEmptyString(body.resumeName) || "Resume";
   let usageCount = 0;
-
-  if (provider !== "openai") {
-    return json({ error: `${provider} optimization is not wired on Cloudflare yet.` }, { status: 400, headers });
-  }
 
   if (jobDescription.length < 20) {
     return json({ error: "Paste a complete job description before optimizing." }, { status: 400, headers });
@@ -199,7 +203,10 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
     return json({ error: "Upload or paste a readable resume before optimizing." }, { status: 400, headers });
   }
 
-  const optimizedResume = await optimizeResume(env, { jobDescription, resumeText });
+  const optimizedResume = await optimizeResumeWithProvider(env, provider, {
+    jobDescription,
+    resumeText,
+  });
   const score = scoreKeywords(jobDescription, resumeToPlainText(optimizedResume));
   let run = null;
 
@@ -241,15 +248,11 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
 async function handleReviseSection(request: Request, env: Env, headers: Headers): Promise<Response> {
   await requireSession(request, env);
   const body = await readJson(request);
-  const provider = String(body.provider || "openai");
+  const provider = normalizeLLMProvider(String(body.provider || "openai"));
   const jobDescription = asNonEmptyString(body.jobDescription);
   const instruction = asNonEmptyString(body.instruction);
   const sectionText = asNonEmptyString(body.sectionText);
   const sectionLabel = asNonEmptyString(body.sectionLabel) || "Resume section";
-
-  if (provider !== "openai") {
-    return json({ error: `${provider} section revision is not wired on Cloudflare yet.` }, { status: 400, headers });
-  }
 
   if (!instruction) {
     return json({ error: "Add a revision instruction before submitting." }, { status: 400, headers });
@@ -259,7 +262,7 @@ async function handleReviseSection(request: Request, env: Env, headers: Headers)
     return json({ error: "Missing job description or section text." }, { status: 400, headers });
   }
 
-  const revisedText = await reviseResumeSection(env, {
+  const revisedText = await reviseSectionWithProvider(env, provider, {
     jobDescription,
     resume: normalizeStructuredResume(body.resume),
     sectionLabel,

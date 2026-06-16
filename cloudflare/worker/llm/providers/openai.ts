@@ -3,12 +3,8 @@ import {
   parseResumeJson,
   resumeToPlainText,
   type StructuredResume,
-} from "./resume";
-
-type OpenAIEnv = {
-  OPENAI_API_KEY?: string;
-  OPENAI_MODEL?: string;
-};
+} from "../../resume";
+import type { LLMEnv, LLMProvider, OptimizeInput, ReviseSectionInput } from "../types";
 
 type ResponseFormat = {
   type: "json_schema";
@@ -45,16 +41,12 @@ type OpenAIResponseBody = {
 
 const RESPONSES_URL = "https://api.openai.com/v1/responses";
 
-export async function optimizeResume(
-  env: OpenAIEnv,
-  {
-    jobDescription,
-    resumeText,
-  }: {
-    jobDescription: string;
-    resumeText: string;
-  },
-): Promise<StructuredResume> {
+export const openAIProvider: LLMProvider = {
+  optimize,
+  reviseSection,
+};
+
+async function optimize(env: LLMEnv, { jobDescription, resumeText }: OptimizeInput) {
   return createStructuredResumeResponse(env, {
     instructions: [
       "You are an expert resume optimizer for ATS-friendly resumes.",
@@ -82,22 +74,10 @@ export async function optimizeResume(
   });
 }
 
-export async function reviseResumeSection(
-  env: OpenAIEnv,
-  {
-    jobDescription,
-    resume,
-    sectionLabel,
-    sectionText,
-    instruction,
-  }: {
-    jobDescription: string;
-    resume: StructuredResume;
-    sectionLabel: string;
-    sectionText: string;
-    instruction: string;
-  },
-): Promise<string> {
+async function reviseSection(
+  env: LLMEnv,
+  { jobDescription, resume, sectionLabel, sectionText, instruction }: ReviseSectionInput,
+) {
   return createTextResponse(env, {
     instructions: [
       "You revise exactly one resume section at a time.",
@@ -126,7 +106,7 @@ export async function reviseResumeSection(
 }
 
 async function createTextResponse(
-  env: OpenAIEnv,
+  env: LLMEnv,
   {
     input,
     instructions,
@@ -182,7 +162,7 @@ async function createTextResponse(
 }
 
 async function createStructuredResumeResponse(
-  env: OpenAIEnv,
+  env: LLMEnv,
   options: Omit<CreateResponseOptions, "responseFormat">,
 ): Promise<StructuredResume> {
   const text = await createTextResponse(env, {
