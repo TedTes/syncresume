@@ -25,6 +25,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       resumes: {
         Row: {
@@ -66,6 +67,7 @@ export type Database = {
           uploaded_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       optimization_runs: {
         Row: {
@@ -107,6 +109,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       export_events: {
         Row: {
@@ -130,6 +133,7 @@ export type Database = {
           export_type?: "docx" | "pdf" | "copy";
           created_at?: string;
         };
+        Relationships: [];
       };
     };
     Views: Record<string, never>;

@@ -24,7 +24,9 @@ export type RunRecord = {
   createdAt: string;
 };
 
-export type NewResumeInput = Omit<ResumeRecord, "id" | "uploadedAt" | "usageCount" | "isActive">;
+export type NewResumeInput = Omit<ResumeRecord, "id" | "uploadedAt" | "usageCount" | "isActive"> & {
+  file?: File;
+};
 export type NewRunInput = Omit<RunRecord, "id" | "createdAt">;
 
 /**

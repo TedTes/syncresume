@@ -37,6 +37,7 @@ export default function ResumesPage() {
           fileType: fileTypeFromName(extracted.name),
           text: extracted.text,
           characterCount: extracted.characterCount,
+          file,
         });
       } catch (error) {
         setUploadError(error instanceof Error ? error.message : "Could not read that file.");

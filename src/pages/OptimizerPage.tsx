@@ -17,7 +17,6 @@ import { fetchJobPageText } from "../lib/fetchJobPage";
 import { openAIErrorMessage } from "../lib/openai";
 import { optimizeResumeWithProvider } from "../lib/providers/dispatch";
 import { resumeToPlainText, scoreKeywords, type StructuredResume } from "../lib/resume";
-import { storage } from "../lib/storage";
 
 const ResumeReview = lazy(() =>
   import("../components/ResumeReview").then((module) => ({ default: module.ResumeReview })),
@@ -35,7 +34,8 @@ function deriveRunTitle(jobDescription: string): string {
 }
 
 export default function OptimizerPage() {
-  const { resumes, activeResume, setActiveResume, addRun, incrementResumeUsage } = useAppData();
+  const { resumes, activeResume, setActiveResume, addRun, incrementResumeUsage, updateRunStatus } =
+    useAppData();
   const { provider, toggles } = useSettings();
 
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
@@ -329,7 +329,7 @@ export default function OptimizerPage() {
               onResumeChange={setOptimizedResume}
               onExported={() => {
                 if (currentRunId) {
-                  void storage.updateRunStatus(currentRunId, "exported");
+                  void updateRunStatus(currentRunId, "exported");
                 }
               }}
             />
