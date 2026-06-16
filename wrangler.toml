@@ -13,7 +13,7 @@ OPENAI_MODEL = "gpt-5.4-mini"
 [[d1_databases]]
 binding = "DB"
 database_name = "syncresume"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "46249367-0b1e-4292-9ddb-b80c0c9496cc"
 migrations_dir = "cloudflare/migrations"
 
 [[r2_buckets]]
