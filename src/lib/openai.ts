@@ -1,3 +1,4 @@
+import { getApiKey } from "./runtimeConfig";
 import {
   normalizeStructuredResume,
   parseResumeJson,
@@ -15,7 +16,6 @@ type ResponseFormat = {
 };
 
 type CreateResponseOptions = {
-  apiKey: string;
   input: string;
   instructions?: string;
   maxOutputTokens?: number;
@@ -53,22 +53,7 @@ export class OpenAIRequestError extends Error {
   }
 }
 
-export async function validateApiKey(apiKey: string): Promise<void> {
-  const text = await createTextResponse({
-    apiKey,
-    input: "Reply with exactly: OK",
-    instructions: "You are validating API connectivity. Do not add any other text.",
-    maxOutputTokens: 16,
-    timeoutMs: 15000,
-  });
-
-  if (!text.toLowerCase().includes("ok")) {
-    throw new OpenAIRequestError("The validation call returned an unexpected response.");
-  }
-}
-
 export async function createTextResponse({
-  apiKey,
   input,
   instructions,
   maxOutputTokens = 1800,
@@ -95,7 +80,7 @@ export async function createTextResponse({
   const response = await fetchWithTimeout(RESPONSES_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${getApiKey()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -147,7 +132,7 @@ export async function createStructuredResumeResponse(
 export function openAIErrorMessage(error: unknown): string {
   if (error instanceof OpenAIRequestError) {
     if (error.status === 401) {
-      return "Invalid API key. Check the key and try again.";
+      return "API key is missing or invalid. Set VITE_OPENAI_API_KEY in your environment.";
     }
     if (error.status === 429 || error.code === "rate_limit_exceeded") {
       return "Rate limit reached. Wait a moment, then retry.";

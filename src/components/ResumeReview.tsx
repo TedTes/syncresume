@@ -1,10 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 import {
+  ArrowLeftRight,
   CheckCircle2,
   ClipboardCopy,
   Download,
   FileDown,
+  Hash,
   Loader2,
+  PenLine,
   RefreshCw,
   WandSparkles,
 } from "lucide-react";
@@ -23,11 +26,11 @@ import {
 } from "../lib/resume";
 
 type ResumeReviewProps = {
-  apiKey: string;
   jobDescription: string;
   originalResumeText: string;
   resume: StructuredResume;
   onResumeChange: (resume: StructuredResume) => void;
+  onExported?: () => void;
 };
 
 type SectionConfig = {
@@ -35,18 +38,22 @@ type SectionConfig = {
   label: string;
 };
 
+type ReviewTab = "diff" | "editor" | "keywords" | "export";
+
 export function ResumeReview({
-  apiKey,
   jobDescription,
   originalResumeText,
   resume,
   onResumeChange,
+  onExported,
 }: ResumeReviewProps) {
+  const [activeTab, setActiveTab] = useState<ReviewTab>("diff");
   const [revisionInstructions, setRevisionInstructions] = useState<Record<string, string>>({});
   const [revisingSectionId, setRevisingSectionId] = useState("");
   const [revisionError, setRevisionError] = useState("");
   const [exportStatus, setExportStatus] = useState("");
   const [exportError, setExportError] = useState("");
+
   const optimizedText = useMemo(() => resumeToPlainText(resume), [resume]);
   const diff = useMemo(
     () => diffWords(originalResumeText, optimizedText),
@@ -79,7 +86,7 @@ export function ResumeReview({
     const instruction = revisionInstructions[section.id]?.trim();
 
     if (!instruction) {
-      setRevisionError("Add a section instruction before revising.");
+      setRevisionError("Add a revision instruction before submitting.");
       return;
     }
 
@@ -88,7 +95,6 @@ export function ResumeReview({
 
     try {
       const revisedText = await reviseResumeSection({
-        apiKey,
         jobDescription,
         resume,
         sectionLabel: section.label,
@@ -112,115 +118,182 @@ export function ResumeReview({
       if (action === "docx") {
         await downloadDocx(resume);
         setExportStatus("DOCX downloaded.");
+        onExported?.();
       }
       if (action === "pdf") {
         await downloadPdf(resume);
         setExportStatus("PDF downloaded.");
+        onExported?.();
       }
       if (action === "copy") {
         await copyPlainText(resume);
-        setExportStatus("Plain text copied.");
+        setExportStatus("Copied to clipboard.");
       }
     } catch (error) {
       setExportError(error instanceof Error ? error.message : "Export failed.");
     }
   }
 
+  const tabs: { id: ReviewTab; label: string; icon: React.ReactNode }[] = [
+    { id: "diff", label: "Diff", icon: <ArrowLeftRight /> },
+    { id: "editor", label: "Editor", icon: <PenLine /> },
+    { id: "keywords", label: "Keywords", icon: <Hash /> },
+    { id: "export", label: "Export", icon: <Download /> },
+  ];
+
   return (
-    <section className="review-workspace" aria-labelledby="review-title">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Step 4</p>
-          <h2 id="review-title">Review and edit</h2>
-        </div>
-        <div className="score-grid" aria-label="Keyword match scores">
-          <KeywordScoreCard label="Before" score={originalScore} />
-          <KeywordScoreCard label="After" score={optimizedScore} />
-        </div>
-      </div>
-
-      <div className="diff-grid" aria-label="Side-by-side resume diff">
-        <DiffPane title="Original" tokens={diff} side="original" />
-        <DiffPane title="Optimized" tokens={diff} side="optimized" />
-      </div>
-
-      <div className="editor-grid">
-        {sections.map((section) => (
-          <article className="section-editor" key={section.id}>
-            <div className="editor-heading">
-              <h3>{section.label}</h3>
-              {section.id.startsWith("experience:") ? <span>Role section</span> : null}
-            </div>
-            <textarea
-              value={sectionText(resume, section.id)}
-              onChange={(event) => handleSectionChange(section.id, event.target.value)}
-            />
-            <form className="revision-row" onSubmit={(event) => handleReviseSection(event, section)}>
-              <input
-                type="text"
-                value={revisionInstructions[section.id] ?? ""}
-                placeholder="Ask AI to revise this section..."
-                onChange={(event) =>
-                  setRevisionInstructions((current) => ({
-                    ...current,
-                    [section.id]: event.target.value,
-                  }))
-                }
-              />
-              <button
-                type="submit"
-                disabled={revisingSectionId.length > 0 || !(revisionInstructions[section.id] ?? "").trim()}
-              >
-                {revisingSectionId === section.id ? (
-                  <Loader2 className="spin" aria-hidden="true" />
-                ) : (
-                  <WandSparkles aria-hidden="true" />
-                )}
-                Revise
-              </button>
-            </form>
-          </article>
+    <section className="review-workspace" aria-label="Review workspace">
+      <div className="tab-bar" role="tablist">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`tab ${activeTab === tab.id ? "active" : ""}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
         ))}
       </div>
 
-      {revisionError ? <div className="inline-error">{revisionError}</div> : null}
+      <div className="tab-content" role="tabpanel">
+        {activeTab === "diff" && (
+          <div className="diff-grid">
+            <DiffPane title="Original" tokens={diff} side="original" />
+            <DiffPane title="Optimized" tokens={diff} side="optimized" />
+          </div>
+        )}
 
-      <section className="export-panel" aria-labelledby="export-title">
-        <div>
-          <p className="eyebrow">Step 5</p>
-          <h2 id="export-title">Export</h2>
-        </div>
-        <div className="export-actions">
-          <button type="button" onClick={() => handleExport("docx")}>
-            <FileDown aria-hidden="true" />
-            DOCX
-          </button>
-          <button type="button" onClick={() => handleExport("pdf")}>
-            <Download aria-hidden="true" />
-            PDF
-          </button>
-          <button type="button" onClick={() => handleExport("copy")}>
-            <ClipboardCopy aria-hidden="true" />
-            Copy text
-          </button>
-        </div>
-        {exportStatus ? <span className="export-status">{exportStatus}</span> : null}
-        {exportError ? <div className="inline-error">{exportError}</div> : null}
-      </section>
+        {activeTab === "editor" && (
+          <>
+            <div className="editor-grid">
+              {sections.map((section) => (
+                <article className="section-editor" key={section.id}>
+                  <div className="section-editor-header">
+                    <h3>{section.label}</h3>
+                    {section.id.startsWith("experience:") && (
+                      <span className="section-tag">Role</span>
+                    )}
+                  </div>
+                  <textarea
+                    className="field-textarea section-textarea"
+                    value={sectionText(resume, section.id)}
+                    onChange={(event) => handleSectionChange(section.id, event.target.value)}
+                  />
+                  <form
+                    className="revision-form"
+                    onSubmit={(event) => handleReviseSection(event, section)}
+                  >
+                    <input
+                      className="revision-input"
+                      type="text"
+                      value={revisionInstructions[section.id] ?? ""}
+                      placeholder="Ask AI to revise this section…"
+                      disabled={revisingSectionId.length > 0}
+                      onChange={(event) =>
+                        setRevisionInstructions((current) => ({
+                          ...current,
+                          [section.id]: event.target.value,
+                        }))
+                      }
+                    />
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      type="submit"
+                      disabled={
+                        revisingSectionId.length > 0 ||
+                        !(revisionInstructions[section.id] ?? "").trim()
+                      }
+                    >
+                      {revisingSectionId === section.id ? (
+                        <Loader2 className="spin" aria-hidden="true" />
+                      ) : (
+                        <WandSparkles aria-hidden="true" />
+                      )}
+                      Revise
+                    </button>
+                  </form>
+                </article>
+              ))}
+            </div>
+            {revisionError && <div className="inline-error" style={{ marginTop: 12 }}>{revisionError}</div>}
+          </>
+        )}
+
+        {activeTab === "keywords" && (
+          <div className="keywords-content">
+            <KeywordScorePanel label="Before" score={originalScore} />
+            <KeywordScorePanel label="After" score={optimizedScore} />
+            {optimizedScore.missing.length > 0 && (
+              <div className="missing-keywords-section">
+                <p className="section-label">Missing keywords</p>
+                <div className="keyword-chips missing-chips">
+                  {optimizedScore.missing.map((kw) => (
+                    <span key={kw} className="chip chip-missing">
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {optimizedScore.matched.length > 0 && (
+              <div className="matched-keywords-section">
+                <p className="section-label">Matched keywords</p>
+                <div className="keyword-chips">
+                  {optimizedScore.matched.map((kw) => (
+                    <span key={kw} className="chip chip-matched">
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "export" && (
+          <div className="export-content">
+            <p className="export-description">
+              Download your optimized resume or copy the plain text to paste elsewhere.
+            </p>
+            <div className="export-buttons">
+              <button className="btn btn-secondary" type="button" onClick={() => handleExport("docx")}>
+                <FileDown aria-hidden="true" />
+                Download DOCX
+              </button>
+              <button className="btn btn-secondary" type="button" onClick={() => handleExport("pdf")}>
+                <Download aria-hidden="true" />
+                Download PDF
+              </button>
+              <button className="btn btn-secondary" type="button" onClick={() => handleExport("copy")}>
+                <ClipboardCopy aria-hidden="true" />
+                Copy plain text
+              </button>
+            </div>
+            {exportStatus && <p className="export-status-msg">{exportStatus}</p>}
+            {exportError && <div className="inline-error">{exportError}</div>}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
 
-function KeywordScoreCard({ label, score }: { label: string; score: KeywordScore }) {
+function KeywordScorePanel({ label, score }: { label: string; score: KeywordScore }) {
+  const pct = Math.round(score.ratio * 100);
   return (
-    <div className="score-card">
-      <span>{label}</span>
-      <strong>
-        {score.matched.length}/{score.total}
-      </strong>
-      <div className="score-meter" aria-hidden="true">
-        <span style={{ width: `${Math.round(score.ratio * 100)}%` }} />
+    <div className="score-panel">
+      <p className="score-heading">{label}</p>
+      <p className="score-value">
+        {score.matched.length}
+        <span className="score-total">/{score.total}</span>
+      </p>
+      <div className="score-meter" aria-label={`${pct}% match`}>
+        <div className="score-meter-fill" style={{ width: `${pct}%` }} />
       </div>
+      <p className="score-pct">{pct}% keyword match</p>
     </div>
   );
 }
@@ -236,9 +309,13 @@ function DiffPane({
 }) {
   return (
     <article className="diff-pane">
-      <div className="diff-title">
+      <div className="diff-pane-header">
         <h3>{title}</h3>
-        {side === "optimized" ? <CheckCircle2 aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
+        {side === "optimized" ? (
+          <CheckCircle2 aria-hidden="true" />
+        ) : (
+          <RefreshCw aria-hidden="true" />
+        )}
       </div>
       <pre>
         {tokens

@@ -2,18 +2,15 @@ import { createStructuredResumeResponse, createTextResponse } from "./openai";
 import { resumeToPlainText, type StructuredResume } from "./resume";
 
 type OptimizeResumeOptions = {
-  apiKey: string;
   jobDescription: string;
   resumeText: string;
 };
 
 export async function optimizeResume({
-  apiKey,
   jobDescription,
   resumeText,
 }: OptimizeResumeOptions): Promise<StructuredResume> {
   return createStructuredResumeResponse({
-    apiKey,
     instructions: [
       "You are an expert resume optimizer for ATS-friendly resumes.",
       "Rewrite the resume to match the job description language while preserving truthfulness.",
@@ -41,7 +38,6 @@ export async function optimizeResume({
 }
 
 type ReviseSectionOptions = {
-  apiKey: string;
   jobDescription: string;
   resume: StructuredResume;
   sectionLabel: string;
@@ -50,7 +46,6 @@ type ReviseSectionOptions = {
 };
 
 export async function reviseResumeSection({
-  apiKey,
   jobDescription,
   resume,
   sectionLabel,
@@ -58,7 +53,6 @@ export async function reviseResumeSection({
   instruction,
 }: ReviseSectionOptions): Promise<string> {
   return createTextResponse({
-    apiKey,
     instructions: [
       "You revise exactly one resume section at a time.",
       "Follow the user's instruction while aligning the section to the job description.",
