@@ -1,4 +1,4 @@
-import { cloudflareRequest } from "../cloudflare/client";
+import { cloudflareBlobRequest, cloudflareRequest } from "../cloudflare/client";
 import type {
   ExportType,
   NewResumeInput,
@@ -38,6 +38,10 @@ export class CloudflareStorageAdapter implements StorageAdapter {
     await cloudflareRequest(`/api/resumes/${encodeURIComponent(id)}/active`, {
       method: "PATCH",
     });
+  }
+
+  async getResumeFile(id: string): Promise<Blob> {
+    return cloudflareBlobRequest(`/api/resumes/${encodeURIComponent(id)}/file`);
   }
 
   async deleteResume(id: string): Promise<void> {

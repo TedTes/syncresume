@@ -42,6 +42,7 @@ export type NewRunInput = Omit<RunRecord, "id" | "createdAt">;
 export interface StorageAdapter {
   listResumes(): Promise<ResumeRecord[]>;
   saveResume(input: NewResumeInput): Promise<ResumeRecord>;
+  getResumeFile?(id: string): Promise<Blob>;
   setActiveResume(id: string): Promise<void>;
   deleteResume(id: string): Promise<void>;
   incrementResumeUsage(id: string): Promise<void>;

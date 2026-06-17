@@ -27,6 +27,7 @@ type AppDataContextValue = {
   isLoading: boolean;
   activeResume: ResumeRecord | null;
   addResume: (input: NewResumeInput) => Promise<ResumeRecord>;
+  getResumeFile: (id: string) => Promise<Blob>;
   setActiveResume: (id: string) => Promise<void>;
   deleteResume: (id: string) => Promise<void>;
   incrementResumeUsage: (id: string) => Promise<void>;
@@ -85,43 +86,64 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, [isAuthLoading, refresh]);
 
   async function addResume(input: NewResumeInput) {
+    requireBackendUser();
     const record = await storage.saveResume(input);
     await refresh();
     return record;
   }
 
+  async function getResumeFile(id: string) {
+    requireBackendUser();
+    if (!storage.getResumeFile) {
+      throw new Error("Original file preview is not available for this storage mode.");
+    }
+    return storage.getResumeFile(id);
+  }
+
   async function setActiveResume(id: string) {
+    requireBackendUser();
     await storage.setActiveResume(id);
     await refresh();
   }
 
   async function deleteResume(id: string) {
+    requireBackendUser();
     await storage.deleteResume(id);
     await refresh();
   }
 
   async function incrementResumeUsage(id: string) {
+    requireBackendUser();
     await storage.incrementResumeUsage(id);
     await refresh();
   }
 
   async function addRun(input: NewRunInput) {
+    requireBackendUser();
     const record = await storage.saveRun(input);
     await refresh();
     return record;
   }
 
   async function updateRunStatus(id: string, status: RunStatus) {
+    requireBackendUser();
     await storage.updateRunStatus(id, status);
     await refresh();
   }
 
   async function recordExport(runId: string, exportType: ExportType) {
+    requireBackendUser();
     await storage.recordExport(runId, exportType);
     await refresh();
   }
 
   const activeResume = resumes.find((resume) => resume.isActive) ?? null;
+
+  function requireBackendUser() {
+    if (hasBackend && !user) {
+      throw new Error("Sign in before continuing.");
+    }
+  }
 
   const value: AppDataContextValue = {
     resumes,
@@ -129,6 +151,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     isLoading,
     activeResume,
     addResume,
+    getResumeFile,
     setActiveResume,
     deleteResume,
     incrementResumeUsage,

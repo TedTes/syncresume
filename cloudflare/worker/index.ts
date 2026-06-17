@@ -69,6 +69,19 @@ type RunRow = {
   created_at: string;
 };
 
+class HttpError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+  }
+}
+
+const MAX_RESUME_BYTES = 25 * 1024 * 1024;
+const MIN_RESUME_TEXT_LENGTH = 20;
+
 const defaultCorsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -91,15 +104,15 @@ export default {
       }
 
       if (url.pathname === "/api/auth/login" && request.method === "POST") {
-        return handleLogin(request, env, corsHeaders);
+        return await handleLogin(request, env, corsHeaders);
       }
 
       if (url.pathname === "/api/auth/verify" && request.method === "POST") {
-        return handleVerify(request, env, corsHeaders);
+        return await handleVerify(request, env, corsHeaders);
       }
 
       if (url.pathname === "/api/auth/logout" && request.method === "POST") {
-        return handleLogout(request, env, corsHeaders);
+        return await handleLogout(request, env, corsHeaders);
       }
 
       if (url.pathname === "/api/me" && request.method === "GET") {
@@ -108,62 +121,68 @@ export default {
       }
 
       if (url.pathname === "/api/resumes" && request.method === "GET") {
-        return handleListResumes(request, env, corsHeaders);
+        return await handleListResumes(request, env, corsHeaders);
       }
 
       if (url.pathname === "/api/resumes" && request.method === "POST") {
-        return handleCreateResume(request, env, corsHeaders);
+        return await handleCreateResume(request, env, corsHeaders);
       }
 
       const activeResumeMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/active$/);
       if (activeResumeMatch && request.method === "PATCH") {
-        return handleSetActiveResume(request, env, corsHeaders, activeResumeMatch[1]);
+        return await handleSetActiveResume(request, env, corsHeaders, activeResumeMatch[1]);
+      }
+
+      const resumeFileMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/file$/);
+      if (resumeFileMatch && request.method === "GET") {
+        return await handleGetResumeFile(request, env, corsHeaders, resumeFileMatch[1]);
       }
 
       const resumeMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)$/);
       if (resumeMatch && request.method === "DELETE") {
-        return handleDeleteResume(request, env, corsHeaders, resumeMatch[1]);
+        return await handleDeleteResume(request, env, corsHeaders, resumeMatch[1]);
       }
 
       const resumeUsageMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/usage$/);
       if (resumeUsageMatch && request.method === "PATCH") {
-        return handleIncrementResumeUsage(request, env, corsHeaders, resumeUsageMatch[1]);
+        return await handleIncrementResumeUsage(request, env, corsHeaders, resumeUsageMatch[1]);
       }
 
       if (url.pathname === "/api/runs" && request.method === "GET") {
-        return handleListRuns(request, env, corsHeaders);
+        return await handleListRuns(request, env, corsHeaders);
       }
 
       if (url.pathname === "/api/runs" && request.method === "POST") {
-        return handleCreateRun(request, env, corsHeaders);
+        return await handleCreateRun(request, env, corsHeaders);
       }
 
       const runStatusMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/status$/);
       if (runStatusMatch && request.method === "PATCH") {
-        return handleUpdateRunStatus(request, env, corsHeaders, runStatusMatch[1]);
+        return await handleUpdateRunStatus(request, env, corsHeaders, runStatusMatch[1]);
       }
 
       if (url.pathname === "/api/exports" && request.method === "POST") {
-        return handleRecordExport(request, env, corsHeaders);
+        return await handleRecordExport(request, env, corsHeaders);
       }
 
       if (url.pathname === "/api/optimize" && request.method === "POST") {
-        return handleOptimize(request, env, corsHeaders);
+        return await handleOptimize(request, env, corsHeaders);
       }
 
       if (url.pathname === "/api/revise-section" && request.method === "POST") {
-        return handleReviseSection(request, env, corsHeaders);
+        return await handleReviseSection(request, env, corsHeaders);
       }
 
       if (url.pathname === "/api/fetch-job-page" && request.method === "POST") {
-        return handleFetchJobPage(request, corsHeaders);
+        return await handleFetchJobPage(request, corsHeaders);
       }
 
       return json({ error: "Not found" }, { status: 404, headers: corsHeaders });
     } catch (error) {
+      const status = error instanceof HttpError ? error.status : 500;
       return json(
         { error: error instanceof Error ? error.message : "Worker request failed" },
-        { status: 500, headers: corsHeaders },
+        { status, headers: corsHeaders },
       );
     }
   },
@@ -300,8 +319,16 @@ async function handleCreateResume(request: Request, env: Env, headers: Headers):
   const { user } = await requireSession(request, env);
   const input = await readResumeInput(request);
 
-  if (!input.name || !input.text || input.characterCount <= 0) {
+  if (!input.name || !input.text || input.characterCount < MIN_RESUME_TEXT_LENGTH) {
     return json({ error: "Resume name and extracted text are required." }, { status: 400, headers });
+  }
+
+  if (input.byteSize > MAX_RESUME_BYTES) {
+    return json({ error: "Resume file is larger than 25 MB." }, { status: 400, headers });
+  }
+
+  if (!["pdf", "docx", "text"].includes(input.fileType)) {
+    return json({ error: "Upload a PDF, DOCX, or plain text resume." }, { status: 400, headers });
   }
 
   const id = crypto.randomUUID();
@@ -333,7 +360,7 @@ async function handleCreateResume(request: Request, env: Env, headers: Headers):
         input.fileType,
         storageKey,
         input.text,
-        input.characterCount,
+        input.text.length,
         isFirst ? 1 : 0,
       )
       .first<ResumeRow>();
@@ -364,6 +391,43 @@ async function handleSetActiveResume(
   return json({ ok: true }, { headers });
 }
 
+async function handleGetResumeFile(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  resumeId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const resume = await env.DB.prepare(
+    "select name, file_type, storage_key from resumes where user_id = ? and id = ?",
+  )
+    .bind(user.id, resumeId)
+    .first<Pick<ResumeRow, "name" | "file_type" | "storage_key">>();
+
+  if (!resume?.storage_key) {
+    return json({ error: "Resume file not found." }, { status: 404, headers });
+  }
+
+  const object = await env.RESUME_BUCKET.get(resume.storage_key);
+  if (!object?.body) {
+    return json({ error: "Resume file not found." }, { status: 404, headers });
+  }
+
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set(
+    "Content-Type",
+    object.httpMetadata?.contentType || contentTypeForFileType(resume.file_type),
+  );
+  responseHeaders.set(
+    "Content-Disposition",
+    `inline; filename="${sanitizeDispositionFileName(resume.name)}"`,
+  );
+  responseHeaders.set("Cache-Control", "private, no-store");
+  responseHeaders.set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type");
+
+  return new Response(object.body, { headers: responseHeaders });
+}
+
 async function handleDeleteResume(
   request: Request,
   env: Env,
@@ -372,10 +436,10 @@ async function handleDeleteResume(
 ): Promise<Response> {
   const { user } = await requireSession(request, env);
   const resume = await env.DB.prepare(
-    "select storage_key from resumes where user_id = ? and id = ?",
+    "select storage_key, is_active from resumes where user_id = ? and id = ?",
   )
     .bind(user.id, resumeId)
-    .first<{ storage_key: string | null }>();
+    .first<{ storage_key: string | null; is_active: number }>();
 
   await env.DB.prepare("delete from resumes where user_id = ? and id = ?")
     .bind(user.id, resumeId)
@@ -383,6 +447,22 @@ async function handleDeleteResume(
 
   if (resume?.storage_key) {
     await env.RESUME_BUCKET.delete(resume.storage_key);
+  }
+
+  if (resume?.is_active === 1) {
+    const nextResume = await env.DB.prepare(
+      "select id from resumes where user_id = ? order by uploaded_at desc limit 1",
+    )
+      .bind(user.id)
+      .first<{ id: string }>();
+
+    if (nextResume) {
+      await env.DB.prepare(
+        "update resumes set is_active = 1, updated_at = current_timestamp where user_id = ? and id = ?",
+      )
+        .bind(user.id, nextResume.id)
+        .run();
+    }
   }
 
   return json({ ok: true }, { headers });
@@ -613,7 +693,7 @@ async function requireSession(
 ): Promise<{ session: SessionRow; user: UserRow }> {
   const token = getBearerToken(request);
   if (!token) {
-    throw new Error("Sign in before continuing.");
+    throw new HttpError("Sign in before continuing.", 401);
   }
 
   const tokenHash = await hashToken(token);
@@ -639,7 +719,7 @@ async function requireSession(
     }>();
 
   if (!row || Date.parse(row.expires_at) <= Date.now()) {
-    throw new Error("Session expired. Sign in again.");
+    throw new HttpError("Session expired. Sign in again.", 401);
   }
 
   return {
@@ -679,6 +759,7 @@ type ResumeInput = {
   characterCount: number;
   file?: File;
   contentType: string;
+  byteSize: number;
 };
 
 async function readResumeInput(request: Request): Promise<ResumeInput> {
@@ -691,14 +772,16 @@ async function readResumeInput(request: Request): Promise<ResumeInput> {
     const text = String(form.get("text") ?? "").trim();
     const name = String(form.get("name") || file?.name || "Resume.txt").trim();
     const fileType = normalizeFileType(String(form.get("fileType") || fileTypeFromName(name)));
+    const contentType = file?.type || contentTypeForFileType(fileType);
 
     return {
       name,
       fileType,
       text,
-      characterCount: Number(form.get("characterCount") ?? text.length),
+      characterCount: text.length,
       file,
-      contentType: file?.type || "text/plain",
+      contentType,
+      byteSize: file?.size ?? new TextEncoder().encode(text).byteLength,
     };
   }
 
@@ -711,8 +794,9 @@ async function readResumeInput(request: Request): Promise<ResumeInput> {
     name,
     fileType,
     text,
-    characterCount: Number(body.characterCount ?? text.length),
+    characterCount: text.length,
     contentType: "text/plain",
+    byteSize: new TextEncoder().encode(text).byteLength,
   };
 }
 
@@ -764,6 +848,14 @@ function normalizeFileType(value: string): "pdf" | "docx" | "text" {
   return value === "pdf" || value === "docx" || value === "text" ? value : "text";
 }
 
+function contentTypeForFileType(fileType: "pdf" | "docx" | "text"): string {
+  if (fileType === "pdf") return "application/pdf";
+  if (fileType === "docx") {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  return "text/plain";
+}
+
 function fileTypeFromName(name: string): "pdf" | "docx" | "text" {
   const normalized = name.toLowerCase();
   if (normalized.endsWith(".pdf")) return "pdf";
@@ -773,6 +865,10 @@ function fileTypeFromName(name: string): "pdf" | "docx" | "text" {
 
 function sanitizeFileName(name: string): string {
   return name.trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-") || "resume.txt";
+}
+
+function sanitizeDispositionFileName(name: string): string {
+  return sanitizeFileName(name).replace(/"/g, "");
 }
 
 function asNonEmptyString(value: unknown): string {

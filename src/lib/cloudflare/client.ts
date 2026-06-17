@@ -24,6 +24,33 @@ export function clearCloudflareSessionToken(): void {
   window.localStorage.removeItem(SESSION_KEY);
 }
 
+function getCloudflareRequestUrl(path: string): string {
+  if (!cloudflareApiUrl) {
+    throw new Error("Cloudflare API is not configured.");
+  }
+
+  return `${cloudflareApiUrl.replace(/\/$/, "")}${path}`;
+}
+
+function getAuthHeaders(): Headers {
+  const headers = new Headers();
+  const token = getCloudflareSessionToken();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  return headers;
+}
+
+async function readErrorMessage(response: Response): Promise<string> {
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    message?: string;
+  };
+  return payload.error ?? payload.message ?? `Request failed (${response.status}).`;
+}
+
 export async function cloudflareRequest<TResponse>(
   path: string,
   options: {
@@ -33,16 +60,7 @@ export async function cloudflareRequest<TResponse>(
     auth?: boolean;
   } = {},
 ): Promise<TResponse> {
-  if (!cloudflareApiUrl) {
-    throw new Error("Cloudflare API is not configured.");
-  }
-
-  const headers = new Headers();
-  const token = getCloudflareSessionToken();
-
-  if (options.auth !== false && token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
+  const headers = options.auth === false ? new Headers() : getAuthHeaders();
 
   let body: BodyInit | undefined;
   if (options.formData) {
@@ -52,20 +70,35 @@ export async function cloudflareRequest<TResponse>(
     body = JSON.stringify(options.body);
   }
 
-  const response = await fetch(`${cloudflareApiUrl.replace(/\/$/, "")}${path}`, {
+  const response = await fetch(getCloudflareRequestUrl(path), {
     method: options.method ?? "GET",
     headers,
     body,
   });
 
-  const payload = (await response.json().catch(() => ({}))) as {
-    error?: string;
-    message?: string;
-  };
-
   if (!response.ok) {
-    throw new Error(payload.error ?? payload.message ?? `Request failed (${response.status}).`);
+    if (response.status === 401) {
+      clearCloudflareSessionToken();
+    }
+    throw new Error(await readErrorMessage(response));
   }
 
+  const payload = (await response.json().catch(() => ({}))) as unknown;
   return payload as TResponse;
+}
+
+export async function cloudflareBlobRequest(path: string): Promise<Blob> {
+  const response = await fetch(getCloudflareRequestUrl(path), {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearCloudflareSessionToken();
+    }
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.blob();
 }
