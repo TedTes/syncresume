@@ -1103,6 +1103,58 @@ a {
 }
 
 /* ============ Resumes page ============ */
+.resume-auth-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.34);
+  border-radius: 8px;
+}
+
+.resume-auth-callout > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.resume-auth-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.resume-auth-copy {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.resume-input-section {
+  margin-bottom: 22px;
+}
+
+.resume-input-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.resume-input-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.resume-input-toolbar .btn svg {
+  width: 13px;
+  height: 13px;
+}
+
 .dropzone-large {
   position: relative;
   display: flex;
@@ -1114,9 +1166,19 @@ a {
   border: 2px dashed var(--border);
   border-radius: 12px;
   background: var(--surface);
-  margin-bottom: 26px;
+  margin-bottom: 0;
   text-align: center;
   cursor: pointer;
+}
+
+.dropzone-large.disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.dropzone-large:focus-visible {
+  border-color: var(--accent);
+  outline: 3px solid var(--accent-dim);
 }
 
 .dropzone-large.dragging {
@@ -1148,6 +1210,125 @@ a {
 .dropzone-large-sub {
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.upload-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 10px 0 0;
+}
+
+.upload-queue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.upload-queue-row.done {
+  border-color: var(--success-border);
+}
+
+.upload-queue-row.error {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.upload-queue-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.upload-queue-row.done .upload-queue-icon {
+  color: var(--success);
+}
+
+.upload-queue-row.error .upload-queue-icon {
+  color: var(--danger);
+}
+
+.upload-queue-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.upload-queue-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.upload-queue-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-queue-meta {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.paste-resume-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.paste-resume-header,
+.paste-resume-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.paste-resume-header svg {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.paste-resume-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.paste-resume-sub,
+.paste-resume-footer {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.paste-resume-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.paste-resume-textarea {
+  min-height: 120px;
 }
 
 .resumes-list {
@@ -1243,6 +1424,50 @@ a {
   font-size: 0.8rem;
   line-height: 1.6;
   color: var(--muted);
+}
+
+.resume-pdf-preview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.resume-pdf-preview {
+  width: 100%;
+  min-height: 620px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #111;
+}
+
+.resume-preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.resume-preview-loading svg {
+  width: 16px;
+  height: 16px;
+}
+
+.resume-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.resume-preview-actions .btn svg {
+  width: 13px;
+  height: 13px;
 }
 
 /* ============ Settings page ============ */
