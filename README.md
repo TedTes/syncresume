@@ -43,6 +43,21 @@ npm run cf:deploy
 npm run cf:pages:deploy
 ```
 
+## Automated Worker Deploys
+
+Worker deploys run through GitHub Actions on pushes to `main` when backend-related
+files change. The workflow applies remote D1 migrations, then deploys the Worker.
+
+Add these GitHub repository secrets before relying on the workflow:
+
+```bash
+CLOUDFLARE_ACCOUNT_ID
+CLOUDFLARE_API_TOKEN
+```
+
+Create the Cloudflare API token with the minimum permissions needed to edit the
+Worker and apply D1 migrations for this account.
+
 Required Cloudflare resources:
 
 - D1 database binding: `DB`
