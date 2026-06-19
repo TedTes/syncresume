@@ -605,11 +605,35 @@ async function findOrCreateUser(env: Env, clerkUserId: string, email: string): P
 
 function createCorsHeaders(request: Request, env: Env): Headers {
   const headers = new Headers(defaultCorsHeaders);
-  const requestOrigin = request.headers.get("Origin");
-  const allowedOrigin = env.APP_ORIGIN || requestOrigin || "*";
+  const requestOrigin = normalizeOrigin(request.headers.get("Origin") ?? "");
+  const allowedOrigins = getAllowedCorsOrigins(env);
+  const allowedOrigin =
+    requestOrigin && allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : allowedOrigins[0] || requestOrigin || "*";
+
   headers.set("Access-Control-Allow-Origin", allowedOrigin);
   headers.set("Vary", "Origin");
   return headers;
+}
+
+function getAllowedCorsOrigins(env: Env): string[] {
+  return [env.APP_ORIGIN, env.CLERK_AUTHORIZED_PARTIES]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(","))
+    .map(normalizeOrigin)
+    .filter((value, index, origins) => Boolean(value) && origins.indexOf(value) === index);
+}
+
+function normalizeOrigin(value: string): string {
+  const trimmed = value.trim().replace(/\/$/, "");
+  if (!trimmed) return "";
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed;
+  }
 }
 
 async function readJson(request: Request): Promise<JsonRecord> {

@@ -141,7 +141,7 @@ function assertValidClaims(payload: ClerkJwtPayload, env: ClerkAuthEnv): void {
   }
 
   const allowedParties = getAllowedParties(env);
-  const authorizedParty = payload.azp?.replace(/\/$/, "");
+  const authorizedParty = normalizeOrigin(payload.azp ?? "");
   if (authorizedParty && allowedParties.length > 0 && !allowedParties.includes(authorizedParty)) {
     throw new Error("Session origin is not authorized.");
   }
@@ -151,8 +151,19 @@ function getAllowedParties(env: ClerkAuthEnv): string[] {
   const configured = env.CLERK_AUTHORIZED_PARTIES || env.APP_ORIGIN || "";
   return configured
     .split(",")
-    .map((value) => value.trim().replace(/\/$/, ""))
+    .map(normalizeOrigin)
     .filter(Boolean);
+}
+
+function normalizeOrigin(value: string): string {
+  const trimmed = value.trim().replace(/\/$/, "");
+  if (!trimmed) return "";
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed;
+  }
 }
 
 function getBearerToken(request: Request): string {

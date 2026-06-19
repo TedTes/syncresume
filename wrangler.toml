@@ -5,12 +5,13 @@ workers_dev = true
 keep_vars = true
 
 [vars]
-APP_ORIGIN = "http://localhost:5173"
+APP_ORIGIN = "https://syncresume.pages.dev"
 OPENAI_MODEL = "gpt-5.4-mini"
-# Set these to your Clerk instance values locally or in the Cloudflare dashboard.
+# Local Worker development should use `.dev.vars`.
+# Set these to your Clerk instance values in the Cloudflare dashboard.
 # CLERK_JWKS_URL = "https://<your-clerk-frontend-api>/.well-known/jwks.json"
 # CLERK_ISSUER = "https://<your-clerk-issuer>"
-# CLERK_AUTHORIZED_PARTIES = "http://localhost:5173,https://syncresume.pages.dev"
+# CLERK_AUTHORIZED_PARTIES = "https://syncresume.pages.dev"
 
 [[d1_databases]]
 binding = "DB"
