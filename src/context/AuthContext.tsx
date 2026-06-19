@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -64,6 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { user: clerkUser } = useUser();
   const [backendUser, setBackendUser] = useState<AuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const profileLoadKeyRef = useRef<string | null>(null);
+  const clerkUserId = clerkAuth.userId ?? "";
+  const clerkPrimaryEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? "";
 
   useEffect(() => {
     if (!isConfigured) {
@@ -76,28 +80,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clerkAuth.getToken, isConfigured]);
 
   const refreshProfile = useCallback(async () => {
-    if (!isConfigured || !clerkAuth.isLoaded || !clerkAuth.isSignedIn || !clerkUser) {
+    if (!isConfigured || !clerkAuth.isLoaded || !clerkAuth.isSignedIn || !clerkUserId) {
+      profileLoadKeyRef.current = null;
       setBackendUser(null);
       return;
     }
 
     setAuthError(null);
     const data = await cloudflareRequest<{ user: CloudflareUser }>("/api/me");
-    const email = getPrimaryEmail(clerkUser.primaryEmailAddress?.emailAddress, data.user.email);
-    setBackendUser({
+    const email = getPrimaryEmail(clerkPrimaryEmail, data.user.email);
+    const nextUser = {
       ...data.user,
       email,
       plan: data.user.plan || "Free",
-    });
-  }, [clerkAuth.isLoaded, clerkAuth.isSignedIn, clerkUser, isConfigured]);
+    };
+
+    setBackendUser((current) =>
+      current &&
+      current.id === nextUser.id &&
+      current.email === nextUser.email &&
+      current.plan === nextUser.plan
+        ? current
+        : nextUser,
+    );
+  }, [clerkAuth.isLoaded, clerkAuth.isSignedIn, clerkPrimaryEmail, clerkUserId, isConfigured]);
 
   useEffect(() => {
     let active = true;
 
     async function loadProfile() {
+      const profileLoadKey =
+        isConfigured && clerkAuth.isLoaded && clerkAuth.isSignedIn && clerkUserId
+          ? `${clerkUserId}:${clerkPrimaryEmail}`
+          : "";
+
+      if (profileLoadKey && profileLoadKeyRef.current === profileLoadKey) {
+        return;
+      }
+
+      profileLoadKeyRef.current = profileLoadKey || null;
+
       try {
         await refreshProfile();
       } catch (error) {
+        profileLoadKeyRef.current = null;
         if (active) {
           setBackendUser(null);
           setAuthError(getErrorMessage(error));
@@ -110,7 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [refreshProfile]);
+  }, [
+    clerkAuth.isLoaded,
+    clerkAuth.isSignedIn,
+    clerkPrimaryEmail,
+    clerkUserId,
+    isConfigured,
+    refreshProfile,
+  ]);
 
   async function signOut() {
     setAuthError(null);

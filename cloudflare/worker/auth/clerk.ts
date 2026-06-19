@@ -141,7 +141,8 @@ function assertValidClaims(payload: ClerkJwtPayload, env: ClerkAuthEnv): void {
   }
 
   const allowedParties = getAllowedParties(env);
-  if (payload.azp && allowedParties.length > 0 && !allowedParties.includes(payload.azp)) {
+  const authorizedParty = payload.azp?.replace(/\/$/, "");
+  if (authorizedParty && allowedParties.length > 0 && !allowedParties.includes(authorizedParty)) {
     throw new Error("Session origin is not authorized.");
   }
 }

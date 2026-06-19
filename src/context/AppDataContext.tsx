@@ -39,12 +39,13 @@ const storage: StorageAdapter = new CloudflareStorageAdapter();
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
+  const userId = user?.id ?? "";
   const [resumes, setResumes] = useState<ResumeRecord[]>([]);
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!hasBackend || !user) {
+    if (!hasBackend || !userId) {
       setResumes([]);
       setRuns([]);
       return;
@@ -53,7 +54,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const [nextResumes, nextRuns] = await Promise.all([storage.listResumes(), storage.listRuns()]);
     setResumes(nextResumes);
     setRuns(nextRuns);
-  }, [hasBackend, user]);
+  }, [hasBackend, userId]);
 
   useEffect(() => {
     if (isAuthLoading) {
