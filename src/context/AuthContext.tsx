@@ -1,27 +1,39 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import {
-  clearCloudflareSessionToken,
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  useAuth as useClerkAuth,
+  useClerk,
+  useUser,
+} from "@clerk/clerk-react";
+import {
   cloudflareRequest,
-  getCloudflareSessionToken,
   hasCloudflareConfig,
-  setCloudflareSessionToken,
+  setCloudflareAuthTokenProvider,
   type CloudflareUser,
 } from "../lib/cloudflare/client";
+import { hasClerkConfig } from "../lib/clerk/client";
 
-type AuthProviderKind = "cloudflare";
+type AuthProviderKind = "clerk";
 type AuthUser = CloudflareUser;
 type Profile = Pick<CloudflareUser, "id" | "email" | "plan">;
-type AuthSession = { provider: "cloudflare"; token: string } | null;
+type AuthSession = { provider: "clerk"; userId: string } | null;
 
 type AuthContextValue = {
   isConfigured: boolean;
+  missingConfig: string[];
   isLoading: boolean;
   provider: AuthProviderKind;
   user: AuthUser | null;
   session: AuthSession;
   profile: Profile | null;
   authError: string | null;
-  signInWithEmail: (email: string) => Promise<string | void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -32,130 +44,96 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Authentication request failed.";
 }
 
+function getPrimaryEmail(email: string | null | undefined, fallback: string): string {
+  return email?.trim() || fallback;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const isConfigured = hasCloudflareConfig();
-  const [session, setSession] = useState<AuthSession>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(isConfigured);
-  const [authError, setAuthError] = useState<string | null>(
-    isConfigured ? null : "Set VITE_CLOUDFLARE_API_URL to enable Cloudflare sync.",
+  const cloudflareConfigured = hasCloudflareConfig();
+  const clerkConfigured = hasClerkConfig();
+  const isConfigured = cloudflareConfigured && clerkConfigured;
+  const missingConfig = useMemo(
+    () => [
+      ...(cloudflareConfigured ? [] : ["VITE_CLOUDFLARE_API_URL"]),
+      ...(clerkConfigured ? [] : ["VITE_CLERK_PUBLISHABLE_KEY"]),
+    ],
+    [cloudflareConfigured, clerkConfigured],
   );
+  const clerkAuth = useClerkAuth();
+  const clerk = useClerk();
+  const { user: clerkUser } = useUser();
+  const [backendUser, setBackendUser] = useState<AuthUser | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isConfigured) {
-      setIsLoading(false);
+      setCloudflareAuthTokenProvider(null);
       return;
     }
 
+    setCloudflareAuthTokenProvider(() => clerkAuth.getToken());
+    return () => setCloudflareAuthTokenProvider(null);
+  }, [clerkAuth.getToken, isConfigured]);
+
+  const refreshProfile = useCallback(async () => {
+    if (!isConfigured || !clerkAuth.isLoaded || !clerkAuth.isSignedIn || !clerkUser) {
+      setBackendUser(null);
+      return;
+    }
+
+    setAuthError(null);
+    const data = await cloudflareRequest<{ user: CloudflareUser }>("/api/me");
+    const email = getPrimaryEmail(clerkUser.primaryEmailAddress?.emailAddress, data.user.email);
+    setBackendUser({
+      ...data.user,
+      email,
+      plan: data.user.plan || "Free",
+    });
+  }, [clerkAuth.isLoaded, clerkAuth.isSignedIn, clerkUser, isConfigured]);
+
+  useEffect(() => {
     let active = true;
-    const params = new URLSearchParams(window.location.search);
-    const magicToken = params.get("cf_token");
-    const existingToken = getCloudflareSessionToken();
 
-    async function loadCloudflareSession() {
+    async function loadProfile() {
       try {
-        if (magicToken) {
-          const data = await cloudflareRequest<{ sessionToken: string; user: CloudflareUser }>(
-            "/api/auth/verify",
-            {
-              method: "POST",
-              body: { token: magicToken },
-              auth: false,
-            },
-          );
-          setCloudflareSessionToken(data.sessionToken);
-          if (active) {
-            setSession({ provider: "cloudflare", token: data.sessionToken });
-            setUser(data.user);
-            setProfile({ id: data.user.id, email: data.user.email, plan: data.user.plan });
-          }
-          params.delete("cf_token");
-          const nextQuery = params.toString();
-          window.history.replaceState(
-            null,
-            "",
-            `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`,
-          );
-          return;
-        }
-
-        if (existingToken) {
-          const data = await cloudflareRequest<{ user: CloudflareUser }>("/api/me");
-          if (active) {
-            setSession({ provider: "cloudflare", token: existingToken });
-            setUser(data.user);
-            setProfile({ id: data.user.id, email: data.user.email, plan: data.user.plan });
-          }
-        }
+        await refreshProfile();
       } catch (error) {
-        clearCloudflareSessionToken();
-        if (active) setAuthError(getErrorMessage(error));
-      } finally {
-        if (active) setIsLoading(false);
+        if (active) {
+          setBackendUser(null);
+          setAuthError(getErrorMessage(error));
+        }
       }
     }
 
-    void loadCloudflareSession();
+    void loadProfile();
 
     return () => {
       active = false;
     };
-  }, [isConfigured]);
-
-  const refreshProfile = useCallback(async () => {
-    if (!isConfigured || !user) {
-      setProfile(null);
-      return;
-    }
-
-    setProfile({
-      id: user.id,
-      email: user.email,
-      plan: user.plan || "Free",
-    });
-  }, [isConfigured, user]);
-
-  useEffect(() => {
-    void refreshProfile();
   }, [refreshProfile]);
 
-  async function signInWithEmail(email: string): Promise<string | void> {
-    if (!isConfigured) {
-      throw new Error("Cloudflare API is not configured. Set VITE_CLOUDFLARE_API_URL.");
-    }
-
-    setAuthError(null);
-    const data = await cloudflareRequest<{ sent?: boolean; devLink?: string }>("/api/auth/login", {
-      method: "POST",
-      body: { email },
-      auth: false,
-    });
-
-    return data.devLink
-      ? `Development sign-in link: ${data.devLink}`
-      : "Check your inbox for the sign-in link.";
-  }
-
   async function signOut() {
-    if (!isConfigured) return;
     setAuthError(null);
-    await cloudflareRequest("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    clearCloudflareSessionToken();
-    setSession(null);
-    setUser(null);
-    setProfile(null);
+    setBackendUser(null);
+    await clerk.signOut();
   }
+
+  const user = backendUser;
+  const profile = user ? { id: user.id, email: user.email, plan: user.plan || "Free" } : null;
+  const session =
+    clerkAuth.isLoaded && clerkAuth.isSignedIn && clerkAuth.userId
+      ? { provider: "clerk" as const, userId: clerkAuth.userId }
+      : null;
 
   const value: AuthContextValue = {
     isConfigured,
-    isLoading,
-    provider: "cloudflare",
+    missingConfig,
+    isLoading: isConfigured ? !clerkAuth.isLoaded : false,
+    provider: "clerk",
     user,
     session,
     profile,
     authError,
-    signInWithEmail,
     signOut,
     refreshProfile,
   };

@@ -15,6 +15,7 @@
     "cf:pages:deploy": "npm run build && WRANGLER_WRITE_LOGS=false wrangler pages deploy dist --project-name syncresume"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.61.8",
     "@vitejs/plugin-react": "^5.0.0",
     "docx": "^9.5.1",
     "jspdf": "^4.2.1",

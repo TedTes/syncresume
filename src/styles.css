@@ -141,6 +141,20 @@ a {
   flex-shrink: 0;
 }
 
+.sidebar-account {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  min-height: 42px;
+  flex-shrink: 0;
+}
+
+.sidebar-user-button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+}
+
 .main-area {
   flex: 1;
   display: flex;
@@ -1475,6 +1489,8 @@ a {
   min-height: 100vh;
   display: grid;
   place-items: center;
+  align-content: center;
+  gap: 12px;
   padding: 32px;
 }
 
@@ -1487,6 +1503,17 @@ a {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
+}
+
+.auth-panel-clerk {
+  width: min(100%, 980px);
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1fr);
+  align-items: center;
+  gap: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .auth-panel-icon {
@@ -1514,65 +1541,96 @@ a {
   gap: 7px;
 }
 
+.auth-panel-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--accent-strong);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.auth-panel-kicker svg {
+  width: 16px;
+  height: 16px;
+}
+
 .auth-panel-copy h1 {
-  font-size: 1.18rem;
+  font-size: 2.25rem;
   line-height: 1.25;
   color: var(--ink);
 }
 
 .auth-panel-copy p {
-  font-size: 0.86rem;
+  max-width: 34rem;
+  font-size: 0.95rem;
   line-height: 1.55;
   color: var(--muted);
 }
 
-.auth-panel-form {
-  display: grid;
-  gap: 10px;
+.clerk-card-shell {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.auth-panel-form .btn {
+.clerk-root-box,
+.clerk-card-box {
   width: 100%;
 }
 
-.auth-panel-form .btn svg {
-  width: 16px;
-  height: 16px;
+.clerk-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: none;
 }
 
-.auth-dev-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 38px;
-  padding: 0 12px;
+.clerk-header-title {
+  color: var(--ink);
+}
+
+.clerk-header-subtitle,
+.clerk-divider-text {
+  color: var(--muted);
+}
+
+.clerk-social-button,
+.clerk-field-input {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+.clerk-primary-button {
+  background: var(--accent);
+  color: #06140a;
+  box-shadow: none;
+}
+
+.clerk-footer-link {
   color: var(--accent-strong);
-  background: var(--accent-dim);
-  border: 1px solid var(--success-border);
-  border-radius: 8px;
-  text-decoration: none;
-  font-size: 0.84rem;
-  font-weight: 700;
 }
 
-.auth-dev-link svg {
-  width: 14px;
-  height: 14px;
-}
-
-.auth-panel-error,
-.auth-panel-success {
-  font-size: 0.82rem;
-  font-weight: 600;
+.clerk-divider-line {
+  background: var(--border);
 }
 
 .auth-panel-error {
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--danger);
 }
 
-.auth-panel-success {
-  color: var(--success);
+.auth-panel-floating-error {
+  width: min(100%, 980px);
+  padding: 10px 12px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
 }
 
 .auth-config-code {
@@ -1658,8 +1716,21 @@ a {
 }
 
 .settings-readonly-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.86rem;
   color: var(--muted);
+}
+
+.settings-provider-badge {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.settings-provider-badge svg {
+  width: 15px;
+  height: 15px;
 }
 
 .provider-pills {
@@ -1687,33 +1758,6 @@ a {
   background: var(--accent-dim);
   border-color: var(--accent);
   color: var(--accent-strong);
-}
-
-.auth-email-form {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: min(100%, 420px);
-}
-
-.auth-email-input {
-  position: relative;
-  flex: 1;
-}
-
-.auth-email-input svg {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  width: 16px;
-  height: 16px;
-  color: var(--muted);
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.auth-email-input .field-input {
-  padding-left: 36px;
 }
 
 .settings-row-stacked {
@@ -2229,6 +2273,19 @@ a {
   .job-textarea {
     min-height: 260px;
   }
+
+  .auth-panel-clerk {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .clerk-card-shell {
+    justify-content: stretch;
+  }
+
+  .clerk-card {
+    max-width: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -2252,5 +2309,18 @@ a {
 
   .tab-content {
     padding: 14px 16px;
+  }
+
+  .auth-gate {
+    padding: 20px;
+  }
+
+  .auth-panel-copy h1 {
+    font-size: 1.65rem;
+  }
+
+  .settings-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

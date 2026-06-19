@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { AuthPanel } from "./AuthPanel";
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { isConfigured, isLoading, user } = useAuth();
+  const { authError, isConfigured, isLoading, missingConfig, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -25,10 +25,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
             <TriangleAlert />
           </div>
           <div className="auth-panel-copy">
-            <h1>Cloudflare API missing</h1>
-            <p>Set VITE_CLOUDFLARE_API_URL for the Pages frontend, then reload the app.</p>
+            <h1>Authentication setup missing</h1>
+            <p>Set the frontend environment variables, then reload the app.</p>
           </div>
-          <code className="auth-config-code">VITE_CLOUDFLARE_API_URL=http://localhost:8787</code>
+          <code className="auth-config-code">{missingConfig.join("\n")}</code>
         </section>
       </main>
     );
@@ -38,6 +38,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <main className="auth-gate">
         <AuthPanel />
+        {authError && <p className="auth-panel-error auth-panel-floating-error">{authError}</p>}
       </main>
     );
   }

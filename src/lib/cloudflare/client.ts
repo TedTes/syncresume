@@ -1,5 +1,8 @@
 const cloudflareApiUrl = import.meta.env.VITE_CLOUDFLARE_API_URL as string | undefined;
-const SESSION_KEY = "syncresume.cloudflare.session.v1";
+
+type AuthTokenProvider = () => Promise<string | null>;
+
+let authTokenProvider: AuthTokenProvider | null = null;
 
 export type CloudflareUser = {
   id: string;
@@ -12,16 +15,8 @@ export function hasCloudflareConfig(): boolean {
   return Boolean(cloudflareApiUrl);
 }
 
-export function getCloudflareSessionToken(): string {
-  return window.localStorage.getItem(SESSION_KEY) ?? "";
-}
-
-export function setCloudflareSessionToken(token: string): void {
-  window.localStorage.setItem(SESSION_KEY, token);
-}
-
-export function clearCloudflareSessionToken(): void {
-  window.localStorage.removeItem(SESSION_KEY);
+export function setCloudflareAuthTokenProvider(provider: AuthTokenProvider | null): void {
+  authTokenProvider = provider;
 }
 
 function getCloudflareRequestUrl(path: string): string {
@@ -32,9 +27,9 @@ function getCloudflareRequestUrl(path: string): string {
   return `${cloudflareApiUrl.replace(/\/$/, "")}${path}`;
 }
 
-function getAuthHeaders(): Headers {
+async function getAuthHeaders(): Promise<Headers> {
   const headers = new Headers();
-  const token = getCloudflareSessionToken();
+  const token = authTokenProvider ? await authTokenProvider() : null;
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
@@ -60,7 +55,7 @@ export async function cloudflareRequest<TResponse>(
     auth?: boolean;
   } = {},
 ): Promise<TResponse> {
-  const headers = options.auth === false ? new Headers() : getAuthHeaders();
+  const headers = options.auth === false ? new Headers() : await getAuthHeaders();
 
   let body: BodyInit | undefined;
   if (options.formData) {
@@ -77,9 +72,6 @@ export async function cloudflareRequest<TResponse>(
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      clearCloudflareSessionToken();
-    }
     throw new Error(await readErrorMessage(response));
   }
 
@@ -90,13 +82,10 @@ export async function cloudflareRequest<TResponse>(
 export async function cloudflareBlobRequest(path: string): Promise<Blob> {
   const response = await fetch(getCloudflareRequestUrl(path), {
     method: "GET",
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      clearCloudflareSessionToken();
-    }
     throw new Error(await readErrorMessage(response));
   }
 

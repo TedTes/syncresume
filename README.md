@@ -6,7 +6,7 @@ SyncResume is a resume optimization workspace. Users keep a resume library, add 
 
 1. App shell and tooling.
 2. Resume data model and scoring utilities.
-3. Cloudflare auth and server-side provider credentials.
+3. Clerk auth and Cloudflare server-side provider credentials.
 4. Job description and resume inputs with PDF/DOCX extraction.
 5. LLM optimization with structured JSON output.
 6. Review, inline editing, targeted section revision, and keyword scoring.
@@ -27,6 +27,7 @@ Create `.env.local` from `.env.example` before running the frontend:
 
 ```bash
 VITE_CLOUDFLARE_API_URL=http://localhost:8787
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
 ```
 
 ## Cloudflare Environment
@@ -51,9 +52,17 @@ Required Worker secrets:
 
 ```bash
 wrangler secret put OPENAI_API_KEY
-wrangler secret put RESEND_API_KEY
 ```
 
-For production, set `APP_ORIGIN` and `APP_BASE_URL` to the Pages URL, set
-`AUTH_DEV_MODE = "false"`, and set the Pages build variable
-`VITE_CLOUDFLARE_API_URL` to the deployed Worker URL.
+Required Worker variables:
+
+```bash
+APP_ORIGIN=http://localhost:5173
+CLERK_JWKS_URL=https://<your-clerk-frontend-api>/.well-known/jwks.json
+CLERK_ISSUER=https://<your-clerk-issuer>
+CLERK_AUTHORIZED_PARTIES=http://localhost:5173,https://<your-pages-domain>
+```
+
+For production, set `APP_ORIGIN` to the Pages URL, set the Pages build variables
+`VITE_CLOUDFLARE_API_URL` and `VITE_CLERK_PUBLISHABLE_KEY`, and set the Clerk
+Worker variables in the Cloudflare Worker environment.

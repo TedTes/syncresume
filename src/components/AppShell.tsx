@@ -1,4 +1,5 @@
 import { FileText, LayoutGrid, RefreshCw, Settings, Files } from "lucide-react";
+import { UserButton } from "@clerk/clerk-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { AuthGate } from "./AuthGate";
@@ -35,8 +36,21 @@ export function AppShell() {
           ))}
         </div>
 
-        <div className="sidebar-avatar" aria-hidden="true">
-          {initials}
+        <div className="sidebar-account">
+          {user ? (
+            <UserButton
+              afterSignOutUrl="/optimizer"
+              appearance={{
+                elements: {
+                  avatarBox: "sidebar-user-button",
+                },
+              }}
+            />
+          ) : (
+            <div className="sidebar-avatar" aria-hidden="true">
+              {initials}
+            </div>
+          )}
         </div>
       </nav>
 

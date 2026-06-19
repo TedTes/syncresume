@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
+import { UserButton } from "@clerk/clerk-react";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { PROVIDERS } from "../lib/providers/types";
@@ -94,12 +95,25 @@ export default function SettingsPage() {
             <div className="settings-row">
               <div>
                 <p className="settings-row-label">Session</p>
-                <p className="settings-row-desc">Cloudflare keeps the account session active.</p>
+                <p className="settings-row-desc">Clerk handles sign-in; Cloudflare verifies each request.</p>
               </div>
-              <button className="btn btn-secondary btn-sm" type="button" onClick={() => void signOut()}>
-                <LogOut aria-hidden="true" />
-                Sign out
-              </button>
+              <div className="settings-row-control">
+                <UserButton afterSignOutUrl="/optimizer" />
+                <button className="btn btn-secondary btn-sm" type="button" onClick={() => void signOut()}>
+                  <LogOut aria-hidden="true" />
+                  Sign out
+                </button>
+              </div>
+            </div>
+            <div className="settings-row">
+              <div>
+                <p className="settings-row-label">Identity provider</p>
+                <p className="settings-row-desc">Frontend session token is sent only as a request bearer token.</p>
+              </div>
+              <span className="settings-readonly-value settings-provider-badge">
+                <ShieldCheck aria-hidden="true" />
+                Clerk
+              </span>
             </div>
           </section>
         </div>
