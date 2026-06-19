@@ -33,11 +33,8 @@ export type NewRunInput = Omit<RunRecord, "id" | "createdAt">;
 /**
  * Storage contract for resumes and run history.
  *
- * Implementations are swappable: the active implementation today is
- * localStorage-backed (see localAdapter.ts). A future Supabase-backed
- * implementation (resume files in an S3-compatible bucket, run history via
- * edge functions) can replace it without any UI code changes — see
- * supabaseAdapter.ts for the intended shape.
+ * The production implementation is Cloudflare-backed: resume metadata and run
+ * history in D1, original files in R2, and mutations through the Worker API.
  */
 export interface StorageAdapter {
   listResumes(): Promise<ResumeRecord[]>;

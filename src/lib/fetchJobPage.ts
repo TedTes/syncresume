@@ -1,6 +1,4 @@
 import { cloudflareRequest, hasCloudflareConfig } from "./cloudflare/client";
-import { hasSupabaseConfig } from "./supabase/client";
-import { invokeEdgeFunction } from "./supabase/functions";
 
 // Sites that block automated fetching — give a precise hint before even trying.
 const BLOCKED_HOSTS: Array<{ match: string; hint: string }> = [
@@ -28,31 +26,14 @@ export async function fetchJobPageText(rawUrl: string): Promise<string> {
     }
   }
 
-  if (hasCloudflareConfig()) {
-    const data = await cloudflareRequest<{ text?: string }>(
-      "/api/fetch-job-page",
-      {
-        method: "POST",
-        body: { url: rawUrl },
-        auth: false,
-      },
-    );
-
-    if (!data.text || data.text.trim().length < 150) {
-      throw new Error(
-        "The page returned no readable content — it may require a login. Paste the description text directly.",
-      );
-    }
-
-    return data.text.trim();
+  if (!hasCloudflareConfig()) {
+    throw new Error("Cloudflare API is not configured. Paste the description text directly.");
   }
 
-  if (!hasSupabaseConfig()) {
-    throw new Error("Job link fetching requires a backend. Paste the description text directly.");
-  }
-
-  const data = await invokeEdgeFunction<{ text?: string }>("fetch-job-page", {
-    url: rawUrl,
+  const data = await cloudflareRequest<{ text?: string }>("/api/fetch-job-page", {
+    method: "POST",
+    body: { url: rawUrl },
+    auth: false,
   });
 
   if (!data.text || data.text.trim().length < 150) {

@@ -4,13 +4,10 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 import { useAuth } from "./AuthContext";
 import { CloudflareStorageAdapter } from "../lib/storage/cloudflareAdapter";
-import { LocalStorageAdapter } from "../lib/storage/localAdapter";
-import { SupabaseStorageAdapter } from "../lib/storage/supabaseAdapter";
 import type {
   NewResumeInput,
   NewRunInput,
@@ -38,24 +35,16 @@ type AppDataContextValue = {
 };
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
-const localStorageAdapter = new LocalStorageAdapter();
+const storage: StorageAdapter = new CloudflareStorageAdapter();
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const { isConfigured: hasBackend, isLoading: isAuthLoading, provider, user } = useAuth();
+  const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
   const [resumes, setResumes] = useState<ResumeRecord[]>([]);
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const storage = useMemo<StorageAdapter>(
-    () => {
-      if (provider === "cloudflare") return new CloudflareStorageAdapter();
-      if (provider === "supabase") return new SupabaseStorageAdapter();
-      return localStorageAdapter;
-    },
-    [provider, user?.id],
-  );
 
   const refresh = useCallback(async () => {
-    if (hasBackend && !user) {
+    if (!hasBackend || !user) {
       setResumes([]);
       setRuns([]);
       return;
@@ -64,7 +53,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const [nextResumes, nextRuns] = await Promise.all([storage.listResumes(), storage.listRuns()]);
     setResumes(nextResumes);
     setRuns(nextRuns);
-  }, [hasBackend, storage, user]);
+  }, [hasBackend, user]);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -140,7 +129,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const activeResume = resumes.find((resume) => resume.isActive) ?? null;
 
   function requireBackendUser() {
-    if (hasBackend && !user) {
+    if (!hasBackend) {
+      throw new Error("Cloudflare API is not configured. Set VITE_CLOUDFLARE_API_URL.");
+    }
+    if (!user) {
       throw new Error("Sign in before continuing.");
     }
   }
