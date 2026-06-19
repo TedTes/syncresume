@@ -2,6 +2,7 @@ name = "syncresume-api"
 main = "cloudflare/worker/index.ts"
 compatibility_date = "2026-06-16"
 workers_dev = true
+keep_vars = true
 
 [vars]
 APP_ORIGIN = "http://localhost:5173"
