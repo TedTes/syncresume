@@ -114,7 +114,7 @@ export default function ResumesPage() {
 
   async function handleFiles(files: FileList | File[]) {
     if (requiresSignIn) {
-      setUploadError("Sign in from Settings before uploading resumes.");
+      setUploadError("Sign in before uploading resumes.");
       return;
     }
 
@@ -207,7 +207,7 @@ export default function ResumesPage() {
     dragCounterRef.current = 0;
     setIsDraggingOver(false);
     if (uploadsDisabled) {
-      if (requiresSignIn) setUploadError("Sign in from Settings before uploading resumes.");
+      if (requiresSignIn) setUploadError("Sign in before uploading resumes.");
       return;
     }
     if (e.dataTransfer.files.length > 0) void handleFiles(e.dataTransfer.files);
@@ -259,7 +259,7 @@ export default function ResumesPage() {
 
   async function handleSaveTextResume() {
     if (requiresSignIn) {
-      setUploadError("Sign in from Settings before saving resumes.");
+      setUploadError("Sign in before saving resumes.");
       return;
     }
 
@@ -339,7 +339,7 @@ export default function ResumesPage() {
                 onDrop={handleDrop}
                 onClick={() => {
                   if (uploadsDisabled) {
-                    if (requiresSignIn) setUploadError("Sign in from Settings before uploading resumes.");
+                    if (requiresSignIn) setUploadError("Sign in before uploading resumes.");
                     return;
                   }
                   fileInputRef.current?.click();

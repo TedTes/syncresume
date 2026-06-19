@@ -600,7 +600,8 @@ async function handleLogin(request: Request, env: Env, headers: Headers): Promis
     .bind(id, email, tokenHash, expiresAt)
     .run();
 
-  const link = `${env.APP_BASE_URL || env.APP_ORIGIN || "http://localhost:5173"}/settings?cf_token=${encodeURIComponent(token)}`;
+  const appBaseUrl = (env.APP_BASE_URL || env.APP_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
+  const link = `${appBaseUrl}/optimizer?cf_token=${encodeURIComponent(token)}`;
   const sent = await sendMagicLinkEmail(env, email, link);
   const devMode = env.AUTH_DEV_MODE === "true" || !env.RESEND_API_KEY;
 

@@ -1,5 +1,7 @@
 import { FileText, LayoutGrid, RefreshCw, Settings, Files } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { AuthGate } from "./AuthGate";
 
 const NAV_ITEMS = [
   { to: "/optimizer", label: "Optimizer", icon: FileText },
@@ -9,6 +11,9 @@ const NAV_ITEMS = [
 ];
 
 export function AppShell() {
+  const { user } = useAuth();
+  const initials = user?.email?.slice(0, 2).toUpperCase() || "SR";
+
   return (
     <div className="app-shell">
       <nav className="sidebar" aria-label="Primary">
@@ -31,12 +36,14 @@ export function AppShell() {
         </div>
 
         <div className="sidebar-avatar" aria-hidden="true">
-          TD
+          {initials}
         </div>
       </nav>
 
       <div className="main-area">
-        <Outlet />
+        <AuthGate>
+          <Outlet />
+        </AuthGate>
       </div>
     </div>
   );

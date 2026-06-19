@@ -1470,6 +1470,137 @@ a {
   height: 13px;
 }
 
+/* ============ Auth gate ============ */
+.auth-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.auth-panel {
+  width: min(100%, 460px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.auth-panel-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--accent-dim);
+  color: var(--accent-strong);
+}
+
+.auth-panel-icon.warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.auth-panel-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.auth-panel-copy {
+  display: grid;
+  gap: 7px;
+}
+
+.auth-panel-copy h1 {
+  font-size: 1.18rem;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.auth-panel-copy p {
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.auth-panel-form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-panel-form .btn {
+  width: 100%;
+}
+
+.auth-panel-form .btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.auth-dev-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  color: var(--accent-strong);
+  background: var(--accent-dim);
+  border: 1px solid var(--success-border);
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.auth-dev-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.auth-panel-error,
+.auth-panel-success {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.auth-panel-error {
+  color: var(--danger);
+}
+
+.auth-panel-success {
+  color: var(--success);
+}
+
+.auth-config-code {
+  display: block;
+  padding: 12px;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.auth-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.auth-loading svg {
+  width: 17px;
+  height: 17px;
+}
+
 /* ============ Settings page ============ */
 .settings-page {
   display: flex;
