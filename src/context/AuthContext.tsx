@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { user: clerkUser } = useUser();
   const [backendUser, setBackendUser] = useState<AuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
   const profileLoadKeyRef = useRef<string | null>(null);
   const clerkUserId = clerkAuth.userId ?? "";
   const clerkPrimaryEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? "";
@@ -80,7 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clerkAuth.getToken, isConfigured]);
 
   const refreshProfile = useCallback(async () => {
-    if (!isConfigured || !clerkAuth.isLoaded || !clerkAuth.isSignedIn || !clerkUserId) {
+    if (!isConfigured || !clerkAuth.isLoaded) {
+      return;
+    }
+
+    if (!clerkAuth.isSignedIn || !clerkUserId) {
       profileLoadKeyRef.current = null;
       setBackendUser(null);
       return;
@@ -109,16 +114,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     async function loadProfile() {
-      const profileLoadKey =
-        isConfigured && clerkAuth.isLoaded && clerkAuth.isSignedIn && clerkUserId
-          ? `${clerkUserId}:${clerkPrimaryEmail}`
-          : "";
-
-      if (profileLoadKey && profileLoadKeyRef.current === profileLoadKey) {
+      if (!isConfigured) {
+        profileLoadKeyRef.current = null;
+        setBackendUser(null);
+        setIsProfileLoading(false);
         return;
       }
 
-      profileLoadKeyRef.current = profileLoadKey || null;
+      if (!clerkAuth.isLoaded) {
+        return;
+      }
+
+      if (!clerkAuth.isSignedIn || !clerkUserId) {
+        profileLoadKeyRef.current = null;
+        setBackendUser(null);
+        setIsProfileLoading(false);
+        return;
+      }
+
+      const profileLoadKey =
+        `${clerkUserId}:${clerkPrimaryEmail}`;
+
+      if (profileLoadKeyRef.current === profileLoadKey) {
+        setIsProfileLoading(false);
+        return;
+      }
+
+      profileLoadKeyRef.current = profileLoadKey;
+      setIsProfileLoading(true);
 
       try {
         await refreshProfile();
@@ -127,6 +150,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) {
           setBackendUser(null);
           setAuthError(getErrorMessage(error));
+        }
+      } finally {
+        if (active) {
+          setIsProfileLoading(false);
         }
       }
     }
@@ -161,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     isConfigured,
     missingConfig,
-    isLoading: isConfigured ? !clerkAuth.isLoaded : false,
+    isLoading: isConfigured ? !clerkAuth.isLoaded || isProfileLoading : false,
     provider: "clerk",
     user,
     session,

@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { useAuth } from "./AuthContext";
@@ -31,7 +32,7 @@ type AppDataContextValue = {
   addRun: (input: NewRunInput) => Promise<RunRecord>;
   updateRunStatus: (id: string, status: RunStatus) => Promise<void>;
   recordExport: (runId: string, exportType: ExportType) => Promise<void>;
-  refresh: () => Promise<void>;
+  refresh: (options?: { force?: boolean }) => Promise<void>;
 };
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
@@ -43,17 +44,42 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [resumes, setResumes] = useState<ResumeRecord[]>([]);
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const loadedDataKeyRef = useRef<string | null>(null);
+  const inFlightRefreshRef = useRef<{ key: string; promise: Promise<void> } | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { force?: boolean }) => {
     if (!hasBackend || !userId) {
+      loadedDataKeyRef.current = null;
+      inFlightRefreshRef.current = null;
       setResumes([]);
       setRuns([]);
       return;
     }
 
-    const [nextResumes, nextRuns] = await Promise.all([storage.listResumes(), storage.listRuns()]);
-    setResumes(nextResumes);
-    setRuns(nextRuns);
+    const dataKey = userId;
+    if (!options?.force) {
+      if (loadedDataKeyRef.current === dataKey) return;
+      if (inFlightRefreshRef.current?.key === dataKey) {
+        await inFlightRefreshRef.current.promise;
+        return;
+      }
+    }
+
+    const refreshPromise = (async () => {
+      const [nextResumes, nextRuns] = await Promise.all([storage.listResumes(), storage.listRuns()]);
+      loadedDataKeyRef.current = dataKey;
+      setResumes(nextResumes);
+      setRuns(nextRuns);
+    })();
+
+    inFlightRefreshRef.current = { key: dataKey, promise: refreshPromise };
+    try {
+      await refreshPromise;
+    } finally {
+      if (inFlightRefreshRef.current?.promise === refreshPromise) {
+        inFlightRefreshRef.current = null;
+      }
+    }
   }, [hasBackend, userId]);
 
   useEffect(() => {
@@ -78,7 +104,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   async function addResume(input: NewResumeInput) {
     requireBackendUser();
     const record = await storage.saveResume(input);
-    await refresh();
+    await refresh({ force: true });
     return record;
   }
 
@@ -93,38 +119,38 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   async function setActiveResume(id: string) {
     requireBackendUser();
     await storage.setActiveResume(id);
-    await refresh();
+    await refresh({ force: true });
   }
 
   async function deleteResume(id: string) {
     requireBackendUser();
     await storage.deleteResume(id);
-    await refresh();
+    await refresh({ force: true });
   }
 
   async function incrementResumeUsage(id: string) {
     requireBackendUser();
     await storage.incrementResumeUsage(id);
-    await refresh();
+    await refresh({ force: true });
   }
 
   async function addRun(input: NewRunInput) {
     requireBackendUser();
     const record = await storage.saveRun(input);
-    await refresh();
+    await refresh({ force: true });
     return record;
   }
 
   async function updateRunStatus(id: string, status: RunStatus) {
     requireBackendUser();
     await storage.updateRunStatus(id, status);
-    await refresh();
+    await refresh({ force: true });
   }
 
   async function recordExport(runId: string, exportType: ExportType) {
     requireBackendUser();
     await storage.recordExport(runId, exportType);
-    await refresh();
+    await refresh({ force: true });
   }
 
   const activeResume = resumes.find((resume) => resume.isActive) ?? null;
