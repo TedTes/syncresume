@@ -5,6 +5,7 @@ import {
   Download,
   Eye,
   ExternalLink,
+  FileDown,
   FileText,
   Loader2,
   PenLine,
@@ -15,10 +16,28 @@ import {
 } from "lucide-react";
 import { ChangeEvent, DragEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { ResumeTemplatePreview } from "../components/ResumeTemplatePreview";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
-import { downloadTextPdf } from "../lib/exportResume";
+import {
+  downloadResumeDocumentDocx,
+  downloadResumeDocumentPdf,
+  downloadTextPdf,
+} from "../lib/exportResume";
 import { extractResumeText } from "../lib/fileExtract";
+import {
+  parseResumeDocument,
+  sectionTextareaRows,
+  serializeResumeDocument,
+  updateResumeDocumentSection,
+  type ResumeDocument,
+} from "../lib/resumeDocument";
+import {
+  DEFAULT_TEMPLATE_ID,
+  normalizeResumeTemplateId,
+  RESUME_TEMPLATES,
+  type ResumeTemplateId,
+} from "../lib/resumeTemplates";
 import type { ResumeFileType, ResumeRecord } from "../lib/storage";
 
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
@@ -78,6 +97,7 @@ export default function ResumesPage() {
     getResumeFile,
     setActiveResume,
     updateResumeText,
+    updateResumeTemplate,
     deleteResume,
   } = useAppData();
   const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
@@ -94,7 +114,8 @@ export default function ResumesPage() {
   const [previewError, setPreviewError] = useState("");
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
   const [editingResumeId, setEditingResumeId] = useState("");
-  const [editedResumeText, setEditedResumeText] = useState("");
+  const [editedResumeDocument, setEditedResumeDocument] = useState<ResumeDocument | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<ResumeTemplateId>(DEFAULT_TEMPLATE_ID);
   const [editError, setEditError] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [isSavingExtractedText, setIsSavingExtractedText] = useState(false);
@@ -106,6 +127,23 @@ export default function ResumesPage() {
   const previewResume = resumes.find((resume) => resume.id === previewId) ?? null;
   const editingResume = resumes.find((resume) => resume.id === editingResumeId) ?? null;
   const isFullPagePreview = Boolean(previewId || previewLoadingId || filePreview || previewError);
+  const currentEditedResumeText = editedResumeDocument
+    ? serializeResumeDocument(editedResumeDocument)
+    : "";
+  const derivedBySource = resumes.reduce((groups, resume) => {
+    if (resume.versionType === "tailored" && resume.sourceResumeId) {
+      const sourceId = resume.sourceResumeId;
+      groups.set(sourceId, [...(groups.get(sourceId) ?? []), resume]);
+    }
+    return groups;
+  }, new Map<string, ResumeRecord[]>());
+  const sourceResumeIds = new Set(resumes.map((resume) => resume.id));
+  const baseResumes = resumes.filter(
+    (resume) =>
+      resume.versionType !== "tailored" ||
+      !resume.sourceResumeId ||
+      !sourceResumeIds.has(resume.sourceResumeId),
+  );
 
   function updateUploadItem(id: string, patch: Partial<UploadQueueItem>) {
     setUploadQueue((current) =>
@@ -129,16 +167,25 @@ export default function ResumesPage() {
   function openExtractedEditor(resume: ResumeRecord) {
     closePreview();
     setEditingResumeId(resume.id);
-    setEditedResumeText(resume.text);
+    setEditedResumeDocument(parseResumeDocument(resume.text, resume.name));
+    setSelectedTemplateId(normalizeResumeTemplateId(resume.templateId));
     setEditError("");
     setEditStatus("");
   }
 
   function closeExtractedEditor() {
     setEditingResumeId("");
-    setEditedResumeText("");
+    setEditedResumeDocument(null);
     setEditError("");
     setEditStatus("");
+  }
+
+  function updateEditedSection(sectionId: string, content: string) {
+    if (!editedResumeDocument) return;
+
+    setEditedResumeDocument(updateResumeDocumentSection(editedResumeDocument, sectionId, content));
+    setEditStatus("");
+    setEditError("");
   }
 
   function switchResumeInputMode(mode: ResumeInputMode) {
@@ -265,9 +312,9 @@ export default function ResumesPage() {
   }
 
   async function handleSaveExtractedText() {
-    if (!editingResume) return;
+    if (!editingResume || !editedResumeDocument) return;
 
-    const normalizedText = editedResumeText.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
+    const normalizedText = currentEditedResumeText.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
     if (normalizedText.length < 20) {
       setEditError("Extracted resume text must be at least 20 characters.");
       return;
@@ -278,7 +325,8 @@ export default function ResumesPage() {
     setEditStatus("");
     try {
       await updateResumeText(editingResume.id, normalizedText);
-      setEditedResumeText(normalizedText);
+      await updateResumeTemplate(editingResume.id, selectedTemplateId);
+      setEditedResumeDocument(parseResumeDocument(normalizedText, editingResume.name));
       setEditStatus("Saved extracted text.");
     } catch (error) {
       setEditError(error instanceof Error ? error.message : "Could not save extracted text.");
@@ -347,6 +395,75 @@ export default function ResumesPage() {
     }
   }
 
+  function renderResumeRow(resume: ResumeRecord, variant: "base" | "tailored" = "base") {
+    const isTailored = variant === "tailored" || resume.versionType === "tailored";
+    return (
+      <div className={`resume-row ${isTailored ? "resume-row-derived" : ""}`}>
+        <span className="resume-row-icon" aria-hidden="true">
+          <FileText />
+        </span>
+        <div className="resume-row-info">
+          <span className="resume-row-name">{resume.name}</span>
+          <span className="resume-row-meta">
+            {isTailored
+              ? `Tailored${resume.tailoredFor ? ` for ${resume.tailoredFor}` : ""} · ${resume.matchScore ?? "—"}% match · ${formatDate(resume.uploadedAt)}`
+              : `Uploaded ${formatDate(resume.uploadedAt)} · ${resume.characterCount.toLocaleString()} chars · used in ${resume.usageCount} runs`}
+          </span>
+        </div>
+        <div className="resume-row-actions">
+          {resume.isActive ? (
+            <span className="badge-active">
+              <CheckCircle2 aria-hidden="true" />
+              Selected
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setActiveResume(resume.id)}
+            >
+              {isTailored ? "Use version" : "Use resume"}
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={previewLoadingId === resume.id}
+            onClick={() => void handlePreview(resume.id, resume.fileType, resume.name)}
+          >
+            {previewLoadingId === resume.id ? (
+              <Loader2 className="spin" aria-hidden="true" />
+            ) : (
+              <Eye aria-hidden="true" />
+            )}
+            Preview
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => openExtractedEditor(resume)}
+          >
+            <PenLine aria-hidden="true" />
+            Edit text
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={deletingId === resume.id}
+            onClick={() => void handleDeleteResume(resume.id)}
+          >
+            {deletingId === resume.id ? (
+              <Loader2 className="spin" aria-hidden="true" />
+            ) : (
+              <Trash2 aria-hidden="true" />
+            )}
+            Delete
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <header className="page-topbar">
@@ -365,7 +482,25 @@ export default function ResumesPage() {
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
-                onClick={() => downloadTextPdf(editedResumeText, editingResume.name)}
+                disabled={!editedResumeDocument}
+                onClick={() => {
+                  if (editedResumeDocument) {
+                    void downloadResumeDocumentDocx(editedResumeDocument, selectedTemplateId, editingResume.name);
+                  }
+                }}
+              >
+                <FileDown aria-hidden="true" />
+                DOCX
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={!editedResumeDocument}
+                onClick={() => {
+                  if (editedResumeDocument) {
+                    void downloadResumeDocumentPdf(editedResumeDocument, selectedTemplateId, editingResume.name);
+                  }
+                }}
               >
                 <Download aria-hidden="true" />
                 PDF
@@ -373,7 +508,7 @@ export default function ResumesPage() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                disabled={isSavingExtractedText || editedResumeText.trim().length < 20}
+                disabled={isSavingExtractedText || currentEditedResumeText.trim().length < 20}
                 onClick={() => void handleSaveExtractedText()}
               >
                 {isSavingExtractedText ? (
@@ -387,18 +522,60 @@ export default function ResumesPage() {
           </div>
           <div className="extracted-editor-shell">
             <div className="extracted-editor-meta">
-              <span>{editedResumeText.trim().length.toLocaleString()} chars</span>
-              <span>PDF/DOCX extraction is editable here; the original file remains unchanged.</span>
+              <span>{currentEditedResumeText.trim().length.toLocaleString()} chars</span>
+              <span>Choose a template, edit sections, then export a clean ATS-safe file.</span>
             </div>
-            <textarea
-              className="field-textarea extracted-editor-textarea"
-              value={editedResumeText}
-              onChange={(event) => {
-                setEditedResumeText(event.target.value);
-                setEditStatus("");
-                setEditError("");
-              }}
-            />
+            {editedResumeDocument && (
+              <>
+                <div className="template-picker" aria-label="Resume template">
+                  {RESUME_TEMPLATES.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      className={`template-option ${selectedTemplateId === template.id ? "selected" : ""}`}
+                      onClick={() => setSelectedTemplateId(template.id)}
+                    >
+                      <span>
+                        {template.name}
+                        {template.isAtsSafe && <small>ATS-safe</small>}
+                      </span>
+                      <em>{template.description}</em>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="structured-editor-layout">
+                  <div className="structured-editor-grid">
+                    {editedResumeDocument.sections.map((section) => (
+                      <section className="structured-editor-section" key={section.id}>
+                        <div className="structured-section-header">
+                          <h2>{section.title}</h2>
+                          <span>{section.content.trim().length.toLocaleString()} chars</span>
+                        </div>
+                        <textarea
+                          className="field-textarea structured-section-textarea"
+                          value={section.content}
+                          rows={sectionTextareaRows(section.content)}
+                          aria-label={`${section.title} text`}
+                          onChange={(event) => updateEditedSection(section.id, event.target.value)}
+                        />
+                      </section>
+                    ))}
+                  </div>
+
+                  <aside className="template-preview-panel" aria-label="Template preview">
+                    <div className="template-preview-header">
+                      <span>Live preview</span>
+                      <small>{RESUME_TEMPLATES.find((template) => template.id === selectedTemplateId)?.name}</small>
+                    </div>
+                    <ResumeTemplatePreview
+                      document={editedResumeDocument}
+                      templateId={selectedTemplateId}
+                    />
+                  </aside>
+                </div>
+              </>
+            )}
             {editError && <div className="inline-error">{editError}</div>}
             {editStatus && <div className="inline-success">{editStatus}</div>}
           </div>
@@ -627,69 +804,14 @@ export default function ResumesPage() {
           <div className="empty-state">No resumes uploaded yet.</div>
         ) : (
           <div className="resumes-list">
-            {resumes.map((resume) => (
-              <div key={resume.id}>
-                <div className="resume-row">
-                  <span className="resume-row-icon" aria-hidden="true">
-                    <FileText />
-                  </span>
-                  <div className="resume-row-info">
-                    <span className="resume-row-name">{resume.name}</span>
-                    <span className="resume-row-meta">
-                      Uploaded {formatDate(resume.uploadedAt)} · {resume.characterCount.toLocaleString()} chars · used in {resume.usageCount} runs
-                    </span>
+            {baseResumes.map((resume) => (
+              <div className="resume-group" key={resume.id}>
+                {renderResumeRow(resume)}
+                {(derivedBySource.get(resume.id) ?? []).map((derivedResume) => (
+                  <div className="resume-derived-wrap" key={derivedResume.id}>
+                    {renderResumeRow(derivedResume, "tailored")}
                   </div>
-                  <div className="resume-row-actions">
-                    {resume.isActive ? (
-                      <span className="badge-active">
-                        <CheckCircle2 aria-hidden="true" />
-                        Selected
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => setActiveResume(resume.id)}
-                      >
-                        Use resume
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      disabled={previewLoadingId === resume.id}
-                      onClick={() => void handlePreview(resume.id, resume.fileType, resume.name)}
-                    >
-                      {previewLoadingId === resume.id ? (
-                        <Loader2 className="spin" aria-hidden="true" />
-                      ) : (
-                        <Eye aria-hidden="true" />
-                      )}
-                      Preview
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => openExtractedEditor(resume)}
-                    >
-                      <PenLine aria-hidden="true" />
-                      Edit text
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      disabled={deletingId === resume.id}
-                      onClick={() => void handleDeleteResume(resume.id)}
-                    >
-                      {deletingId === resume.id ? (
-                        <Loader2 className="spin" aria-hidden="true" />
-                      ) : (
-                        <Trash2 aria-hidden="true" />
-                      )}
-                      Delete
-                    </button>
-                  </div>
-                </div>
+                ))}
               </div>
             ))}
           </div>
