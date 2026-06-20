@@ -42,6 +42,12 @@ type ResumeRow = {
   character_count: number;
   usage_count: number;
   is_active: number;
+  selected_template_id: string;
+  version_type: "base" | "tailored";
+  source_resume_id: string | null;
+  source_run_id: string | null;
+  tailored_for: string | null;
+  match_score: number | null;
   uploaded_at: string;
 };
 
@@ -68,6 +74,41 @@ class HttpError extends Error {
 
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
 const MIN_RESUME_TEXT_LENGTH = 20;
+const RESUME_TEMPLATE_IDS = new Set(["ats-simple", "modern", "compact", "executive"]);
+const RESUME_VERSION_TYPES = new Set(["base", "tailored"]);
+const JOB_TITLE_WORDS = [
+  "analyst",
+  "architect",
+  "consultant",
+  "designer",
+  "developer",
+  "director",
+  "engineer",
+  "lead",
+  "manager",
+  "product",
+  "scientist",
+  "specialist",
+  "strategist",
+];
+const JOB_TITLE_SKIP_PREFIXES = [
+  "about ",
+  "benefits",
+  "company",
+  "compensation",
+  "department",
+  "employment type",
+  "equal opportunity",
+  "location",
+  "qualifications",
+  "reports to",
+  "requirements",
+  "responsibilities",
+  "salary",
+  "the role",
+  "what you",
+  "who you",
+];
 
 const defaultCorsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
@@ -111,6 +152,11 @@ export default {
       const resumeTextMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/text$/);
       if (resumeTextMatch && request.method === "PATCH") {
         return await handleUpdateResumeText(request, env, corsHeaders, resumeTextMatch[1]);
+      }
+
+      const resumeTemplateMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/template$/);
+      if (resumeTemplateMatch && request.method === "PATCH") {
+        return await handleUpdateResumeTemplate(request, env, corsHeaders, resumeTemplateMatch[1]);
       }
 
       const resumeFileMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/file$/);
@@ -283,7 +329,8 @@ async function handleListResumes(request: Request, env: Env, headers: Headers): 
   const { results } = await env.DB.prepare(
     [
       "select id, name, file_type, storage_key, extracted_text, character_count,",
-      "usage_count, is_active, uploaded_at",
+      "usage_count, is_active, selected_template_id, version_type, source_resume_id,",
+      "source_run_id, tailored_for, match_score, uploaded_at",
       "from resumes",
       "where user_id = ?",
       "order by uploaded_at desc",
@@ -328,9 +375,9 @@ async function handleCreateResume(request: Request, env: Env, headers: Headers):
     const row = await env.DB.prepare(
       [
         "insert into resumes",
-        "(id, user_id, name, file_type, storage_key, extracted_text, character_count, is_active)",
-        "values (?, ?, ?, ?, ?, ?, ?, ?)",
-        "returning id, name, file_type, storage_key, extracted_text, character_count, usage_count, is_active, uploaded_at",
+        "(id, user_id, name, file_type, storage_key, extracted_text, character_count, is_active, selected_template_id, version_type, source_resume_id, source_run_id, tailored_for, match_score)",
+        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "returning id, name, file_type, storage_key, extracted_text, character_count, usage_count, is_active, selected_template_id, version_type, source_resume_id, source_run_id, tailored_for, match_score, uploaded_at",
       ].join(" "),
     )
       .bind(
@@ -342,6 +389,12 @@ async function handleCreateResume(request: Request, env: Env, headers: Headers):
         input.text,
         input.text.length,
         isFirst ? 1 : 0,
+        input.templateId,
+        input.versionType,
+        input.sourceResumeId,
+        input.sourceRunId,
+        input.tailoredFor,
+        input.matchScore,
       )
       .first<ResumeRow>();
 
@@ -390,10 +443,42 @@ async function handleUpdateResumeText(
       "update resumes",
       "set extracted_text = ?, character_count = ?, updated_at = current_timestamp",
       "where user_id = ? and id = ?",
-      "returning id, name, file_type, storage_key, extracted_text, character_count, usage_count, is_active, uploaded_at",
+      "returning id, name, file_type, storage_key, extracted_text, character_count, usage_count, is_active, selected_template_id, version_type, source_resume_id, source_run_id, tailored_for, match_score, uploaded_at",
     ].join(" "),
   )
     .bind(text, text.length, user.id, resumeId)
+    .first<ResumeRow>();
+
+  if (!row) {
+    return json({ error: "Resume not found." }, { status: 404, headers });
+  }
+
+  return json({ resume: mapResume(row) }, { headers });
+}
+
+async function handleUpdateResumeTemplate(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  resumeId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const templateId = asNonEmptyString(body.templateId);
+
+  if (!RESUME_TEMPLATE_IDS.has(templateId)) {
+    return json({ error: "Unknown resume template." }, { status: 400, headers });
+  }
+
+  const row = await env.DB.prepare(
+    [
+      "update resumes",
+      "set selected_template_id = ?, updated_at = current_timestamp",
+      "where user_id = ? and id = ?",
+      "returning id, name, file_type, storage_key, extracted_text, character_count, usage_count, is_active, selected_template_id, version_type, source_resume_id, source_run_id, tailored_for, match_score, uploaded_at",
+    ].join(" "),
+  )
+    .bind(templateId, user.id, resumeId)
     .first<ResumeRow>();
 
   if (!row) {
@@ -683,6 +768,12 @@ type ResumeInput = {
   fileType: "pdf" | "docx" | "text";
   text: string;
   characterCount: number;
+  templateId: string;
+  versionType: "base" | "tailored";
+  sourceResumeId: string | null;
+  sourceRunId: string | null;
+  tailoredFor: string | null;
+  matchScore: number | null;
   file?: File;
   contentType: string;
   byteSize: number;
@@ -698,13 +789,22 @@ async function readResumeInput(request: Request): Promise<ResumeInput> {
     const text = String(form.get("text") ?? "").trim();
     const name = String(form.get("name") || file?.name || "Resume.txt").trim();
     const fileType = normalizeFileType(String(form.get("fileType") || fileTypeFromName(name)));
+    const templateId = normalizeResumeTemplateId(String(form.get("templateId") || ""));
+    const versionType = normalizeResumeVersionType(String(form.get("versionType") || ""));
     const contentType = file?.type || contentTypeForFileType(fileType);
+    const matchScore = Number(form.get("matchScore"));
 
     return {
       name,
       fileType,
       text,
       characterCount: text.length,
+      templateId,
+      versionType,
+      sourceResumeId: asNullableString(form.get("sourceResumeId")),
+      sourceRunId: asNullableString(form.get("sourceRunId")),
+      tailoredFor: asNullableString(form.get("tailoredFor")),
+      matchScore: Number.isFinite(matchScore) ? Math.round(matchScore) : null,
       file,
       contentType,
       byteSize: file?.size ?? new TextEncoder().encode(text).byteLength,
@@ -715,12 +815,21 @@ async function readResumeInput(request: Request): Promise<ResumeInput> {
   const text = asNonEmptyString(body.text);
   const name = asNonEmptyString(body.name) || "Resume.txt";
   const fileType = normalizeFileType(String(body.fileType || fileTypeFromName(name)));
+  const templateId = normalizeResumeTemplateId(String(body.templateId || ""));
+  const versionType = normalizeResumeVersionType(String(body.versionType || ""));
+  const matchScore = typeof body.matchScore === "number" ? body.matchScore : Number(body.matchScore);
 
   return {
     name,
     fileType,
     text,
     characterCount: text.length,
+    templateId,
+    versionType,
+    sourceResumeId: asNullableString(body.sourceResumeId),
+    sourceRunId: asNullableString(body.sourceRunId),
+    tailoredFor: asNullableString(body.tailoredFor),
+    matchScore: Number.isFinite(matchScore) ? Math.round(matchScore) : null,
     contentType: "text/plain",
     byteSize: new TextEncoder().encode(text).byteLength,
   };
@@ -748,6 +857,12 @@ function mapResume(row: ResumeRow): JsonRecord {
     uploadedAt: row.uploaded_at,
     usageCount: row.usage_count,
     isActive: row.is_active === 1,
+    templateId: row.selected_template_id || "ats-simple",
+    versionType: row.version_type || "base",
+    sourceResumeId: row.source_resume_id,
+    sourceRunId: row.source_run_id,
+    tailoredFor: row.tailored_for,
+    matchScore: row.match_score,
   };
 }
 
@@ -766,6 +881,14 @@ function mapRun(row: RunRow): JsonRecord {
 
 function normalizeFileType(value: string): "pdf" | "docx" | "text" {
   return value === "pdf" || value === "docx" || value === "text" ? value : "text";
+}
+
+function normalizeResumeTemplateId(value: string): string {
+  return RESUME_TEMPLATE_IDS.has(value) ? value : "ats-simple";
+}
+
+function normalizeResumeVersionType(value: string): "base" | "tailored" {
+  return RESUME_VERSION_TYPES.has(value) ? value as "base" | "tailored" : "base";
 }
 
 function contentTypeForFileType(fileType: "pdf" | "docx" | "text"): string {
@@ -795,14 +918,38 @@ function asNonEmptyString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function deriveRunTitle(jobDescription: string): string {
-  const firstLine = jobDescription
-    .split("\n")
-    .map((line) => line.trim())
-    .find((line) => line.length > 0);
+function asNullableString(value: unknown): string | null {
+  const text = asNonEmptyString(value);
+  return text || null;
+}
 
-  if (!firstLine) return "Untitled role";
-  return firstLine.length > 70 ? `${firstLine.slice(0, 67)}...` : firstLine;
+function deriveRunTitle(jobDescription: string): string {
+  const lines = jobDescription
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  for (const line of lines.slice(0, 20)) {
+    const prefixed = line.match(/^(job\s*title|title|position|role)\s*[:\-]\s*(.+)$/i);
+    const title = cleanRunTitle(prefixed?.[2] ?? "");
+    if (title) return title;
+  }
+
+  const candidate = lines.slice(0, 12).find((line) => {
+    const normalized = line.toLowerCase();
+    if (line.length > 86 || /[.!?]$/.test(line)) return false;
+    if (JOB_TITLE_SKIP_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return false;
+    return JOB_TITLE_WORDS.some((word) => normalized.includes(word));
+  });
+
+  return cleanRunTitle(candidate ?? "") || "Untitled role";
+}
+
+function cleanRunTitle(value: string): string {
+  const cleaned = value.replace(/^\W+|\W+$/g, "").replace(/\s+/g, " ").trim();
+  if (!cleaned || cleaned.length < 3) return "";
+  if (JOB_TITLE_SKIP_PREFIXES.some((prefix) => cleaned.toLowerCase().startsWith(prefix))) return "";
+  return cleaned.length > 70 ? `${cleaned.slice(0, 67)}...` : cleaned;
 }
 
 function isFileLike(value: unknown): value is File {

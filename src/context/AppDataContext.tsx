@@ -28,6 +28,7 @@ type AppDataContextValue = {
   getResumeFile: (id: string) => Promise<Blob>;
   setActiveResume: (id: string) => Promise<void>;
   updateResumeText: (id: string, text: string) => Promise<ResumeRecord>;
+  updateResumeTemplate: (id: string, templateId: string) => Promise<ResumeRecord>;
   deleteResume: (id: string) => Promise<void>;
   incrementResumeUsage: (id: string) => Promise<void>;
   addRun: (input: NewRunInput) => Promise<RunRecord>;
@@ -130,6 +131,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return record;
   }
 
+  async function updateResumeTemplate(id: string, templateId: string) {
+    requireBackendUser();
+    const record = await storage.updateResumeTemplate(id, templateId);
+    await refresh({ force: true });
+    return record;
+  }
+
   async function deleteResume(id: string) {
     requireBackendUser();
     await storage.deleteResume(id);
@@ -181,6 +189,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     getResumeFile,
     setActiveResume,
     updateResumeText,
+    updateResumeTemplate,
     deleteResume,
     incrementResumeUsage,
     addRun,

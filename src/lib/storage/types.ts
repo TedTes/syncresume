@@ -1,4 +1,5 @@
 export type ResumeFileType = "pdf" | "docx" | "text";
+export type ResumeVersionType = "base" | "tailored";
 
 export type ResumeRecord = {
   id: string;
@@ -9,6 +10,12 @@ export type ResumeRecord = {
   uploadedAt: string;
   usageCount: number;
   isActive: boolean;
+  templateId: string;
+  versionType: ResumeVersionType;
+  sourceResumeId?: string | null;
+  sourceRunId?: string | null;
+  tailoredFor?: string | null;
+  matchScore?: number | null;
 };
 
 export type RunStatus = "draft" | "exported";
@@ -25,7 +32,9 @@ export type RunRecord = {
   createdAt: string;
 };
 
-export type NewResumeInput = Omit<ResumeRecord, "id" | "uploadedAt" | "usageCount" | "isActive"> & {
+export type NewResumeInput = Omit<ResumeRecord, "id" | "uploadedAt" | "usageCount" | "isActive" | "templateId" | "versionType"> & {
+  templateId?: string;
+  versionType?: ResumeVersionType;
   file?: File;
 };
 export type NewRunInput = Omit<RunRecord, "id" | "createdAt">;
@@ -42,6 +51,7 @@ export interface StorageAdapter {
   getResumeFile?(id: string): Promise<Blob>;
   setActiveResume(id: string): Promise<void>;
   updateResumeText(id: string, text: string): Promise<ResumeRecord>;
+  updateResumeTemplate(id: string, templateId: string): Promise<ResumeRecord>;
   deleteResume(id: string): Promise<void>;
   incrementResumeUsage(id: string): Promise<void>;
 
