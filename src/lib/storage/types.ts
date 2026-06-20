@@ -41,6 +41,7 @@ export interface StorageAdapter {
   saveResume(input: NewResumeInput): Promise<ResumeRecord>;
   getResumeFile?(id: string): Promise<Blob>;
   setActiveResume(id: string): Promise<void>;
+  updateResumeText(id: string, text: string): Promise<ResumeRecord>;
   deleteResume(id: string): Promise<void>;
   incrementResumeUsage(id: string): Promise<void>;
 

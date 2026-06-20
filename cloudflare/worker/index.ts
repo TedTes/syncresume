@@ -108,6 +108,11 @@ export default {
         return await handleSetActiveResume(request, env, corsHeaders, activeResumeMatch[1]);
       }
 
+      const resumeTextMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/text$/);
+      if (resumeTextMatch && request.method === "PATCH") {
+        return await handleUpdateResumeText(request, env, corsHeaders, resumeTextMatch[1]);
+      }
+
       const resumeFileMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/file$/);
       if (resumeFileMatch && request.method === "GET") {
         return await handleGetResumeFile(request, env, corsHeaders, resumeFileMatch[1]);
@@ -364,6 +369,38 @@ async function handleSetActiveResume(
   ]);
 
   return json({ ok: true }, { headers });
+}
+
+async function handleUpdateResumeText(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  resumeId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const text = asNonEmptyString(body.text);
+
+  if (text.length < MIN_RESUME_TEXT_LENGTH) {
+    return json({ error: "Resume text must be at least 20 characters." }, { status: 400, headers });
+  }
+
+  const row = await env.DB.prepare(
+    [
+      "update resumes",
+      "set extracted_text = ?, character_count = ?, updated_at = current_timestamp",
+      "where user_id = ? and id = ?",
+      "returning id, name, file_type, storage_key, extracted_text, character_count, usage_count, is_active, uploaded_at",
+    ].join(" "),
+  )
+    .bind(text, text.length, user.id, resumeId)
+    .first<ResumeRow>();
+
+  if (!row) {
+    return json({ error: "Resume not found." }, { status: 404, headers });
+  }
+
+  return json({ resume: mapResume(row) }, { headers });
 }
 
 async function handleGetResumeFile(

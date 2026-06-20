@@ -40,6 +40,19 @@ export class CloudflareStorageAdapter implements StorageAdapter {
     });
   }
 
+  async updateResumeText(id: string, text: string): Promise<ResumeRecord> {
+    const data = await cloudflareRequest<{ resume?: ResumeRecord }>(
+      `/api/resumes/${encodeURIComponent(id)}/text`,
+      {
+        method: "PATCH",
+        body: { text },
+      },
+    );
+
+    if (!data.resume) throw new Error("The backend did not return the updated resume.");
+    return data.resume;
+  }
+
   async getResumeFile(id: string): Promise<Blob> {
     return cloudflareBlobRequest(`/api/resumes/${encodeURIComponent(id)}/file`);
   }

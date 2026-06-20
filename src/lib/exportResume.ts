@@ -96,6 +96,46 @@ export async function downloadPdf(resume: StructuredResume) {
   pdf.save(`${FILE_BASENAME}.pdf`);
 }
 
+export async function downloadTextPdf(text: string, fileName = "syncresume-extracted-resume.pdf") {
+  const { jsPDF } = await import("jspdf");
+  const pdf = new jsPDF({ unit: "pt", format: "letter" });
+  const page = {
+    width: pdf.internal.pageSize.getWidth(),
+    height: pdf.internal.pageSize.getHeight(),
+    margin: 54,
+  };
+  const maxWidth = page.width - page.margin * 2;
+  let y = page.margin;
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+
+  const addPageIfNeeded = (height = 14) => {
+    if (y + height > page.height - page.margin) {
+      pdf.addPage();
+      y = page.margin;
+    }
+  };
+
+  const normalizedText = text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
+  for (const paragraph of normalizedText.split("\n")) {
+    const line = paragraph.trim();
+    if (!line) {
+      y += 8;
+      continue;
+    }
+
+    const lines = pdf.splitTextToSize(line, maxWidth);
+    for (const wrappedLine of lines) {
+      addPageIfNeeded();
+      pdf.text(wrappedLine, page.margin, y);
+      y += 14;
+    }
+  }
+
+  pdf.save(sanitizeDownloadFileName(fileName));
+}
+
 export async function copyPlainText(resume: StructuredResume) {
   await navigator.clipboard.writeText(resumeToPlainText(resume));
 }
@@ -163,4 +203,9 @@ function saveBlob(blob: Blob, fileName: string) {
   anchor.download = fileName;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function sanitizeDownloadFileName(value: string): string {
+  const normalized = value.trim().replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]+/g, "-");
+  return `${normalized || "syncresume-extracted-resume"}.pdf`;
 }
