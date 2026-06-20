@@ -184,11 +184,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clerkAuth.isLoaded && clerkAuth.isSignedIn && clerkAuth.userId
       ? { provider: "clerk" as const, userId: clerkAuth.userId }
       : null;
+  const isBackendProfilePending =
+    isConfigured &&
+    clerkAuth.isLoaded &&
+    clerkAuth.isSignedIn &&
+    !backendUser &&
+    !authError;
 
   const value: AuthContextValue = {
     isConfigured,
     missingConfig,
-    isLoading: isConfigured ? !clerkAuth.isLoaded || isProfileLoading : false,
+    isLoading: isConfigured ? !clerkAuth.isLoaded || isProfileLoading || isBackendProfilePending : false,
     provider: "clerk",
     user,
     session,
