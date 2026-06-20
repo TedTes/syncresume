@@ -46,7 +46,7 @@ export default function OptimizerPage() {
   const { provider, toggles } = useSettings();
 
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
-  const [jobAddMode, setJobAddMode] = useState<JobAddMode | null>(null);
+  const [jobAddMode, setJobAddMode] = useState<JobAddMode>("paste");
   const [jobDescription, setJobDescription] = useState("");
   const [linkValue, setLinkValue] = useState("");
   const [isFetchingJD, setIsFetchingJD] = useState(false);
@@ -167,7 +167,32 @@ export default function OptimizerPage() {
         </div>
       </header>
 
-      <main className="page-content">
+      <main className="page-content optimizer-page">
+        <section className="optimizer-resume-context" aria-label="Selected resume">
+          <div className="optimizer-context-copy">
+            <span className="section-label">Selected resume</span>
+            {activeResume ? (
+              <>
+                <h1>{activeResume.name}</h1>
+                <p>
+                  {activeResume.characterCount.toLocaleString()} chars · used in {activeResume.usageCount} runs
+                </p>
+              </>
+            ) : (
+              <>
+                <h1>No resume selected</h1>
+                <p>Choose a source resume before generating a tailored version.</p>
+              </>
+            )}
+          </div>
+          <div className="optimizer-context-actions">
+            <Link to="/resumes" className="btn btn-secondary btn-sm">
+              {activeResume ? "Change resume" : "Add resume"}
+              <Upload aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
+
         <section className="input-col" aria-label="Job description input">
           {!jobAddMode && (
             <div className="choice-section">
@@ -216,7 +241,10 @@ export default function OptimizerPage() {
             <div className="job-entry-panel">
               <div className="job-entry-header">
                 <div className="job-entry-title">
-                  <h2>{jobAddMode === "paste" ? "Job Description" : "Job posting URL"}</h2>
+                  <div>
+                    <span className="section-label">Target job</span>
+                    <h2>{jobAddMode === "paste" ? "Job description" : "Job posting URL"}</h2>
+                  </div>
                   {!activeResume && (
                     <div className="warning-banner">
                       <AlertTriangle aria-hidden="true" />
@@ -249,7 +277,7 @@ export default function OptimizerPage() {
                     ) : (
                       <Sparkles aria-hidden="true" />
                     )}
-                    {isOptimizing ? "Optimizing…" : "Optimize"}
+                    {isOptimizing ? "Optimizing…" : "Optimize selected resume"}
                   </button>
                 </div>
               </div>
@@ -270,7 +298,7 @@ export default function OptimizerPage() {
                   />
                   <div className="job-editor-footer">
                     <span>{jobDescription.trim().length.toLocaleString()} chars</span>
-                    <span>Include requirements, responsibilities, tools, and nice-to-haves.</span>
+                    <span>The selected resume will be tailored to this job.</span>
                   </div>
                 </div>
               )}

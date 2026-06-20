@@ -5,8 +5,8 @@ import { useAuth } from "../context/AuthContext";
 import { AuthGate } from "./AuthGate";
 
 const NAV_ITEMS = [
-  { to: "/optimizer", label: "Optimizer", icon: FileText },
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+  { to: "/optimizer", label: "Optimizer", icon: FileText },
   { to: "/resumes", label: "Resumes", icon: Files },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
@@ -32,6 +32,7 @@ export function AppShell() {
               aria-label={label}
             >
               <Icon aria-hidden="true" />
+              <span>{label}</span>
             </NavLink>
           ))}
         </div>

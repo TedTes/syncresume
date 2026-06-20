@@ -2,19 +2,24 @@ import {
   AlertCircle,
   CheckCircle2,
   ClipboardPaste,
+  Download,
   Eye,
   ExternalLink,
   FileText,
   Loader2,
+  PenLine,
+  Save,
   Trash2,
   UploadCloud,
+  X,
 } from "lucide-react";
 import { ChangeEvent, DragEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
+import { downloadTextPdf } from "../lib/exportResume";
 import { extractResumeText } from "../lib/fileExtract";
-import type { ResumeFileType } from "../lib/storage";
+import type { ResumeFileType, ResumeRecord } from "../lib/storage";
 
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
 
@@ -67,7 +72,14 @@ function waitForRenderFrame(): Promise<void> {
 }
 
 export default function ResumesPage() {
-  const { resumes, addResume, getResumeFile, setActiveResume, deleteResume } = useAppData();
+  const {
+    resumes,
+    addResume,
+    getResumeFile,
+    setActiveResume,
+    updateResumeText,
+    deleteResume,
+  } = useAppData();
   const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -81,11 +93,19 @@ export default function ResumesPage() {
   const [previewLoadingId, setPreviewLoadingId] = useState("");
   const [previewError, setPreviewError] = useState("");
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
+  const [editingResumeId, setEditingResumeId] = useState("");
+  const [editedResumeText, setEditedResumeText] = useState("");
+  const [editError, setEditError] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+  const [isSavingExtractedText, setIsSavingExtractedText] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const requiresSignIn = hasBackend && !user;
   const uploadsDisabled = isUploading || isAuthLoading || requiresSignIn;
+  const previewResume = resumes.find((resume) => resume.id === previewId) ?? null;
+  const editingResume = resumes.find((resume) => resume.id === editingResumeId) ?? null;
+  const isFullPagePreview = Boolean(previewId || previewLoadingId || filePreview || previewError);
 
   function updateUploadItem(id: string, patch: Partial<UploadQueueItem>) {
     setUploadQueue((current) =>
@@ -101,8 +121,24 @@ export default function ResumesPage() {
 
   function closePreview() {
     setPreviewId("");
+    setPreviewLoadingId("");
     setPreviewError("");
     setFilePreview(null);
+  }
+
+  function openExtractedEditor(resume: ResumeRecord) {
+    closePreview();
+    setEditingResumeId(resume.id);
+    setEditedResumeText(resume.text);
+    setEditError("");
+    setEditStatus("");
+  }
+
+  function closeExtractedEditor() {
+    setEditingResumeId("");
+    setEditedResumeText("");
+    setEditError("");
+    setEditStatus("");
   }
 
   function switchResumeInputMode(mode: ResumeInputMode) {
@@ -220,10 +256,34 @@ export default function ResumesPage() {
       await deleteResume(id);
       setPreviewId((current) => (current === id ? "" : current));
       setFilePreview((current) => (current?.resumeId === id ? null : current));
+      setEditingResumeId((current) => (current === id ? "" : current));
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Could not delete that resume.");
     } finally {
       setDeletingId("");
+    }
+  }
+
+  async function handleSaveExtractedText() {
+    if (!editingResume) return;
+
+    const normalizedText = editedResumeText.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
+    if (normalizedText.length < 20) {
+      setEditError("Extracted resume text must be at least 20 characters.");
+      return;
+    }
+
+    setIsSavingExtractedText(true);
+    setEditError("");
+    setEditStatus("");
+    try {
+      await updateResumeText(editingResume.id, normalizedText);
+      setEditedResumeText(normalizedText);
+      setEditStatus("Saved extracted text.");
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : "Could not save extracted text.");
+    } finally {
+      setIsSavingExtractedText(false);
     }
   }
 
@@ -293,6 +353,123 @@ export default function ResumesPage() {
         <span className="page-topbar-title">Resumes</span>
       </header>
 
+      {editingResume ? (
+        <main className="pdf-fullpage extracted-editor-page" aria-label="Edit extracted resume text">
+          <div className="pdf-fullpage-header">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={closeExtractedEditor}>
+              <X aria-hidden="true" />
+              Close
+            </button>
+            <span className="pdf-fullpage-name">{editingResume.name} · extracted text</span>
+            <div className="pdf-fullpage-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => downloadTextPdf(editedResumeText, editingResume.name)}
+              >
+                <Download aria-hidden="true" />
+                PDF
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={isSavingExtractedText || editedResumeText.trim().length < 20}
+                onClick={() => void handleSaveExtractedText()}
+              >
+                {isSavingExtractedText ? (
+                  <Loader2 className="spin" aria-hidden="true" />
+                ) : (
+                  <Save aria-hidden="true" />
+                )}
+                Save
+              </button>
+            </div>
+          </div>
+          <div className="extracted-editor-shell">
+            <div className="extracted-editor-meta">
+              <span>{editedResumeText.trim().length.toLocaleString()} chars</span>
+              <span>PDF/DOCX extraction is editable here; the original file remains unchanged.</span>
+            </div>
+            <textarea
+              className="field-textarea extracted-editor-textarea"
+              value={editedResumeText}
+              onChange={(event) => {
+                setEditedResumeText(event.target.value);
+                setEditStatus("");
+                setEditError("");
+              }}
+            />
+            {editError && <div className="inline-error">{editError}</div>}
+            {editStatus && <div className="inline-success">{editStatus}</div>}
+          </div>
+        </main>
+      ) : isFullPagePreview ? (
+        <main className="pdf-fullpage" aria-label="Resume preview">
+          <div className="pdf-fullpage-header">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={closePreview}>
+              <X aria-hidden="true" />
+              Close
+            </button>
+            <span className="pdf-fullpage-name">
+              {filePreview?.name ?? previewResume?.name ?? (previewError ? "Preview unavailable" : "Loading preview…")}
+            </span>
+            <div className="pdf-fullpage-actions">
+              {previewResume && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => openExtractedEditor(previewResume)}
+                  >
+                    <PenLine aria-hidden="true" />
+                    Edit text
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => downloadTextPdf(previewResume.text, previewResume.name)}
+                  >
+                    <Download aria-hidden="true" />
+                    PDF
+                  </button>
+                </>
+              )}
+              {filePreview && (
+                <a
+                  className="btn btn-ghost btn-sm"
+                  href={filePreview.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink aria-hidden="true" />
+                  Open original
+                </a>
+              )}
+            </div>
+          </div>
+          {previewLoadingId ? (
+            <div className="resume-preview-loading" style={{ flex: 1 }}>
+              <Loader2 className="spin" aria-hidden="true" />
+              Opening preview…
+            </div>
+          ) : previewError ? (
+            <div className="extracted-preview-shell">
+              <div className="inline-error">{previewError}</div>
+              {previewResume && <pre className="resume-preview extracted-preview">{previewResume.text}</pre>}
+            </div>
+          ) : filePreview ? (
+            <iframe
+              className="pdf-fullpage-frame"
+              src={`${filePreview.url}#toolbar=0&navpanes=0&scrollbar=1`}
+              title={`${filePreview.name} PDF preview`}
+            />
+          ) : previewResume ? (
+            <div className="extracted-preview-shell">
+              <pre className="resume-preview extracted-preview">{previewResume.text}</pre>
+            </div>
+          ) : null}
+        </main>
+      ) : (
       <main className="page-content">
         {requiresSignIn && (
           <div className="resume-auth-callout">
@@ -466,7 +643,7 @@ export default function ResumesPage() {
                     {resume.isActive ? (
                       <span className="badge-active">
                         <CheckCircle2 aria-hidden="true" />
-                        Active
+                        Selected
                       </span>
                     ) : (
                       <button
@@ -474,7 +651,7 @@ export default function ResumesPage() {
                         className="btn btn-secondary btn-sm"
                         onClick={() => setActiveResume(resume.id)}
                       >
-                        Set active
+                        Use resume
                       </button>
                     )}
                     <button
@@ -488,7 +665,15 @@ export default function ResumesPage() {
                       ) : (
                         <Eye aria-hidden="true" />
                       )}
-                      {previewId === resume.id ? "Close" : resume.fileType === "pdf" ? "Preview PDF" : "Preview"}
+                      Preview
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => openExtractedEditor(resume)}
+                    >
+                      <PenLine aria-hidden="true" />
+                      Edit text
                     </button>
                     <button
                       type="button"
@@ -505,49 +690,12 @@ export default function ResumesPage() {
                     </button>
                   </div>
                 </div>
-                {previewId === resume.id && resume.fileType === "pdf" ? (
-                  <div className="resume-pdf-preview-panel">
-                    {previewLoadingId === resume.id && (
-                      <div className="resume-preview-loading">
-                        <Loader2 className="spin" aria-hidden="true" />
-                        Opening PDF preview...
-                      </div>
-                    )}
-                    {filePreview?.resumeId === resume.id && (
-                      <>
-                        <iframe
-                          className="resume-pdf-preview"
-                          src={filePreview.url}
-                          title={`${resume.name} PDF preview`}
-                        />
-                        <div className="resume-preview-actions">
-                          <a
-                            className="btn btn-secondary btn-sm"
-                            href={filePreview.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <ExternalLink aria-hidden="true" />
-                            Open PDF
-                          </a>
-                        </div>
-                      </>
-                    )}
-                    {previewError && (
-                      <>
-                        <div className="inline-error">{previewError}</div>
-                        <pre className="resume-preview">{resume.text}</pre>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  previewId === resume.id && <pre className="resume-preview">{resume.text}</pre>
-                )}
               </div>
             ))}
           </div>
         )}
       </main>
+      )}
     </>
   );
 }

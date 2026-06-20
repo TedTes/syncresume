@@ -34,6 +34,9 @@ export default function DashboardPage() {
           <div className="stat-card">
             <p className="stat-card-label">Best match score</p>
             <p className="stat-card-value">{runs.length > 0 ? `${bestScore}%` : "—"}</p>
+            {runs.length === 0 && (
+              <p className="stat-card-hint">Run an optimization to see your score</p>
+            )}
           </div>
           <div className="stat-card">
             <p className="stat-card-label">Resumes on file</p>
