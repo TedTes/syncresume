@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { getProviderInfo, type LLMProvider } from "../lib/providers/types";
+import { getProviderInfo, PROVIDERS, type LLMProvider } from "../lib/providers/types";
 
 type OptimizationToggles = {
   autoDetectRequirements: boolean;
@@ -28,7 +28,8 @@ function readToggles(): OptimizationToggles {
 
 function readProvider(): LLMProvider {
   const raw = window.localStorage.getItem(PROVIDER_KEY);
-  return raw === "anthropic" || raw === "openai" || raw === "gemini" ? raw : "openai";
+  const provider = PROVIDERS.find((item) => item.id === raw);
+  return provider?.enabled ? provider.id : "openai";
 }
 
 type SettingsContextValue = {
@@ -59,7 +60,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const value: SettingsContextValue = {
     provider,
-    setProvider: setProviderState,
+    setProvider: (nextProvider) => {
+      if (getProviderInfo(nextProvider).enabled) {
+        setProviderState(nextProvider);
+      }
+    },
     model: getProviderInfo(provider).model,
     toggles,
     setToggle,

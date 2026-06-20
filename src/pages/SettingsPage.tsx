@@ -7,6 +7,7 @@ import { PROVIDERS } from "../lib/providers/types";
 export default function SettingsPage() {
   const { provider, setProvider, model, toggles, setToggle } = useSettings();
   const { user, profile, signOut } = useAuth();
+  const activeProvider = PROVIDERS.find((info) => info.id === provider) ?? PROVIDERS[0];
 
   return (
     <>
@@ -22,7 +23,9 @@ export default function SettingsPage() {
             <div className="settings-row">
               <div>
                 <p className="settings-row-label">Provider</p>
-                <p className="settings-row-desc">Anthropic and Gemini are coming soon.</p>
+                <p className="settings-row-desc">
+                  {activeProvider.label} is active. Other providers unlock when their Worker secrets are configured.
+                </p>
               </div>
               <div className="provider-pills">
                 {PROVIDERS.map((info) => (
@@ -30,6 +33,7 @@ export default function SettingsPage() {
                     key={info.id}
                     type="button"
                     className={`provider-pill ${provider === info.id ? "active" : ""}`}
+                    disabled={!info.enabled}
                     onClick={() => setProvider(info.id)}
                   >
                     {info.label}
@@ -52,7 +56,9 @@ export default function SettingsPage() {
               <div>
                 <p className="settings-row-label">Model</p>
               </div>
-              <span className="settings-readonly-value">{model}</span>
+              <span className="settings-readonly-value">
+                {activeProvider.enabled ? model : "Not enabled"}
+              </span>
             </div>
           </section>
 
