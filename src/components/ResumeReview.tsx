@@ -250,6 +250,22 @@ export function ResumeReview({
           ))}
         </div>
 
+        {onSaveReview && (
+          <button
+            className="btn btn-primary btn-sm review-topbar-save"
+            type="button"
+            disabled={isSavingReview}
+            onClick={() => void handleSaveReview()}
+          >
+            {isSavingReview ? (
+              <Loader2 className="spin" aria-hidden="true" />
+            ) : (
+              <Save aria-hidden="true" />
+            )}
+            Save
+          </button>
+        )}
+
         <div className="review-score-strip" aria-label="Optimization score summary">
           <div className="score-ring score-ring-compact" style={scoreRingStyle} aria-hidden="true" />
           <span className="score-before">{beforePct}%</span>
@@ -379,21 +395,6 @@ export function ResumeReview({
           </span>
         </div>
         <div className="review-footer-actions">
-          {onSaveReview && (
-            <button
-              className="btn btn-primary"
-              type="button"
-              disabled={isSavingReview}
-              onClick={() => void handleSaveReview()}
-            >
-              {isSavingReview ? (
-                <Loader2 className="spin" aria-hidden="true" />
-              ) : (
-                <Save aria-hidden="true" />
-              )}
-              Save changes
-            </button>
-          )}
           <button className="btn btn-secondary" type="button" disabled={!onShowJob} onClick={onShowJob}>
             <ArrowLeftRight aria-hidden="true" />
             Show job

@@ -2968,6 +2968,11 @@ a {
   color: var(--ink);
 }
 
+.review-topbar-save {
+  flex-shrink: 0;
+  margin-left: -4px;
+}
+
 .tab.active {
   color: var(--ink);
   border-bottom-color: var(--accent);
