@@ -12,6 +12,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { ResumeTemplatePreview } from "./ResumeTemplatePreview";
+import { ResumeTemplateSelector } from "./ResumeTemplateSelector";
 import {
   copyPlainText,
   downloadResumeDocumentDocx,
@@ -298,7 +299,9 @@ export function ResumeReview({
 
         {activeTab === "editor" && (
           <>
-            <TemplatePicker selectedTemplateId={selectedTemplateId} onSelect={setSelectedTemplateId} />
+            <div className="template-action-row">
+              <ResumeTemplateSelector selectedTemplateId={selectedTemplateId} onSelect={setSelectedTemplateId} />
+            </div>
             <div className="structured-editor-layout refine-editor-layout">
               <div className="editor-grid">
                 {sections.map((section) => (
@@ -391,7 +394,9 @@ export function ResumeReview({
             <p className="export-description">
               Choose a template for export. Content stays the same; only layout and spacing change.
             </p>
-            <TemplatePicker selectedTemplateId={selectedTemplateId} onSelect={setSelectedTemplateId} />
+            <div className="template-action-row">
+              <ResumeTemplateSelector selectedTemplateId={selectedTemplateId} onSelect={setSelectedTemplateId} />
+            </div>
             <div className="export-template-preview">
               <ResumeTemplatePreview document={resumeDocument} templateId={selectedTemplateId} />
             </div>
@@ -415,33 +420,6 @@ export function ResumeReview({
         )}
       </div>
     </section>
-  );
-}
-
-function TemplatePicker({
-  selectedTemplateId,
-  onSelect,
-}: {
-  selectedTemplateId: ResumeTemplateId;
-  onSelect: (templateId: ResumeTemplateId) => void;
-}) {
-  return (
-    <div className="template-picker compact" aria-label="Resume template">
-      {RESUME_TEMPLATES.map((template) => (
-        <button
-          key={template.id}
-          type="button"
-          className={`template-option ${selectedTemplateId === template.id ? "selected" : ""}`}
-          onClick={() => onSelect(template.id)}
-        >
-          <span>
-            {template.name}
-            {template.isAtsSafe && <small>ATS-safe</small>}
-          </span>
-          <em>{template.description}</em>
-        </button>
-      ))}
-    </div>
   );
 }
 
