@@ -3,7 +3,6 @@ import {
   CheckCircle2,
   ClipboardPaste,
   Download,
-  ExternalLink,
   FileDown,
   FileText,
   Loader2,
@@ -412,7 +411,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   function renderResumeRow(resume: ResumeRecord, variant: "base" | "tailored" = "base") {
     const isTailored = variant === "tailored" || resume.versionType === "tailored";
     return (
-      <div className={`resume-row ${isTailored ? "resume-row-derived" : ""}`}>
+      <div
+        className={`resume-row${isTailored ? " resume-row-derived" : ""}${
+          resume.isActive ? " resume-row-active" : ""
+        }`}
+      >
         <button
           type="button"
           className="resume-row-open"
@@ -434,18 +437,18 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
         </button>
         <div className="resume-row-actions">
           {resume.isActive ? (
-            <span className="badge-active badge-active-icon" aria-label="Selected resume" title="Selected">
-              <CheckCircle2 aria-hidden="true" />
+            <span className="badge-active" aria-label="Active resume" title="Active">
+              Active
             </span>
           ) : (
             <button
               type="button"
-              className="btn btn-secondary btn-sm btn-icon-only"
-              aria-label={isTailored ? `Use version ${resume.name}` : `Use resume ${resume.name}`}
-              title={isTailored ? "Use version" : "Use resume"}
+              className="btn btn-secondary btn-sm resume-set-active"
+              aria-label={isTailored ? `Set version active: ${resume.name}` : `Set resume active: ${resume.name}`}
+              title="Set active"
               onClick={() => setActiveResume(resume.id)}
             >
-              <CheckCircle2 aria-hidden="true" />
+              Set active
             </button>
           )}
           <button
@@ -463,6 +466,41 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             )}
           </button>
         </div>
+      </div>
+    );
+  }
+
+  function renderResumeGroup(resume: ResumeRecord) {
+    const derivedResumes = getOrderedDerivedResumes(resume.id);
+    const activeDerived = derivedResumes.filter((derivedResume) => derivedResume.isActive);
+    const inactiveDerived = derivedResumes.filter((derivedResume) => !derivedResume.isActive);
+
+    if (activeDerived.length > 0 && !resume.isActive) {
+      return (
+        <div className="resume-group" key={resume.id}>
+          {activeDerived.map((derivedResume) => (
+            <div className="resume-derived-wrap resume-derived-wrap-active" key={derivedResume.id}>
+              {renderResumeRow(derivedResume, "tailored")}
+            </div>
+          ))}
+          {renderResumeRow(resume)}
+          {inactiveDerived.map((derivedResume) => (
+            <div className="resume-derived-wrap" key={derivedResume.id}>
+              {renderResumeRow(derivedResume, "tailored")}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="resume-group" key={resume.id}>
+        {renderResumeRow(resume)}
+        {derivedResumes.map((derivedResume) => (
+          <div className="resume-derived-wrap" key={derivedResume.id}>
+            {renderResumeRow(derivedResume, "tailored")}
+          </div>
+        ))}
       </div>
     );
   }
@@ -609,17 +647,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                     PDF
                   </button>
                 </>
-              )}
-              {filePreview && (
-                <a
-                  className="btn btn-ghost btn-sm"
-                  href={filePreview.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <ExternalLink aria-hidden="true" />
-                  Open original
-                </a>
               )}
             </div>
           </div>
@@ -812,21 +839,70 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           </>
         )}
 
-        <p className="section-label">Your resumes</p>
+        <div className="resume-list-header">
+          <p className="section-label">Your resumes</p>
+          {embedded && (
+            <div className="resume-list-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm resume-upload-link"
+                disabled={uploadsDisabled}
+                onClick={() => {
+                  if (uploadsDisabled) {
+                    if (requiresSignIn) setUploadError("Sign in before uploading resumes.");
+                    return;
+                  }
+                  fileInputRef.current?.click();
+                }}
+              >
+                {isUploading ? (
+                  <Loader2 className="spin" aria-hidden="true" />
+                ) : (
+                  <UploadCloud aria-hidden="true" />
+                )}
+                Upload new
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                multiple
+                className="sr-only"
+                disabled={uploadsDisabled}
+                onChange={handleFileInput}
+              />
+            </div>
+          )}
+        </div>
+        {embedded && uploadError && <div className="inline-error embedded-upload-error">{uploadError}</div>}
+        {embedded && uploadQueue.length > 0 && (
+          <div className="upload-queue embedded-upload-queue" aria-live="polite">
+            {uploadQueue.map((item) => (
+              <div className={`upload-queue-row ${item.status}`} key={item.id}>
+                <span className="upload-queue-icon" aria-hidden="true">
+                  {item.status === "done" ? (
+                    <CheckCircle2 />
+                  ) : item.status === "error" ? (
+                    <AlertCircle />
+                  ) : (
+                    <Loader2 className="spin" />
+                  )}
+                </span>
+                <div className="upload-queue-main">
+                  <span className="upload-queue-name">{item.name}</span>
+                  <span className="upload-queue-meta">
+                    {formatBytes(item.size)} · {item.message}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {resumes.length === 0 ? (
           <div className="empty-state">No resumes uploaded yet.</div>
         ) : (
           <div className="resumes-list">
-            {orderedBaseResumes.map((resume) => (
-              <div className="resume-group" key={resume.id}>
-                {renderResumeRow(resume)}
-                {getOrderedDerivedResumes(resume.id).map((derivedResume) => (
-                  <div className="resume-derived-wrap" key={derivedResume.id}>
-                    {renderResumeRow(derivedResume, "tailored")}
-                  </div>
-                ))}
-              </div>
-            ))}
+            {orderedBaseResumes.map((resume) => renderResumeGroup(resume))}
           </div>
         )}
       </ContentTag>

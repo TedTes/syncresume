@@ -204,34 +204,33 @@ a {
   gap: 8px;
 }
 
-.workspace-title-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.workspace-title-group > span:last-child {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.76rem;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .workspace-flow {
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: 16px;
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 24px 0 42px;
 }
 
 .workspace-job-section {
-  padding-bottom: 12px;
+  padding: 0;
 }
 
 .workspace-job-section .input-col {
   max-width: none;
+}
+
+.workspace-flow > .page-content,
+.workspace-flow > .workspace-resumes-anchor > .page-content {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 0;
+}
+
+.workspace-flow > .workspace-resumes-anchor {
+  flex: 0 0 auto;
 }
 
 .workspace-resumes-anchor {
@@ -239,7 +238,7 @@ a {
 }
 
 .workspace-resume-section {
-  padding-top: 10px;
+  padding-top: 0;
 }
 
 .resume-pill {
@@ -1628,6 +1627,208 @@ a {
   gap: 8px;
 }
 
+.workspace-job-section .input-col {
+  gap: 0;
+}
+
+.workspace-job-section .job-entry-panel {
+  overflow: hidden;
+  width: 100%;
+  gap: 0;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.workspace-job-section .job-entry-panel.is-collapsed {
+  padding: 0;
+}
+
+.workspace-job-section .job-entry-header {
+  min-height: 76px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.workspace-job-section .job-entry-title {
+  align-items: center;
+  gap: 12px;
+}
+
+.workspace-job-section .job-entry-header h2 {
+  margin-top: 3px;
+  font-size: 1.05rem;
+  animation: jobModeTitleIn 140ms ease-out;
+}
+
+.workspace-job-section .section-label {
+  margin-bottom: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+}
+
+.workspace-job-section .job-entry-actions {
+  gap: 10px;
+}
+
+.workspace-job-section .mode-switch-button,
+.workspace-job-section .job-entry-actions .btn-optimize {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
+.workspace-job-section .mode-switch-button {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: transparent;
+  color: var(--ink);
+}
+
+.workspace-job-section .mode-switch-button svg,
+.workspace-job-section .job-entry-actions .btn-optimize svg {
+  width: 15px;
+  height: 15px;
+}
+
+.workspace-job-section .job-entry-actions .btn-optimize {
+  width: auto;
+}
+
+.workspace-job-section .warning-banner {
+  min-height: 28px;
+}
+
+.workspace-job-section .job-editor-card {
+  gap: 0;
+  animation: jobModeIn 180ms ease-out;
+  transform-origin: top;
+}
+
+.workspace-job-section .job-reference-body {
+  overflow: hidden;
+}
+
+.workspace-job-section .job-editor-section {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
+}
+
+.workspace-job-section .job-reference-body.is-collapsed .job-editor-section {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.workspace-job-section .job-editor-section-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-job-section .job-collapsed-summary-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease 60ms;
+}
+
+.workspace-job-section .job-reference-body.is-collapsed .job-collapsed-summary-wrapper {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.workspace-job-section .job-collapsed-summary-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-job-section .job-textarea {
+  min-height: 210px;
+  padding: 18px 20px;
+  border: 0;
+  border-radius: 0;
+  background: #2a2c28;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  box-shadow: none;
+}
+
+.workspace-job-section .job-textarea.compact {
+  min-height: 180px;
+}
+
+.workspace-job-section .job-textarea:focus {
+  outline-offset: -3px;
+}
+
+.workspace-job-section .job-editor-footer {
+  padding: 12px 22px;
+  border-top: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+.workspace-job-section .job-editor-footer span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+.workspace-job-section .job-link-row {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.workspace-job-section .inline-error {
+  margin: 14px 32px;
+}
+
+.workspace-job-section .job-collapsed-summary {
+  padding: 12px 22px;
+}
+
+@keyframes jobModeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes jobModeTitleIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-job-section .job-editor-section,
+  .workspace-job-section .job-collapsed-summary-wrapper,
+  .workspace-job-section .job-entry-header h2,
+  .workspace-job-section .job-editor-card {
+    transition: none;
+    animation: none;
+  }
+}
+
 /* ============ Dashboard ============ */
 .stat-cards {
   display: grid;
@@ -1980,6 +2181,44 @@ a {
   padding: 0 9px;
 }
 
+.resume-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.resume-list-header .section-label {
+  margin-bottom: 0;
+  letter-spacing: 0.12em;
+}
+
+.resume-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resume-upload-link {
+  border-color: transparent;
+  color: var(--accent-strong);
+  font-size: 0.84rem;
+}
+
+.resume-upload-link:hover:not(:disabled) {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: var(--accent-dim);
+}
+
+.embedded-upload-error {
+  margin-bottom: 12px;
+}
+
+.embedded-upload-queue {
+  margin-bottom: 14px;
+}
+
 .resumes-list {
   display: flex;
   flex-direction: column;
@@ -1993,19 +2232,42 @@ a {
 }
 
 .resume-derived-wrap {
-  margin-left: 34px;
-  padding-left: 12px;
+  margin-left: 26px;
+  padding-left: 10px;
   border-left: 1px solid var(--border);
+}
+
+.resume-derived-wrap-active {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
 }
 
 .resume-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: 10px;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.resume-row:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--surface-hover);
+}
+
+.resume-row-active {
+  border-color: rgba(34, 197, 94, 0.78);
+  background: rgba(16, 185, 129, 0.18);
+}
+
+.resume-row-active:hover {
+  border-color: var(--accent);
+  background: rgba(16, 185, 129, 0.22);
 }
 
 .resume-row-open {
@@ -2013,7 +2275,7 @@ a {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -2040,6 +2302,11 @@ a {
   background: rgba(255, 255, 255, 0.025);
 }
 
+.resume-row-derived.resume-row-active {
+  border-color: rgba(34, 197, 94, 0.78);
+  background: rgba(16, 185, 129, 0.18);
+}
+
 .resume-row-derived .resume-row-icon {
   background: var(--accent-dim);
 }
@@ -2047,12 +2314,16 @@ a {
 .resume-row-icon {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
   background: var(--surface-raised);
   color: var(--accent-strong);
   flex-shrink: 0;
+}
+
+.resume-row-active .resume-row-icon {
+  background: rgba(34, 197, 94, 0.14);
 }
 
 .resume-row-icon svg {
@@ -2069,8 +2340,8 @@ a {
 }
 
 .resume-row-name {
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: 0.92rem;
+  font-weight: 750;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2085,17 +2356,39 @@ a {
 .resume-row-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  align-self: center;
   flex-shrink: 0;
+}
+
+.resume-row-actions .btn-icon-only,
+.resume-row-actions .badge-active-icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+.resume-set-active {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(3px);
+  transition: opacity 0.12s, transform 0.12s;
+}
+
+.resume-row:hover .resume-set-active,
+.resume-row:focus-within .resume-set-active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 .badge-active {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 7px;
   background: var(--success-bg);
   color: var(--success);
   font-size: 0.76rem;
@@ -3095,6 +3388,11 @@ a {
     left: 0;
   }
 
+  .workspace-flow {
+    width: calc(100% - 32px);
+    padding: 18px 0 36px;
+  }
+
   .template-drawer-backdrop {
     left: 0;
   }
@@ -3150,6 +3448,56 @@ a {
     align-items: flex-start;
     flex-wrap: wrap;
     justify-content: flex-start;
+  }
+
+  .workspace-job-section .job-entry-header {
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .workspace-job-section .job-entry-actions {
+    width: 100%;
+  }
+
+  .workspace-job-section .mode-switch-button,
+  .workspace-job-section .job-entry-actions .btn-optimize {
+    height: 42px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+  }
+
+  .workspace-job-section .job-textarea {
+    min-height: 190px;
+    padding: 16px;
+    font-size: 0.9rem;
+  }
+
+  .workspace-job-section .job-editor-footer {
+    padding: 12px 16px;
+  }
+
+  .workspace-job-section .job-editor-footer span:last-child {
+    text-align: left;
+  }
+
+  .workspace-job-section .job-link-row {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .resume-list-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .resume-row {
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .resume-row-actions {
+    align-self: flex-start;
   }
 
   .results-hero {
@@ -3221,6 +3569,28 @@ a {
 
   .page-topbar {
     padding: 0 16px;
+  }
+
+  .workspace-flow {
+    width: calc(100% - 24px);
+  }
+
+  .workspace-job-section .job-entry-panel {
+    border-radius: 16px;
+  }
+
+  .resume-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .resume-row-open {
+    width: 100%;
+  }
+
+  .resume-row-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .diff-grid,

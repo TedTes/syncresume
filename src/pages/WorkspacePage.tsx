@@ -21,13 +21,6 @@ export default function WorkspacePage() {
 
   return (
     <>
-      <header className="page-topbar">
-        <div className="workspace-title-group">
-          <span className="page-topbar-title">Workspace</span>
-          <span>Manage resumes and tailor them to each job.</span>
-        </div>
-      </header>
-
       <div className="workspace-flow">
         <OptimizerPage embedded onOpenResumes={scrollToResumes} />
         <div ref={resumesSectionRef} className="workspace-resumes-anchor">
