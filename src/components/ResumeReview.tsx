@@ -1,4 +1,4 @@
-import { type CSSProperties, type FormEvent, type ReactNode, useMemo, useState } from "react";
+import { type CSSProperties, type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftRight,
   ClipboardCopy,
@@ -8,6 +8,7 @@ import {
   Loader2,
   PenLine,
   RefreshCw,
+  Save,
   WandSparkles,
 } from "lucide-react";
 import {
@@ -43,11 +44,16 @@ type ResumeReviewProps = {
   sourceResume?: ResumeRecord | null;
   runTitle?: string;
   runId?: string;
+  initialTemplateId?: ResumeTemplateId;
   onStartNewSession?: () => void;
   onShowJob?: () => void;
   onSaveVersion?: (
     resume: StructuredResume,
     score: number,
+    templateId: ResumeTemplateId,
+  ) => Promise<void>;
+  onSaveReview?: (
+    resume: StructuredResume,
     templateId: ResumeTemplateId,
   ) => Promise<void>;
   onExported?: (exportType: ExportType) => void | Promise<void>;
@@ -67,9 +73,11 @@ export function ResumeReview({
   provider,
   onResumeChange,
   runTitle,
+  initialTemplateId,
   onStartNewSession,
   onShowJob,
   onSaveVersion,
+  onSaveReview,
   onExported,
 }: ResumeReviewProps) {
   const [activeTab, setActiveTab] = useState<ReviewTab>("results");
@@ -81,7 +89,16 @@ export function ResumeReview({
   const [versionStatus, setVersionStatus] = useState("");
   const [versionError, setVersionError] = useState("");
   const [isSavingVersion, setIsSavingVersion] = useState(false);
+  const [saveReviewStatus, setSaveReviewStatus] = useState("");
+  const [saveReviewError, setSaveReviewError] = useState("");
+  const [isSavingReview, setIsSavingReview] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<ResumeTemplateId>(DEFAULT_TEMPLATE_ID);
+
+  useEffect(() => {
+    if (initialTemplateId) {
+      setSelectedTemplateId(initialTemplateId);
+    }
+  }, [initialTemplateId]);
 
   const optimizedText = useMemo(() => resumeToPlainText(resume), [resume]);
   const resumeDocument = useMemo(() => structuredResumeToDocument(resume), [resume]);
@@ -141,6 +158,7 @@ export function ResumeReview({
         instruction,
       });
       onResumeChange(replaceSection(resume, section.id, revisedText));
+      setSaveReviewStatus("");
       setRevisionInstructions((current) => ({ ...current, [section.id]: "" }));
     } catch (error) {
       setRevisionError(openAIErrorMessage(error));
@@ -187,6 +205,22 @@ export function ResumeReview({
       setVersionError(error instanceof Error ? error.message : "Could not save tailored version.");
     } finally {
       setIsSavingVersion(false);
+    }
+  }
+
+  async function handleSaveReview() {
+    if (!onSaveReview) return;
+
+    setSaveReviewStatus("");
+    setSaveReviewError("");
+    setIsSavingReview(true);
+    try {
+      await onSaveReview(resume, selectedTemplateId);
+      setSaveReviewStatus("Review changes saved.");
+    } catch (error) {
+      setSaveReviewError(error instanceof Error ? error.message : "Could not save review changes.");
+    } finally {
+      setIsSavingReview(false);
     }
   }
 
@@ -333,6 +367,8 @@ export function ResumeReview({
             {exportError && <div className="inline-error">{exportError}</div>}
           </div>
         )}
+        {saveReviewStatus && <p className="export-status-msg">{saveReviewStatus}</p>}
+        {saveReviewError && <div className="inline-error">{saveReviewError}</div>}
       </div>
 
       <div className="review-footer-bar">
@@ -343,6 +379,21 @@ export function ResumeReview({
           </span>
         </div>
         <div className="review-footer-actions">
+          {onSaveReview && (
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={isSavingReview}
+              onClick={() => void handleSaveReview()}
+            >
+              {isSavingReview ? (
+                <Loader2 className="spin" aria-hidden="true" />
+              ) : (
+                <Save aria-hidden="true" />
+              )}
+              Save changes
+            </button>
+          )}
           <button className="btn btn-secondary" type="button" disabled={!onShowJob} onClick={onShowJob}>
             <ArrowLeftRight aria-hidden="true" />
             Show job

@@ -4,7 +4,7 @@ import OptimizerPage from "./OptimizerPage";
 import ResumesPage from "./ResumesPage";
 
 export default function WorkspacePage() {
-  const { section } = useParams();
+  const { section, runId } = useParams();
   const resumesSectionRef = useRef<HTMLDivElement>(null);
 
   function scrollToResumes() {
@@ -22,7 +22,7 @@ export default function WorkspacePage() {
   return (
     <>
       <div className="workspace-flow">
-        <OptimizerPage embedded onOpenResumes={scrollToResumes} />
+        <OptimizerPage embedded onOpenResumes={scrollToResumes} reviewRunId={runId} />
         <div ref={resumesSectionRef} className="workspace-resumes-anchor">
           <ResumesPage embedded />
         </div>

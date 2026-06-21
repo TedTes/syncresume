@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 
 function scoreTierClass(score: number): string {
@@ -16,6 +17,7 @@ function formatDate(iso: string): string {
 
 export default function DashboardPage() {
   const { resumes, runs } = useAppData();
+  const navigate = useNavigate();
 
   const bestScore = runs.length > 0 ? Math.max(...runs.map((run) => run.score)) : 0;
 
@@ -52,7 +54,13 @@ export default function DashboardPage() {
         ) : (
           <div className="runs-list">
             {runs.map((run) => (
-              <div className="run-row" key={run.id}>
+              <button
+                className="run-row"
+                key={run.id}
+                type="button"
+                disabled={!run.hasReview}
+                onClick={() => navigate(`/workspace/review/${run.id}`)}
+              >
                 <div className="run-row-main">
                   <span className="run-title">{run.title}</span>
                   <span className="run-meta">
@@ -63,7 +71,7 @@ export default function DashboardPage() {
                   <span className={`status-pill ${run.status}`}>{run.status}</span>
                   <span className={`score-pill ${scoreTierClass(run.score)}`}>{run.score}%</span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}

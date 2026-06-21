@@ -17,6 +17,7 @@ export default function App() {
               <Route index element={<Navigate to="/workspace/optimize" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="workspace" element={<WorkspacePage />} />
+              <Route path="workspace/review/:runId" element={<WorkspacePage />} />
               <Route path="workspace/:section" element={<WorkspacePage />} />
               <Route path="optimizer" element={<Navigate to="/workspace/optimize" replace />} />
               <Route path="resumes" element={<Navigate to="/workspace/resumes" replace />} />

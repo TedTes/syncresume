@@ -10,7 +10,7 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
@@ -18,7 +18,8 @@ import { fetchJobPageText } from "../lib/fetchJobPage";
 import { deriveTailoredResumeName, extractJobTitle } from "../lib/jobTitle";
 import { openAIErrorMessage } from "../lib/openai";
 import { optimizeResumeWithProvider } from "../lib/providers/dispatch";
-import { resumeToPlainText, type StructuredResume } from "../lib/resume";
+import { normalizeStructuredResume, resumeToPlainText, type StructuredResume } from "../lib/resume";
+import type { ResumeTemplateId } from "../lib/resumeTemplates";
 
 const ResumeReview = lazy(() =>
   import("../components/ResumeReview").then((module) => ({ default: module.ResumeReview })),
@@ -29,15 +30,18 @@ type JobAddMode = "paste" | "link";
 type OptimizerPageProps = {
   embedded?: boolean;
   onOpenResumes?: () => void;
+  reviewRunId?: string;
 };
 
-export default function OptimizerPage({ embedded = false, onOpenResumes }: OptimizerPageProps) {
+export default function OptimizerPage({ embedded = false, onOpenResumes, reviewRunId }: OptimizerPageProps) {
   const {
     resumes,
     activeResume,
     setActiveResume,
     addResume,
+    getRun,
     addRun,
+    updateRunReview,
     incrementResumeUsage,
     recordExport,
     refresh,
@@ -53,8 +57,13 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
   const [fetchJDError, setFetchJDError] = useState("");
 
   const [optimizedResume, setOptimizedResume] = useState<StructuredResume | null>(null);
+  const [reviewOriginalResumeText, setReviewOriginalResumeText] = useState("");
+  const [reviewTitle, setReviewTitle] = useState("");
+  const [reviewSourceResumeId, setReviewSourceResumeId] = useState("");
+  const [reviewTemplateId, setReviewTemplateId] = useState<ResumeTemplateId>("ats-simple");
   const [optimizeError, setOptimizeError] = useState("");
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [isLoadingSavedReview, setIsLoadingSavedReview] = useState(false);
   const [currentRunId, setCurrentRunId] = useState("");
 
   const hasJD = jobDescription.trim().length > 0;
@@ -82,10 +91,56 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
 
   function resetResult() {
     setOptimizedResume(null);
+    setReviewOriginalResumeText("");
+    setReviewTitle("");
+    setReviewSourceResumeId("");
+    setReviewTemplateId((activeResume?.templateId as ResumeTemplateId | undefined) ?? "ats-simple");
     setOptimizeError("");
     setCurrentRunId("");
     setIsJobPanelCollapsed(false);
   }
+
+  useEffect(() => {
+    if (!reviewRunId) return;
+
+    let isCurrent = true;
+    setIsLoadingSavedReview(true);
+    setOptimizeError("");
+
+    (async () => {
+      try {
+        const run = await getRun(reviewRunId);
+        if (!isCurrent) return;
+
+        const savedResume = normalizeStructuredResume(run.optimizedResume);
+        if (!run.optimizedResume) {
+          throw new Error("This run does not have a saved optimized resume to review.");
+        }
+
+        setJobAddMode("paste");
+        setJobDescription(run.jobDescription);
+        setOptimizedResume(savedResume);
+        setReviewOriginalResumeText(
+          run.originalResumeText || resumes.find((resume) => resume.id === run.resumeId)?.text || "",
+        );
+        setReviewTitle(run.title);
+        setReviewSourceResumeId(run.resumeId);
+        setReviewTemplateId((run.templateId as ResumeTemplateId | undefined) ?? "ats-simple");
+        setCurrentRunId(run.id);
+        setIsJobPanelCollapsed(true);
+      } catch (error) {
+        if (isCurrent) {
+          setOptimizeError(error instanceof Error ? error.message : "Could not load saved review.");
+        }
+      } finally {
+        if (isCurrent) setIsLoadingSavedReview(false);
+      }
+    })();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [reviewRunId]);
 
   async function handleFetchLink() {
     setIsFetchingJD(true);
@@ -119,6 +174,10 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
         title: extractJobTitle(jobDescription),
       });
       setOptimizedResume(result.resume);
+      setReviewOriginalResumeText(activeResume.text);
+      setReviewTitle(extractJobTitle(jobDescription));
+      setReviewSourceResumeId(activeResume.id);
+      setReviewTemplateId((result.run?.templateId as ResumeTemplateId | undefined) ?? (activeResume.templateId as ResumeTemplateId | undefined) ?? "ats-simple");
       setIsJobPanelCollapsed(true);
 
       if (result.persisted) {
@@ -413,6 +472,12 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
           )}
 
           {optimizeError && <div className="inline-error">{optimizeError}</div>}
+          {isLoadingSavedReview && (
+            <div className="review-loading">
+              <Loader2 className="spin" aria-hidden="true" />
+              Loading saved review…
+            </div>
+          )}
         </section>
 
         {optimizedResume && (
@@ -426,20 +491,22 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
           >
             <ResumeReview
               jobDescription={jobDescription}
-              originalResumeText={activeResume?.text ?? ""}
+              originalResumeText={reviewOriginalResumeText || activeResume?.text || ""}
               resume={optimizedResume}
               provider={provider}
               onResumeChange={setOptimizedResume}
               sourceResume={activeResume}
-              runTitle={extractJobTitle(jobDescription)}
+              runTitle={reviewTitle || extractJobTitle(jobDescription)}
               runId={currentRunId}
+              initialTemplateId={reviewTemplateId}
               onStartNewSession={() => {
                 setJobDescription("");
                 resetResult();
               }}
               onShowJob={() => setIsJobPanelCollapsed(false)}
               onSaveVersion={async (resume, score, templateId) => {
-                if (!activeResume) return;
+                const sourceResumeId = reviewSourceResumeId || activeResume?.sourceResumeId || activeResume?.id;
+                if (!sourceResumeId) return;
                 const text = resumeToPlainText(resume);
                 await addResume({
                   name: deriveTailoredResumeName(jobDescription),
@@ -448,12 +515,33 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
                   characterCount: text.length,
                   templateId,
                   versionType: "tailored",
-                  sourceResumeId: activeResume.sourceResumeId ?? activeResume.id,
+                  sourceResumeId,
                   sourceRunId: currentRunId || undefined,
                   tailoredFor: extractJobTitle(jobDescription),
                   matchScore: score,
                 });
               }}
+              onSaveReview={
+                currentRunId
+                  ? async (resume, templateId) => {
+                      const run = await updateRunReview(currentRunId, {
+                        jobDescription,
+                        originalResumeText: reviewOriginalResumeText || activeResume?.text || "",
+                        resume,
+                        templateId,
+                      });
+
+                      if (run.optimizedResume) {
+                        setOptimizedResume(normalizeStructuredResume(run.optimizedResume));
+                      }
+                      setReviewOriginalResumeText(run.originalResumeText || reviewOriginalResumeText);
+                      setReviewTitle(run.title);
+                      setReviewSourceResumeId(run.resumeId);
+                      setReviewTemplateId((run.templateId as ResumeTemplateId | undefined) ?? templateId);
+                      setCurrentRunId(run.id);
+                    }
+                  : undefined
+              }
               onExported={(exportType) => {
                 if (currentRunId) {
                   return recordExport(currentRunId, exportType);
