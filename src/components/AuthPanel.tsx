@@ -16,8 +16,8 @@ export function AuthPanel() {
       <div className="clerk-card-shell">
         <SignIn
           routing="hash"
-          fallbackRedirectUrl="/optimizer"
-          signUpFallbackRedirectUrl="/optimizer"
+          fallbackRedirectUrl="/workspace/optimize"
+          signUpFallbackRedirectUrl="/workspace/optimize"
           appearance={{
             elements: {
               rootBox: "clerk-root-box",

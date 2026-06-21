@@ -47,7 +47,7 @@ export default function DashboardPage() {
         <p className="section-label">Recent runs</p>
         {runs.length === 0 ? (
           <div className="empty-state">
-            No runs yet — head to the Optimizer to run your first match.
+            No runs yet — head to the Workspace to run your first match.
           </div>
         ) : (
           <div className="runs-list">

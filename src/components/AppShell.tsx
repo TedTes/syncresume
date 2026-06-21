@@ -1,4 +1,4 @@
-import { FileText, LayoutGrid, RefreshCw, Settings, Files } from "lucide-react";
+import { FileText, LayoutGrid, RefreshCw, Settings } from "lucide-react";
 import { UserButton } from "@clerk/clerk-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -6,8 +6,7 @@ import { AuthGate } from "./AuthGate";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { to: "/optimizer", label: "Optimizer", icon: FileText },
-  { to: "/resumes", label: "Resumes", icon: Files },
+  { to: "/workspace", label: "Workspace", icon: FileText },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -40,7 +39,7 @@ export function AppShell() {
         <div className="sidebar-account">
           {user ? (
             <UserButton
-              afterSignOutUrl="/optimizer"
+              afterSignOutUrl="/workspace/optimize"
               appearance={{
                 elements: {
                   avatarBox: "sidebar-user-button",

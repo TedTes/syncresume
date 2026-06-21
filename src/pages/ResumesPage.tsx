@@ -3,19 +3,18 @@ import {
   CheckCircle2,
   ClipboardPaste,
   Download,
-  Eye,
   ExternalLink,
   FileDown,
   FileText,
   Loader2,
   PenLine,
   Save,
-  Trash2,
   UploadCloud,
   X,
 } from "lucide-react";
-import { ChangeEvent, DragEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { ResumeTemplateSelector } from "../components/ResumeTemplateSelector";
 import { ResumeTemplatePreview } from "../components/ResumeTemplatePreview";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
@@ -60,6 +59,10 @@ type FilePreview = {
   name: string;
 };
 
+type ResumesPageProps = {
+  embedded?: boolean;
+};
+
 function fileTypeFromName(name: string): ResumeFileType {
   const normalized = name.toLowerCase();
   if (normalized.endsWith(".pdf")) return "pdf";
@@ -90,7 +93,7 @@ function waitForRenderFrame(): Promise<void> {
   });
 }
 
-export default function ResumesPage() {
+export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const {
     resumes,
     addResume,
@@ -120,6 +123,7 @@ export default function ResumesPage() {
   const [editStatus, setEditStatus] = useState("");
   const [isSavingExtractedText, setIsSavingExtractedText] = useState(false);
   const [deletingId, setDeletingId] = useState("");
+  const [pendingDeleteResume, setPendingDeleteResume] = useState<ResumeRecord | null>(null);
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const requiresSignIn = hasBackend && !user;
@@ -144,6 +148,23 @@ export default function ResumesPage() {
       !resume.sourceResumeId ||
       !sourceResumeIds.has(resume.sourceResumeId),
   );
+  const orderedBaseResumes = baseResumes
+    .map((resume, index) => ({ resume, index }))
+    .sort((left, right) => {
+      const leftHasSelection =
+        left.resume.isActive || (derivedBySource.get(left.resume.id) ?? []).some((resume) => resume.isActive);
+      const rightHasSelection =
+        right.resume.isActive || (derivedBySource.get(right.resume.id) ?? []).some((resume) => resume.isActive);
+      return Number(rightHasSelection) - Number(leftHasSelection) || left.index - right.index;
+    })
+    .map(({ resume }) => resume);
+  const ContentTag = embedded ? "section" : "main";
+
+  function getOrderedDerivedResumes(sourceResumeId: string) {
+    return [...(derivedBySource.get(sourceResumeId) ?? [])].sort(
+      (left, right) => Number(right.isActive) - Number(left.isActive),
+    );
+  }
 
   function updateUploadItem(id: string, patch: Partial<UploadQueueItem>) {
     setUploadQueue((current) =>
@@ -254,14 +275,6 @@ export default function ResumesPage() {
     if (files.length > 0) void handleFiles(files);
   }
 
-  function handleDropzoneKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (uploadsDisabled) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      fileInputRef.current?.click();
-    }
-  }
-
   function handleDragEnter(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     if (uploadsDisabled) return;
@@ -296,14 +309,15 @@ export default function ResumesPage() {
     if (e.dataTransfer.files.length > 0) void handleFiles(e.dataTransfer.files);
   }
 
-  async function handleDeleteResume(id: string) {
-    setDeletingId(id);
+  async function handleDeleteResume(resume: ResumeRecord) {
+    setDeletingId(resume.id);
     setUploadError("");
     try {
-      await deleteResume(id);
-      setPreviewId((current) => (current === id ? "" : current));
-      setFilePreview((current) => (current?.resumeId === id ? null : current));
-      setEditingResumeId((current) => (current === id ? "" : current));
+      await deleteResume(resume.id);
+      setPreviewId((current) => (current === resume.id ? "" : current));
+      setFilePreview((current) => (current?.resumeId === resume.id ? null : current));
+      setEditingResumeId((current) => (current === resume.id ? "" : current));
+      setPendingDeleteResume(null);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Could not delete that resume.");
     } finally {
@@ -399,65 +413,54 @@ export default function ResumesPage() {
     const isTailored = variant === "tailored" || resume.versionType === "tailored";
     return (
       <div className={`resume-row ${isTailored ? "resume-row-derived" : ""}`}>
-        <span className="resume-row-icon" aria-hidden="true">
-          <FileText />
-        </span>
-        <div className="resume-row-info">
-          <span className="resume-row-name">{resume.name}</span>
-          <span className="resume-row-meta">
-            {isTailored
-              ? `Tailored${resume.tailoredFor ? ` for ${resume.tailoredFor}` : ""} · ${resume.matchScore ?? "—"}% match · ${formatDate(resume.uploadedAt)}`
-              : `Uploaded ${formatDate(resume.uploadedAt)} · ${resume.characterCount.toLocaleString()} chars · used in ${resume.usageCount} runs`}
+        <button
+          type="button"
+          className="resume-row-open"
+          aria-label={`Open ${resume.name}`}
+          disabled={previewLoadingId === resume.id}
+          onClick={() => void handlePreview(resume.id, resume.fileType, resume.name)}
+        >
+          <span className="resume-row-icon" aria-hidden="true">
+            {previewLoadingId === resume.id ? <Loader2 className="spin" /> : <FileText />}
           </span>
-        </div>
+          <span className="resume-row-info">
+            <span className="resume-row-name">{resume.name}</span>
+            <span className="resume-row-meta">
+              {isTailored
+                ? `Tailored${resume.tailoredFor ? ` for ${resume.tailoredFor}` : ""} · ${resume.matchScore ?? "—"}% match · ${formatDate(resume.uploadedAt)}`
+                : `Uploaded ${formatDate(resume.uploadedAt)} · ${resume.characterCount.toLocaleString()} chars · used in ${resume.usageCount} runs`}
+            </span>
+          </span>
+        </button>
         <div className="resume-row-actions">
           {resume.isActive ? (
-            <span className="badge-active">
+            <span className="badge-active badge-active-icon" aria-label="Selected resume" title="Selected">
               <CheckCircle2 aria-hidden="true" />
-              Selected
             </span>
           ) : (
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary btn-sm btn-icon-only"
+              aria-label={isTailored ? `Use version ${resume.name}` : `Use resume ${resume.name}`}
+              title={isTailored ? "Use version" : "Use resume"}
               onClick={() => setActiveResume(resume.id)}
             >
-              {isTailored ? "Use version" : "Use resume"}
+              <CheckCircle2 aria-hidden="true" />
             </button>
           )}
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={previewLoadingId === resume.id}
-            onClick={() => void handlePreview(resume.id, resume.fileType, resume.name)}
-          >
-            {previewLoadingId === resume.id ? (
-              <Loader2 className="spin" aria-hidden="true" />
-            ) : (
-              <Eye aria-hidden="true" />
-            )}
-            Preview
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => openExtractedEditor(resume)}
-          >
-            <PenLine aria-hidden="true" />
-            Edit text
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm btn-icon-only"
+            aria-label={`Delete ${resume.name}`}
+            title="Delete"
             disabled={deletingId === resume.id}
-            onClick={() => void handleDeleteResume(resume.id)}
+            onClick={() => setPendingDeleteResume(resume)}
           >
             {deletingId === resume.id ? (
               <Loader2 className="spin" aria-hidden="true" />
             ) : (
-              <Trash2 aria-hidden="true" />
+              <X aria-hidden="true" />
             )}
-            Delete
           </button>
         </div>
       </div>
@@ -466,12 +469,17 @@ export default function ResumesPage() {
 
   return (
     <>
-      <header className="page-topbar">
-        <span className="page-topbar-title">Resumes</span>
-      </header>
+      {!embedded && (
+        <header className="page-topbar">
+          <span className="page-topbar-title">Resumes</span>
+        </header>
+      )}
 
       {editingResume ? (
-        <main className="pdf-fullpage extracted-editor-page" aria-label="Edit extracted resume text">
+        <main
+          className={`pdf-fullpage extracted-editor-page${embedded ? " workspace-fullpage-overlay" : ""}`}
+          aria-label="Edit extracted resume text"
+        >
           <div className="pdf-fullpage-header">
             <button type="button" className="btn btn-ghost btn-sm" onClick={closeExtractedEditor}>
               <X aria-hidden="true" />
@@ -479,6 +487,10 @@ export default function ResumesPage() {
             </button>
             <span className="pdf-fullpage-name">{editingResume.name} · extracted text</span>
             <div className="pdf-fullpage-actions">
+              <ResumeTemplateSelector
+                selectedTemplateId={selectedTemplateId}
+                onSelect={setSelectedTemplateId}
+              />
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
@@ -527,23 +539,6 @@ export default function ResumesPage() {
             </div>
             {editedResumeDocument && (
               <>
-                <div className="template-picker" aria-label="Resume template">
-                  {RESUME_TEMPLATES.map((template) => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      className={`template-option ${selectedTemplateId === template.id ? "selected" : ""}`}
-                      onClick={() => setSelectedTemplateId(template.id)}
-                    >
-                      <span>
-                        {template.name}
-                        {template.isAtsSafe && <small>ATS-safe</small>}
-                      </span>
-                      <em>{template.description}</em>
-                    </button>
-                  ))}
-                </div>
-
                 <div className="structured-editor-layout">
                   <div className="structured-editor-grid">
                     {editedResumeDocument.sections.map((section) => (
@@ -581,7 +576,10 @@ export default function ResumesPage() {
           </div>
         </main>
       ) : isFullPagePreview ? (
-        <main className="pdf-fullpage" aria-label="Resume preview">
+        <main
+          className={`pdf-fullpage${embedded ? " workspace-fullpage-overlay" : ""}`}
+          aria-label="Resume preview"
+        >
           <div className="pdf-fullpage-header">
             <button type="button" className="btn btn-ghost btn-sm" onClick={closePreview}>
               <X aria-hidden="true" />
@@ -595,11 +593,12 @@ export default function ResumesPage() {
                 <>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm"
+                    className="btn btn-ghost btn-sm btn-icon-only"
+                    aria-label={`Edit ${previewResume.name}`}
+                    title="Edit text"
                     onClick={() => openExtractedEditor(previewResume)}
                   >
                     <PenLine aria-hidden="true" />
-                    Edit text
                   </button>
                   <button
                     type="button"
@@ -647,26 +646,26 @@ export default function ResumesPage() {
           ) : null}
         </main>
       ) : (
-      <main className="page-content">
-        {requiresSignIn && (
-          <div className="resume-auth-callout">
-            <div>
-              <span className="resume-auth-title">Sign in required</span>
-              <span className="resume-auth-copy">
-                Uploads sync through Cloudflare storage after you sign in.
-              </span>
-            </div>
-            <Link className="btn btn-secondary btn-sm" to="/settings">
-              Open Settings
-            </Link>
-          </div>
-        )}
+      <ContentTag className={`page-content${embedded ? " workspace-resume-section" : ""}`}>
+        {!embedded && (
+          <>
+            {requiresSignIn && (
+              <div className="resume-auth-callout">
+                <div>
+                  <span className="resume-auth-title">Sign in required</span>
+                  <span className="resume-auth-copy">
+                    Uploads sync through Cloudflare storage after you sign in.
+                  </span>
+                </div>
+                <Link className="btn btn-secondary btn-sm" to="/settings">
+                  Open Settings
+                </Link>
+              </div>
+            )}
 
         <section className="resume-input-section" aria-label="Add resume">
           <div className="resume-input-toolbar">
-            <span className="resume-input-title">
-              {resumeInputMode === "upload" ? "Upload resume" : "Paste resume text"}
-            </span>
+            <span className="resume-input-title">Add resume</span>
             <button
               className="btn btn-secondary btn-sm"
               type="button"
@@ -686,37 +685,49 @@ export default function ResumesPage() {
           {resumeInputMode === "upload" ? (
             <>
               <div
-                className={`dropzone-large ${isDraggingOver ? "dragging" : ""} ${uploadsDisabled ? "disabled" : ""}`}
+                className={`resume-upload-compact ${isDraggingOver ? "dragging" : ""} ${uploadsDisabled ? "disabled" : ""}`}
                 onDragEnter={handleDragEnter}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                onClick={() => {
-                  if (uploadsDisabled) {
-                    if (requiresSignIn) setUploadError("Sign in before uploading resumes.");
-                    return;
-                  }
-                  fileInputRef.current?.click();
-                }}
-                onKeyDown={handleDropzoneKeyDown}
-                role="button"
-                tabIndex={0}
                 aria-busy={isUploading}
                 aria-disabled={uploadsDisabled}
               >
-                <span className="dropzone-large-icon" aria-hidden="true">
-                  {isUploading ? <Loader2 className="spin" /> : <UploadCloud />}
-                </span>
-                <span className="dropzone-large-title">
-                  {isUploading
-                    ? "Uploading..."
-                    : isAuthLoading
-                      ? "Checking session..."
-                      : requiresSignIn
-                        ? "Sign in to upload resumes"
-                        : "Drop your resume here"}
-                </span>
-                <span className="dropzone-large-sub">PDF or DOCX · multiple files supported</span>
+                <div className="resume-upload-compact-copy">
+                  <span className="resume-upload-compact-title">
+                    {isUploading
+                      ? "Uploading resume..."
+                      : isAuthLoading
+                        ? "Checking session..."
+                        : requiresSignIn
+                          ? "Sign in to upload resumes"
+                          : isDraggingOver
+                            ? "Drop to upload"
+                            : "Upload PDF or DOCX"}
+                  </span>
+                  <span className="resume-upload-compact-sub">
+                    Choose a file, or drag it onto this row.
+                  </span>
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  type="button"
+                  disabled={uploadsDisabled}
+                  onClick={() => {
+                    if (uploadsDisabled) {
+                      if (requiresSignIn) setUploadError("Sign in before uploading resumes.");
+                      return;
+                    }
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  {isUploading ? (
+                    <Loader2 className="spin" aria-hidden="true" />
+                  ) : (
+                    <UploadCloud aria-hidden="true" />
+                  )}
+                  Upload
+                </button>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -797,17 +808,19 @@ export default function ResumesPage() {
           )}
         </section>
 
-        {uploadError && <div className="inline-error" style={{ marginBottom: 16 }}>{uploadError}</div>}
+            {uploadError && <div className="inline-error" style={{ marginBottom: 16 }}>{uploadError}</div>}
+          </>
+        )}
 
         <p className="section-label">Your resumes</p>
         {resumes.length === 0 ? (
           <div className="empty-state">No resumes uploaded yet.</div>
         ) : (
           <div className="resumes-list">
-            {baseResumes.map((resume) => (
+            {orderedBaseResumes.map((resume) => (
               <div className="resume-group" key={resume.id}>
                 {renderResumeRow(resume)}
-                {(derivedBySource.get(resume.id) ?? []).map((derivedResume) => (
+                {getOrderedDerivedResumes(resume.id).map((derivedResume) => (
                   <div className="resume-derived-wrap" key={derivedResume.id}>
                     {renderResumeRow(derivedResume, "tailored")}
                   </div>
@@ -816,7 +829,61 @@ export default function ResumesPage() {
             ))}
           </div>
         )}
-      </main>
+      </ContentTag>
+      )}
+      {pendingDeleteResume && (
+        <div
+          className="confirm-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deletingId) {
+              setPendingDeleteResume(null);
+            }
+          }}
+        >
+          <div
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-resume-title"
+            aria-describedby="delete-resume-copy"
+          >
+            <div className="confirm-modal-header">
+              <h2 id="delete-resume-title">Delete resume?</h2>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon-only"
+                aria-label="Close delete confirmation"
+                disabled={Boolean(deletingId)}
+                onClick={() => setPendingDeleteResume(null)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </div>
+            <p id="delete-resume-copy">
+              This will remove {pendingDeleteResume.name} from your resume list.
+            </p>
+            <div className="confirm-modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={Boolean(deletingId)}
+                onClick={() => setPendingDeleteResume(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm btn-danger"
+                disabled={Boolean(deletingId)}
+                onClick={() => void handleDeleteResume(pendingDeleteResume)}
+              >
+                {deletingId ? <Loader2 className="spin" aria-hidden="true" /> : <X aria-hidden="true" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

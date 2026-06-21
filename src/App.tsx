@@ -4,9 +4,8 @@ import { AppDataProvider } from "./context/AppDataContext";
 import { AuthProvider } from "./context/AuthContext";
 import { SettingsProvider } from "./context/SettingsContext";
 import DashboardPage from "./pages/DashboardPage";
-import OptimizerPage from "./pages/OptimizerPage";
-import ResumesPage from "./pages/ResumesPage";
 import SettingsPage from "./pages/SettingsPage";
+import WorkspacePage from "./pages/WorkspacePage";
 
 export default function App() {
   return (
@@ -15,12 +14,14 @@ export default function App() {
         <AppDataProvider>
           <Routes>
             <Route path="/" element={<AppShell />}>
-              <Route index element={<Navigate to="/optimizer" replace />} />
-              <Route path="optimizer" element={<OptimizerPage />} />
+              <Route index element={<Navigate to="/workspace/optimize" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="resumes" element={<ResumesPage />} />
+              <Route path="workspace" element={<WorkspacePage />} />
+              <Route path="workspace/:section" element={<WorkspacePage />} />
+              <Route path="optimizer" element={<Navigate to="/workspace/optimize" replace />} />
+              <Route path="resumes" element={<Navigate to="/workspace/resumes" replace />} />
               <Route path="settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/optimizer" replace />} />
+              <Route path="*" element={<Navigate to="/workspace/optimize" replace />} />
             </Route>
           </Routes>
         </AppDataProvider>

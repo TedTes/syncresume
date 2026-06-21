@@ -26,7 +26,12 @@ const ResumeReview = lazy(() =>
 
 type JobAddMode = "paste" | "link";
 
-export default function OptimizerPage() {
+type OptimizerPageProps = {
+  embedded?: boolean;
+  onOpenResumes?: () => void;
+};
+
+export default function OptimizerPage({ embedded = false, onOpenResumes }: OptimizerPageProps) {
   const {
     resumes,
     activeResume,
@@ -55,6 +60,25 @@ export default function OptimizerPage() {
   const hasJD = jobDescription.trim().length > 0;
   const canOptimize = hasJD && Boolean(activeResume) && !isOptimizing;
   const isJobReferenceCollapsed = Boolean(optimizedResume && isJobPanelCollapsed);
+  const ContentTag = embedded ? "section" : "main";
+
+  function renderResumeAction(label: string) {
+    if (onOpenResumes) {
+      return (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onOpenResumes}>
+          {label}
+          <Upload aria-hidden="true" />
+        </button>
+      );
+    }
+
+    return (
+      <Link to="/workspace/resumes" className="btn btn-secondary btn-sm">
+        {label}
+        <Upload aria-hidden="true" />
+      </Link>
+    );
+  }
 
   function resetResult() {
     setOptimizedResume(null);
@@ -124,118 +148,72 @@ export default function OptimizerPage() {
 
   return (
     <>
-      <header className="page-topbar">
-        <span className="page-topbar-title">Optimizer</span>
-        <div className="page-topbar-end">
-          {activeResume ? (
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                className="resume-pill"
-                onClick={() => setIsSwitcherOpen((open) => !open)}
-              >
-                <span className="resume-pill-dot" aria-hidden="true" />
-                {activeResume.name} · switch
-                <ChevronDown aria-hidden="true" />
-              </button>
-              {isSwitcherOpen && (
-                <div
-                  className="insight-card"
-                  style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 20, width: 240 }}
+      {!embedded && (
+        <header className="page-topbar">
+          <span className="page-topbar-title">Workspace</span>
+          <div className="page-topbar-end">
+            {activeResume ? (
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  className="resume-pill"
+                  onClick={() => setIsSwitcherOpen((open) => !open)}
                 >
-                  {resumes.map((resume) => (
-                    <button
-                      key={resume.id}
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ width: "100%", justifyContent: "flex-start", marginBottom: 4 }}
-                      onClick={() => {
-                        setActiveResume(resume.id);
-                        setIsSwitcherOpen(false);
-                      }}
-                    >
-                      {resume.id === activeResume.id ? <CheckCircle2 aria-hidden="true" /> : null}
-                      {resume.name}
-                    </button>
-                  ))}
-                </div>
+                  <span className="resume-pill-dot" aria-hidden="true" />
+                  {activeResume.name} · switch
+                  <ChevronDown aria-hidden="true" />
+                </button>
+                {isSwitcherOpen && (
+                  <div
+                    className="insight-card"
+                    style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 20, width: 240 }}
+                  >
+                    {resumes.map((resume) => (
+                      <button
+                        key={resume.id}
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ width: "100%", justifyContent: "flex-start", marginBottom: 4 }}
+                        onClick={() => {
+                          setActiveResume(resume.id);
+                          setIsSwitcherOpen(false);
+                        }}
+                      >
+                        {resume.id === activeResume.id ? <CheckCircle2 aria-hidden="true" /> : null}
+                        {resume.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </header>
+      )}
+
+      <ContentTag className={`page-content optimizer-page${embedded ? " workspace-job-section" : ""}`}>
+        {!embedded && (
+          <section className="optimizer-resume-context" aria-label="Selected resume">
+            <div className="optimizer-context-copy">
+              <span className="section-label">Selected resume</span>
+              {activeResume ? (
+                <>
+                  <h1>{activeResume.name}</h1>
+                  <p>
+                    {activeResume.characterCount.toLocaleString()} chars · used in {activeResume.usageCount} runs
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1>No resume selected</h1>
+                  <p>Choose a source resume before generating a tailored version.</p>
+                </>
               )}
             </div>
-          ) : null}
-        </div>
-      </header>
-
-      <main className="page-content optimizer-page">
-        <section className="optimizer-resume-context" aria-label="Selected resume">
-          <div className="optimizer-context-copy">
-            <span className="section-label">Selected resume</span>
-            {activeResume ? (
-              <>
-                <h1>{activeResume.name}</h1>
-                <p>
-                  {activeResume.characterCount.toLocaleString()} chars · used in {activeResume.usageCount} runs
-                </p>
-              </>
-            ) : (
-              <>
-                <h1>No resume selected</h1>
-                <p>Choose a source resume before generating a tailored version.</p>
-              </>
-            )}
-          </div>
-          <div className="optimizer-context-actions">
-            <Link to="/resumes" className="btn btn-secondary btn-sm">
-              {activeResume ? "Change resume" : "Add resume"}
-              <Upload aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
-
-        {optimizedResume && (
-          <Suspense
-            fallback={
-              <div className="review-loading">
-                <Loader2 className="spin" aria-hidden="true" />
-                Loading review workspace…
-              </div>
-            }
-          >
-            <ResumeReview
-              jobDescription={jobDescription}
-              originalResumeText={activeResume?.text ?? ""}
-              resume={optimizedResume}
-              provider={provider}
-              onResumeChange={setOptimizedResume}
-              sourceResume={activeResume}
-              runTitle={extractJobTitle(jobDescription)}
-              runId={currentRunId}
-              onStartNewSession={() => {
-                setJobDescription("");
-                resetResult();
-              }}
-              onSaveVersion={async (resume, score, templateId) => {
-                if (!activeResume) return;
-                const text = resumeToPlainText(resume);
-                await addResume({
-                  name: deriveTailoredResumeName(jobDescription),
-                  fileType: "text",
-                  text,
-                  characterCount: text.length,
-                  templateId,
-                  versionType: "tailored",
-                  sourceResumeId: activeResume.sourceResumeId ?? activeResume.id,
-                  sourceRunId: currentRunId || undefined,
-                  tailoredFor: extractJobTitle(jobDescription),
-                  matchScore: score,
-                });
-              }}
-              onExported={(exportType) => {
-                if (currentRunId) {
-                  return recordExport(currentRunId, exportType);
-                }
-              }}
-            />
-          </Suspense>
+            <div className="optimizer-context-actions">
+              {renderResumeAction(activeResume ? "Change resume" : "Add resume")}
+            </div>
+          </section>
         )}
 
         <section className="input-col" aria-label="Job description input">
@@ -273,10 +251,7 @@ export default function OptimizerPage() {
                 <div className="warning-banner choice-warning">
                   <AlertTriangle aria-hidden="true" />
                   <span className="warning-banner-text">Resume required to optimize.</span>
-                  <Link to="/resumes" className="btn btn-secondary btn-sm">
-                    Upload
-                    <Upload aria-hidden="true" />
-                  </Link>
+                  {renderResumeAction("Upload")}
                 </div>
               )}
             </div>
@@ -294,10 +269,7 @@ export default function OptimizerPage() {
                     <div className="warning-banner">
                       <AlertTriangle aria-hidden="true" />
                       <span className="warning-banner-text">Resume required.</span>
-                      <Link to="/resumes" className="btn btn-secondary btn-sm">
-                        Upload
-                        <Upload aria-hidden="true" />
-                      </Link>
+                      {renderResumeAction("Upload")}
                     </div>
                   )}
                 </div>
@@ -427,7 +399,54 @@ export default function OptimizerPage() {
 
           {optimizeError && <div className="inline-error">{optimizeError}</div>}
         </section>
-      </main>
+
+        {optimizedResume && (
+          <Suspense
+            fallback={
+              <div className="review-loading">
+                <Loader2 className="spin" aria-hidden="true" />
+                Loading review workspace…
+              </div>
+            }
+          >
+            <ResumeReview
+              jobDescription={jobDescription}
+              originalResumeText={activeResume?.text ?? ""}
+              resume={optimizedResume}
+              provider={provider}
+              onResumeChange={setOptimizedResume}
+              sourceResume={activeResume}
+              runTitle={extractJobTitle(jobDescription)}
+              runId={currentRunId}
+              onStartNewSession={() => {
+                setJobDescription("");
+                resetResult();
+              }}
+              onSaveVersion={async (resume, score, templateId) => {
+                if (!activeResume) return;
+                const text = resumeToPlainText(resume);
+                await addResume({
+                  name: deriveTailoredResumeName(jobDescription),
+                  fileType: "text",
+                  text,
+                  characterCount: text.length,
+                  templateId,
+                  versionType: "tailored",
+                  sourceResumeId: activeResume.sourceResumeId ?? activeResume.id,
+                  sourceRunId: currentRunId || undefined,
+                  tailoredFor: extractJobTitle(jobDescription),
+                  matchScore: score,
+                });
+              }}
+              onExported={(exportType) => {
+                if (currentRunId) {
+                  return recordExport(currentRunId, exportType);
+                }
+              }}
+            />
+          </Suspense>
+        )}
+      </ContentTag>
     </>
   );
 }
