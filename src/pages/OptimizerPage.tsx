@@ -257,7 +257,7 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
             </div>
           )}
 
-          {jobAddMode && (
+          {jobAddMode && (!optimizedResume || !isJobReferenceCollapsed) && (
             <div className={`job-entry-panel${isJobReferenceCollapsed ? " is-collapsed" : ""}`}>
               <div className="job-entry-header">
                 <div className="job-entry-title">
@@ -437,6 +437,7 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
                 setJobDescription("");
                 resetResult();
               }}
+              onShowJob={() => setIsJobPanelCollapsed(false)}
               onSaveVersion={async (resume, score, templateId) => {
                 if (!activeResume) return;
                 const text = resumeToPlainText(resume);
