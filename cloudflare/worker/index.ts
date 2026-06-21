@@ -4,7 +4,12 @@ import {
   optimizeResumeWithProvider,
   reviseSectionWithProvider,
 } from "./llm/dispatch";
-import { normalizeStructuredResume, resumeToPlainText, scoreKeywords } from "./resume";
+import {
+  getPartialKeywords,
+  normalizeStructuredResume,
+  resumeToPlainText,
+  scoreKeywordDetails,
+} from "./resume";
 import { getClerkEmail, verifyClerkRequest } from "./auth/clerk";
 
 export interface Env {
@@ -57,6 +62,16 @@ type RunRow = {
   resume_id: string;
   resume_name: string;
   job_description: string;
+  original_resume_text?: string | null;
+  optimized_resume?: string | null;
+  optimized_resume_text?: string | null;
+  before_score?: number | null;
+  matched_keywords?: string | null;
+  partial_keywords?: string | null;
+  missing_keywords?: string | null;
+  selected_template_id?: string | null;
+  tailored_resume_id?: string | null;
+  has_review?: number | null;
   score: number;
   status: "draft" | "exported";
   created_at: string;
@@ -182,6 +197,16 @@ export default {
         return await handleCreateRun(request, env, corsHeaders);
       }
 
+      const runReviewMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/review$/);
+      if (runReviewMatch && request.method === "PATCH") {
+        return await handleUpdateRunReview(request, env, corsHeaders, runReviewMatch[1]);
+      }
+
+      const runDetailMatch = url.pathname.match(/^\/api\/runs\/([^/]+)$/);
+      if (runDetailMatch && request.method === "GET") {
+        return await handleGetRun(request, env, corsHeaders, runDetailMatch[1]);
+      }
+
       const runStatusMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/status$/);
       if (runStatusMatch && request.method === "PATCH") {
         return await handleUpdateRunStatus(request, env, corsHeaders, runStatusMatch[1]);
@@ -223,6 +248,7 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
   let resumeText = asNonEmptyString(body.resumeText);
   let resumeName = asNonEmptyString(body.resumeName) || "Resume";
   let usageCount = 0;
+  let templateId = "ats-simple";
 
   if (jobDescription.length < 20) {
     return json({ error: "Paste a complete job description before optimizing." }, { status: 400, headers });
@@ -230,10 +256,10 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
 
   if (resumeId) {
     const resume = await env.DB.prepare(
-      "select name, extracted_text, usage_count from resumes where user_id = ? and id = ?",
+      "select name, extracted_text, usage_count, selected_template_id from resumes where user_id = ? and id = ?",
     )
       .bind(user.id, resumeId)
-      .first<{ name: string; extracted_text: string; usage_count: number }>();
+      .first<{ name: string; extracted_text: string; usage_count: number; selected_template_id: string | null }>();
 
     if (!resume) {
       return json({ error: "Resume not found." }, { status: 404, headers });
@@ -242,6 +268,7 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
     resumeText = resume.extracted_text;
     resumeName = resume.name;
     usageCount = resume.usage_count;
+    templateId = resume.selected_template_id || templateId;
   }
 
   if (resumeText.length < 50) {
@@ -252,7 +279,13 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
     jobDescription,
     resumeText,
   });
-  const score = scoreKeywords(jobDescription, resumeToPlainText(optimizedResume));
+  const optimizedResumeText = resumeToPlainText(optimizedResume);
+  const originalScore = scoreKeywordDetails(jobDescription, resumeText);
+  const optimizedScore = scoreKeywordDetails(jobDescription, optimizedResumeText);
+  const partialKeywords = getPartialKeywords(optimizedScore.missing, optimizedResumeText);
+  const missingKeywords = optimizedScore.missing.filter((keyword) => !partialKeywords.includes(keyword));
+  const beforeScore = Math.round(originalScore.ratio * 100);
+  const score = Math.round(optimizedScore.ratio * 100);
   let run = null;
 
   if (resumeId) {
@@ -267,9 +300,17 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
     const row = await env.DB.prepare(
       [
         "insert into optimization_runs",
-        "(id, user_id, resume_id, resume_name, title, job_description, optimized_resume, score, status)",
-        "values (?, ?, ?, ?, ?, ?, ?, ?, 'draft')",
-        "returning id, title, resume_id, resume_name, job_description, score, status, created_at",
+        [
+          "(id, user_id, resume_id, resume_name, title, job_description, original_resume_text,",
+          "optimized_resume, optimized_resume_text, before_score, score, matched_keywords,",
+          "partial_keywords, missing_keywords, selected_template_id, status)",
+        ].join(" "),
+        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')",
+        [
+          "returning id, title, resume_id, resume_name, job_description, original_resume_text,",
+          "optimized_resume, optimized_resume_text, before_score, score, matched_keywords,",
+          "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, status, created_at",
+        ].join(" "),
       ].join(" "),
     )
       .bind(
@@ -279,8 +320,15 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
         resumeName,
         asNonEmptyString(body.title) || deriveRunTitle(jobDescription),
         jobDescription,
+        resumeText,
         JSON.stringify(optimizedResume),
+        optimizedResumeText,
+        beforeScore,
         score,
+        JSON.stringify(optimizedScore.matched),
+        JSON.stringify(partialKeywords),
+        JSON.stringify(missingKeywords),
+        templateId,
       )
       .first<RunRow>();
 
@@ -395,10 +443,21 @@ async function handleCreateResume(request: Request, env: Env, headers: Headers):
         input.sourceRunId,
         input.tailoredFor,
         input.matchScore,
-      )
+    )
       .first<ResumeRow>();
 
     if (!row) throw new Error("Could not save resume.");
+    if (input.sourceRunId) {
+      await env.DB.prepare(
+        [
+          "update optimization_runs",
+          "set tailored_resume_id = ?, updated_at = current_timestamp",
+          "where user_id = ? and id = ?",
+        ].join(" "),
+      )
+        .bind(row.id, user.id, input.sourceRunId)
+        .run();
+    }
     return json({ resume: mapResume(row) }, { headers });
   } catch (error) {
     await env.RESUME_BUCKET.delete(storageKey);
@@ -595,7 +654,9 @@ async function handleListRuns(request: Request, env: Env, headers: Headers): Pro
   const { user } = await requireSession(request, env);
   const { results } = await env.DB.prepare(
     [
-      "select id, title, resume_id, resume_name, job_description, score, status, created_at",
+      "select id, title, resume_id, resume_name, job_description, score,",
+      "case when optimized_resume is not null then 1 else 0 end as has_review,",
+      "status, created_at",
       "from optimization_runs",
       "where user_id = ?",
       "order by created_at desc",
@@ -605,6 +666,32 @@ async function handleListRuns(request: Request, env: Env, headers: Headers): Pro
     .all<RunRow>();
 
   return json({ runs: results.map(mapRun) }, { headers });
+}
+
+async function handleGetRun(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  runId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const row = await env.DB.prepare(
+    [
+      "select id, title, resume_id, resume_name, job_description, original_resume_text,",
+      "optimized_resume, optimized_resume_text, before_score, score, matched_keywords,",
+      "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, status, created_at",
+      "from optimization_runs",
+      "where user_id = ? and id = ?",
+    ].join(" "),
+  )
+    .bind(user.id, runId)
+    .first<RunRow>();
+
+  if (!row) {
+    return json({ error: "Run not found." }, { status: 404, headers });
+  }
+
+  return json({ run: mapRun(row) }, { headers });
 }
 
 async function handleCreateRun(request: Request, env: Env, headers: Headers): Promise<Response> {
@@ -634,6 +721,87 @@ async function handleCreateRun(request: Request, env: Env, headers: Headers): Pr
     .first<RunRow>();
 
   if (!row) throw new Error("Could not save run.");
+  return json({ run: mapRun(row) }, { headers });
+}
+
+async function handleUpdateRunReview(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  runId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const existing = await env.DB.prepare(
+    [
+      "select id, title, resume_id, resume_name, job_description, original_resume_text,",
+      "selected_template_id from optimization_runs where user_id = ? and id = ?",
+    ].join(" "),
+  )
+    .bind(user.id, runId)
+    .first<RunRow>();
+
+  if (!existing) {
+    return json({ error: "Run not found." }, { status: 404, headers });
+  }
+
+  const optimizedResume = normalizeStructuredResume(body.resume);
+  const optimizedResumeText = resumeToPlainText(optimizedResume);
+  const jobDescription = asNonEmptyString(body.jobDescription) || existing.job_description;
+  const originalResumeText = asNonEmptyString(body.originalResumeText) || existing.original_resume_text || "";
+  const templateId = normalizeResumeTemplateId(
+    asNonEmptyString(body.templateId) || existing.selected_template_id || "",
+  );
+
+  if (jobDescription.length < 20) {
+    return json({ error: "Job description is required before saving review changes." }, { status: 400, headers });
+  }
+
+  if (optimizedResumeText.length < MIN_RESUME_TEXT_LENGTH) {
+    return json({ error: "Optimized resume content is too short to save." }, { status: 400, headers });
+  }
+
+  const originalScore = scoreKeywordDetails(jobDescription, originalResumeText);
+  const optimizedScore = scoreKeywordDetails(jobDescription, optimizedResumeText);
+  const partialKeywords = getPartialKeywords(optimizedScore.missing, optimizedResumeText);
+  const missingKeywords = optimizedScore.missing.filter((keyword) => !partialKeywords.includes(keyword));
+  const beforeScore = Math.round(originalScore.ratio * 100);
+  const score = Math.round(optimizedScore.ratio * 100);
+
+  const row = await env.DB.prepare(
+    [
+      "update optimization_runs",
+      [
+        "set job_description = ?, original_resume_text = ?, optimized_resume = ?,",
+        "optimized_resume_text = ?, before_score = ?, score = ?, matched_keywords = ?,",
+        "partial_keywords = ?, missing_keywords = ?, selected_template_id = ?,",
+        "updated_at = current_timestamp",
+      ].join(" "),
+      "where user_id = ? and id = ?",
+      [
+        "returning id, title, resume_id, resume_name, job_description, original_resume_text,",
+        "optimized_resume, optimized_resume_text, before_score, score, matched_keywords,",
+        "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, status, created_at",
+      ].join(" "),
+    ].join(" "),
+  )
+    .bind(
+      jobDescription,
+      originalResumeText,
+      JSON.stringify(optimizedResume),
+      optimizedResumeText,
+      beforeScore,
+      score,
+      JSON.stringify(optimizedScore.matched),
+      JSON.stringify(partialKeywords),
+      JSON.stringify(missingKeywords),
+      templateId,
+      user.id,
+      runId,
+    )
+    .first<RunRow>();
+
+  if (!row) throw new Error("Could not save review changes.");
   return json({ run: mapRun(row) }, { headers });
 }
 
@@ -867,7 +1035,7 @@ function mapResume(row: ResumeRow): JsonRecord {
 }
 
 function mapRun(row: RunRow): JsonRecord {
-  return {
+  const run: JsonRecord = {
     id: row.id,
     title: row.title,
     resumeId: row.resume_id,
@@ -876,7 +1044,57 @@ function mapRun(row: RunRow): JsonRecord {
     score: row.score,
     status: row.status,
     createdAt: row.created_at,
+    hasReview: row.has_review === 1 || Boolean(row.optimized_resume),
   };
+
+  if (row.original_resume_text !== undefined) {
+    run.originalResumeText = row.original_resume_text ?? "";
+  }
+  if (row.optimized_resume !== undefined) {
+    run.optimizedResume = parseStructuredResumeSnapshot(row.optimized_resume);
+  }
+  if (row.optimized_resume_text !== undefined) {
+    run.optimizedResumeText = row.optimized_resume_text ?? "";
+  }
+  if (row.before_score !== undefined) {
+    run.beforeScore = row.before_score ?? 0;
+  }
+  if (row.matched_keywords !== undefined) {
+    run.matchedKeywords = parseStringArray(row.matched_keywords);
+  }
+  if (row.partial_keywords !== undefined) {
+    run.partialKeywords = parseStringArray(row.partial_keywords);
+  }
+  if (row.missing_keywords !== undefined) {
+    run.missingKeywords = parseStringArray(row.missing_keywords);
+  }
+  if (row.selected_template_id !== undefined) {
+    run.templateId = row.selected_template_id || "ats-simple";
+  }
+  if (row.tailored_resume_id !== undefined) {
+    run.tailoredResumeId = row.tailored_resume_id;
+  }
+
+  return run;
+}
+
+function parseStructuredResumeSnapshot(value: string | null | undefined): JsonRecord | null {
+  if (!value) return null;
+  try {
+    return normalizeStructuredResume(JSON.parse(value)) as unknown as JsonRecord;
+  } catch {
+    return null;
+  }
+}
+
+function parseStringArray(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 function normalizeFileType(value: string): "pdf" | "docx" | "text" {

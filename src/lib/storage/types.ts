@@ -1,3 +1,5 @@
+import type { StructuredResume } from "../resume";
+
 export type ResumeFileType = "pdf" | "docx" | "text";
 export type ResumeVersionType = "base" | "tailored";
 
@@ -30,6 +32,16 @@ export type RunRecord = {
   score: number;
   status: RunStatus;
   createdAt: string;
+  hasReview?: boolean;
+  originalResumeText?: string;
+  optimizedResume?: StructuredResume | null;
+  optimizedResumeText?: string;
+  beforeScore?: number;
+  matchedKeywords?: string[];
+  partialKeywords?: string[];
+  missingKeywords?: string[];
+  templateId?: string;
+  tailoredResumeId?: string | null;
 };
 
 export type NewResumeInput = Omit<ResumeRecord, "id" | "uploadedAt" | "usageCount" | "isActive" | "templateId" | "versionType"> & {
@@ -38,6 +50,12 @@ export type NewResumeInput = Omit<ResumeRecord, "id" | "uploadedAt" | "usageCoun
   file?: File;
 };
 export type NewRunInput = Omit<RunRecord, "id" | "createdAt">;
+export type RunReviewUpdateInput = {
+  jobDescription: string;
+  originalResumeText: string;
+  resume: StructuredResume;
+  templateId?: string;
+};
 
 /**
  * Storage contract for resumes and run history.
@@ -56,7 +74,9 @@ export interface StorageAdapter {
   incrementResumeUsage(id: string): Promise<void>;
 
   listRuns(): Promise<RunRecord[]>;
+  getRun(id: string): Promise<RunRecord>;
   saveRun(input: NewRunInput): Promise<RunRecord>;
+  updateRunReview(id: string, input: RunReviewUpdateInput): Promise<RunRecord>;
   updateRunStatus(id: string, status: RunStatus): Promise<void>;
   recordExport(runId: string, exportType: ExportType): Promise<void>;
 }

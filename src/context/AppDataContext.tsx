@@ -14,6 +14,7 @@ import type {
   NewRunInput,
   ExportType,
   ResumeRecord,
+  RunReviewUpdateInput,
   RunRecord,
   RunStatus,
   StorageAdapter,
@@ -31,7 +32,9 @@ type AppDataContextValue = {
   updateResumeTemplate: (id: string, templateId: string) => Promise<ResumeRecord>;
   deleteResume: (id: string) => Promise<void>;
   incrementResumeUsage: (id: string) => Promise<void>;
+  getRun: (id: string) => Promise<RunRecord>;
   addRun: (input: NewRunInput) => Promise<RunRecord>;
+  updateRunReview: (id: string, input: RunReviewUpdateInput) => Promise<RunRecord>;
   updateRunStatus: (id: string, status: RunStatus) => Promise<void>;
   recordExport: (runId: string, exportType: ExportType) => Promise<void>;
   refresh: (options?: { force?: boolean }) => Promise<void>;
@@ -150,9 +153,21 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     await refresh({ force: true });
   }
 
+  async function getRun(id: string) {
+    requireBackendUser();
+    return storage.getRun(id);
+  }
+
   async function addRun(input: NewRunInput) {
     requireBackendUser();
     const record = await storage.saveRun(input);
+    await refresh({ force: true });
+    return record;
+  }
+
+  async function updateRunReview(id: string, input: RunReviewUpdateInput) {
+    requireBackendUser();
+    const record = await storage.updateRunReview(id, input);
     await refresh({ force: true });
     return record;
   }
@@ -192,7 +207,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     updateResumeTemplate,
     deleteResume,
     incrementResumeUsage,
+    getRun,
     addRun,
+    updateRunReview,
     updateRunStatus,
     recordExport,
     refresh,

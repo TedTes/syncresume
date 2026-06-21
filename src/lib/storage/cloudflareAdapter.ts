@@ -4,6 +4,7 @@ import type {
   NewResumeInput,
   NewRunInput,
   ResumeRecord,
+  RunReviewUpdateInput,
   RunRecord,
   RunStatus,
   StorageAdapter,
@@ -105,6 +106,15 @@ export class CloudflareStorageAdapter implements StorageAdapter {
     return data.runs ?? [];
   }
 
+  async getRun(id: string): Promise<RunRecord> {
+    const data = await cloudflareRequest<{ run?: RunRecord }>(
+      `/api/runs/${encodeURIComponent(id)}`,
+    );
+
+    if (!data.run) throw new Error("The backend did not return the saved run.");
+    return data.run;
+  }
+
   async saveRun(input: NewRunInput): Promise<RunRecord> {
     const data = await cloudflareRequest<{ run?: RunRecord }>("/api/runs", {
       method: "POST",
@@ -112,6 +122,19 @@ export class CloudflareStorageAdapter implements StorageAdapter {
     });
 
     if (!data.run) throw new Error("The backend did not return the saved run.");
+    return data.run;
+  }
+
+  async updateRunReview(id: string, input: RunReviewUpdateInput): Promise<RunRecord> {
+    const data = await cloudflareRequest<{ run?: RunRecord }>(
+      `/api/runs/${encodeURIComponent(id)}/review`,
+      {
+        method: "PATCH",
+        body: input,
+      },
+    );
+
+    if (!data.run) throw new Error("The backend did not return the updated review.");
     return data.run;
   }
 

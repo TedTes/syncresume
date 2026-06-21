@@ -14,6 +14,13 @@ export type StructuredResume = {
   education: string[];
 };
 
+export type KeywordScore = {
+  matched: string[];
+  missing: string[];
+  total: number;
+  ratio: number;
+};
+
 export const emptyResume: StructuredResume = {
   summary: "",
   experience: [],
@@ -138,15 +145,31 @@ export function resumeToPlainText(resume: StructuredResume): string {
 }
 
 export function scoreKeywords(jobDescription: string, resumeText: string): number {
+  return Math.round(scoreKeywordDetails(jobDescription, resumeText).ratio * 100);
+}
+
+export function scoreKeywordDetails(jobDescription: string, resumeText: string): KeywordScore {
   const keywords = extractKeywords(jobDescription);
-  if (keywords.length === 0) return 0;
-
   const haystack = normalizeComparableText(resumeText);
-  const matchedCount = keywords.filter((keyword) =>
+  const matched = keywords.filter((keyword) =>
     haystack.includes(normalizeComparableText(keyword)),
-  ).length;
+  );
+  const missing = keywords.filter((keyword) => !matched.includes(keyword));
 
-  return Math.round((matchedCount / keywords.length) * 100);
+  return {
+    matched,
+    missing,
+    total: keywords.length,
+    ratio: keywords.length === 0 ? 0 : matched.length / keywords.length,
+  };
+}
+
+export function getPartialKeywords(keywords: string[], resumeText: string): string[] {
+  const haystack = normalizeComparableText(resumeText);
+  return keywords.filter((keyword) => {
+    const parts = keyword.split(/\s+/).filter((part) => part.length > 3);
+    return parts.length > 1 && parts.some((part) => haystack.includes(normalizeComparableText(part)));
+  });
 }
 
 function extractKeywords(text: string, limit = 36): string[] {
