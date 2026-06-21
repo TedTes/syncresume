@@ -263,7 +263,7 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
                 <div className="job-entry-title">
                   <div>
                     <span className="section-label">Target job</span>
-                    <h2>{jobAddMode === "paste" ? "Job description" : "Job posting URL"}</h2>
+                    <h2 key={jobAddMode}>{jobAddMode === "paste" ? "Job description" : "Job posting URL"}</h2>
                   </div>
                   {!activeResume && (
                     <div className="warning-banner">
@@ -317,83 +317,98 @@ export default function OptimizerPage({ embedded = false, onOpenResumes }: Optim
                 </div>
               </div>
 
-              {isJobReferenceCollapsed ? (
-                <div className="job-collapsed-summary">
-                  <span>{jobDescription.trim().length.toLocaleString()} characters in target job</span>
-                  <span>Expanded only when you need to edit the source context.</span>
-                </div>
-              ) : (
-                <>
-                  {jobAddMode === "paste" && (
-                    <div className="job-editor-card">
-                      <textarea
-                        id="job-description"
-                        className="field-textarea job-textarea"
-                        value={jobDescription}
-                        placeholder="Paste the full role description here. Include responsibilities, required skills, qualifications, tools, and any nice-to-have requirements."
-                        disabled={isOptimizing}
-                        rows={12}
-                        onChange={(e) => {
-                          setJobDescription(e.target.value);
-                          resetResult();
-                        }}
-                      />
-                      <div className="job-editor-footer">
-                        <span>{jobDescription.trim().length.toLocaleString()} chars</span>
-                        <span>The selected resume will be tailored to this job.</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {jobAddMode === "link" && (
-                    <div className="job-editor-card">
-                      <div className="job-link-row">
-                        <input
-                          id="job-link"
-                          className="field-input"
-                          type="url"
-                          value={linkValue}
-                          placeholder="https://company.com/careers/job-id"
-                          disabled={isFetchingJD || isOptimizing}
-                          onChange={(e) => setLinkValue(e.target.value)}
+              <div className={`job-reference-body${isJobReferenceCollapsed ? " is-collapsed" : ""}`}>
+                <div className="job-editor-section" aria-hidden={isJobReferenceCollapsed || undefined}>
+                  <div className="job-editor-section-inner">
+                    {jobAddMode === "paste" && (
+                      <div className="job-editor-card" key="paste-description">
+                        <textarea
+                          id="job-description"
+                          className="field-textarea job-textarea"
+                          value={jobDescription}
+                          placeholder="Paste the full role description here. Include responsibilities, required skills, qualifications, tools, and any nice-to-have requirements."
+                          disabled={isOptimizing || isJobReferenceCollapsed}
+                          rows={12}
+                          onChange={(e) => {
+                            setJobDescription(e.target.value);
+                            resetResult();
+                          }}
                         />
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          type="button"
-                          disabled={!linkValue.trim() || isFetchingJD || isOptimizing}
-                          onClick={handleFetchLink}
-                        >
-                          {isFetchingJD ? <Loader2 className="spin" aria-hidden="true" /> : null}
-                          {isFetchingJD ? "Fetching…" : "Fetch"}
-                        </button>
-                      </div>
-                      {fetchJDError && (
-                        <div className="inline-error">
-                          <AlertCircle aria-hidden="true" />
-                          {fetchJDError}
+                        <div className="job-editor-footer">
+                          <span>{jobDescription.trim().length.toLocaleString()} chars</span>
+                          <span>
+                            {activeResume
+                              ? `Tailoring against ${activeResume.name}`
+                              : "Select a resume below before optimizing."}
+                          </span>
                         </div>
-                      )}
-                      {jobDescription && (
-                        <>
-                          <textarea
-                            className="field-textarea job-textarea compact"
-                            value={jobDescription}
-                            rows={9}
-                            disabled={isOptimizing}
-                            onChange={(e) => {
-                              setJobDescription(e.target.value);
-                              resetResult();
-                            }}
+                      </div>
+                    )}
+
+                    {jobAddMode === "link" && (
+                      <div className="job-editor-card" key="job-link">
+                        <div className="job-link-row">
+                          <input
+                            id="job-link"
+                            className="field-input"
+                            type="url"
+                            value={linkValue}
+                            placeholder="https://company.com/careers/job-id"
+                            disabled={isFetchingJD || isOptimizing || isJobReferenceCollapsed}
+                            onChange={(e) => setLinkValue(e.target.value)}
                           />
-                          <div className="job-editor-footer">
-                            <span>{jobDescription.trim().length.toLocaleString()} characters extracted</span>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            type="button"
+                            disabled={!linkValue.trim() || isFetchingJD || isOptimizing || isJobReferenceCollapsed}
+                            onClick={handleFetchLink}
+                          >
+                            {isFetchingJD ? <Loader2 className="spin" aria-hidden="true" /> : null}
+                            {isFetchingJD ? "Fetching…" : "Fetch"}
+                          </button>
+                        </div>
+                        {fetchJDError && (
+                          <div className="inline-error">
+                            <AlertCircle aria-hidden="true" />
+                            {fetchJDError}
                           </div>
-                        </>
-                      )}
+                        )}
+                        {jobDescription && (
+                          <>
+                            <textarea
+                              className="field-textarea job-textarea compact"
+                              value={jobDescription}
+                              rows={9}
+                              disabled={isOptimizing || isJobReferenceCollapsed}
+                              onChange={(e) => {
+                                setJobDescription(e.target.value);
+                                resetResult();
+                              }}
+                            />
+                            <div className="job-editor-footer">
+                              <span>{jobDescription.trim().length.toLocaleString()} characters extracted</span>
+                              <span>
+                                {activeResume
+                                  ? `Tailoring against ${activeResume.name}`
+                                  : "Select a resume below before optimizing."}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="job-collapsed-summary-wrapper">
+                  <div className="job-collapsed-summary-inner">
+                    <div className="job-collapsed-summary">
+                      <span>{jobDescription.trim().length.toLocaleString()} characters in target job</span>
+                      <span>Expanded only when you need to edit the source context.</span>
                     </div>
-                  )}
-                </>
-              )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
