@@ -17,7 +17,7 @@ import { Link } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
 import { fetchJobPageText } from "../lib/fetchJobPage";
-import { deriveTailoredResumeName, extractJobTitle } from "../lib/jobTitle";
+import { extractJobTitle } from "../lib/jobTitle";
 import { openAIErrorMessage } from "../lib/openai";
 import {
   generateCoverLetterWithProvider,
@@ -35,15 +35,20 @@ type JobAddMode = "paste" | "link";
 type OptimizerPageProps = {
   embedded?: boolean;
   onOpenResumes?: () => void;
+  onReviewOpenChange?: (isOpen: boolean) => void;
   reviewRunId?: string;
 };
 
-export default function OptimizerPage({ embedded = false, onOpenResumes, reviewRunId }: OptimizerPageProps) {
+export default function OptimizerPage({
+  embedded = false,
+  onOpenResumes,
+  onReviewOpenChange,
+  reviewRunId,
+}: OptimizerPageProps) {
   const {
     resumes,
     activeResume,
     setActiveResume,
-    addResume,
     getRun,
     addRun,
     updateRunReview,
@@ -72,7 +77,7 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
   const [reviewTemplateId, setReviewTemplateId] = useState<ResumeTemplateId>("ats-simple");
   const [optimizeError, setOptimizeError] = useState("");
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [isLoadingSavedReview, setIsLoadingSavedReview] = useState(false);
+  const [isLoadingSavedReview, setIsLoadingSavedReview] = useState(Boolean(reviewRunId));
   const [currentRunId, setCurrentRunId] = useState("");
 
   const hasJD = jobDescription.trim().length > 0;
@@ -80,6 +85,9 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
   const canGenerateCoverLetter =
     hasJD && Boolean(activeResume) && !isGeneratingCoverLetter && !isOptimizing && !isFetchingJD;
   const isJobReferenceCollapsed = Boolean(optimizedResume && isJobPanelCollapsed);
+  const shouldShowSavedReviewLoader = Boolean(
+    reviewRunId && isLoadingSavedReview && currentRunId !== reviewRunId,
+  );
   const ContentTag = embedded ? "section" : "main";
 
   function renderResumeAction(label: string) {
@@ -121,7 +129,20 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
   }, [activeResume?.id]);
 
   useEffect(() => {
-    if (!reviewRunId) return;
+    onReviewOpenChange?.(Boolean(optimizedResume || shouldShowSavedReviewLoader));
+  }, [onReviewOpenChange, optimizedResume, shouldShowSavedReviewLoader]);
+
+  useEffect(() => {
+    return () => {
+      onReviewOpenChange?.(false);
+    };
+  }, [onReviewOpenChange]);
+
+  useEffect(() => {
+    if (!reviewRunId) {
+      setIsLoadingSavedReview(false);
+      return;
+    }
 
     let isCurrent = true;
     setIsLoadingSavedReview(true);
@@ -307,8 +328,15 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
       )}
 
       <ContentTag className={`page-content optimizer-page${embedded ? " workspace-job-section" : ""}`}>
-        {!embedded && (
-          <section className="optimizer-resume-context" aria-label="Selected resume">
+        {shouldShowSavedReviewLoader ? (
+          <div className="review-loading saved-review-loading">
+            <Loader2 className="spin" aria-hidden="true" />
+            Loading saved review…
+          </div>
+        ) : (
+          <>
+            {!embedded && (
+              <section className="optimizer-resume-context" aria-label="Selected resume">
             <div className="optimizer-context-copy">
               <span className="section-label">Selected resume</span>
               {activeResume ? (
@@ -329,9 +357,9 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
               {renderResumeAction(activeResume ? "Change resume" : "Add resume")}
             </div>
           </section>
-        )}
+            )}
 
-        <section className="input-col" aria-label="Job description input">
+            <section className="input-col" aria-label="Job description input">
           {!jobAddMode && (
             <div className="choice-section">
               <p className="choice-heading">How do you want to add the job?</p>
@@ -598,9 +626,9 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
               Loading saved review…
             </div>
           )}
-        </section>
+            </section>
 
-        {optimizedResume && (
+            {optimizedResume && (
           <Suspense
             fallback={
               <div className="review-loading">
@@ -615,32 +643,7 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
               resume={optimizedResume}
               provider={provider}
               onResumeChange={setOptimizedResume}
-              sourceResume={activeResume}
-              runTitle={reviewTitle || extractJobTitle(jobDescription)}
-              runId={currentRunId}
               initialTemplateId={reviewTemplateId}
-              onStartNewSession={() => {
-                setJobDescription("");
-                resetResult();
-              }}
-              onShowJob={() => setIsJobPanelCollapsed(false)}
-              onSaveVersion={async (resume, score, templateId) => {
-                const sourceResumeId = reviewSourceResumeId || activeResume?.sourceResumeId || activeResume?.id;
-                if (!sourceResumeId) return;
-                const text = resumeToPlainText(resume);
-                await addResume({
-                  name: deriveTailoredResumeName(jobDescription),
-                  fileType: "text",
-                  text,
-                  characterCount: text.length,
-                  templateId,
-                  versionType: "tailored",
-                  sourceResumeId,
-                  sourceRunId: currentRunId || undefined,
-                  tailoredFor: extractJobTitle(jobDescription),
-                  matchScore: score,
-                });
-              }}
               onSaveReview={
                 currentRunId
                   ? async (resume, templateId) => {
@@ -669,6 +672,8 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
               }}
             />
           </Suspense>
+            )}
+          </>
         )}
       </ContentTag>
     </>

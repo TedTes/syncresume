@@ -1,39 +1,37 @@
-import { type CSSProperties, type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeftRight,
-  ClipboardCopy,
   Download,
-  FileDown,
-  KeyRound,
+  ListTodo,
   Loader2,
-  PenLine,
-  RefreshCw,
+  MessageCircle,
   Save,
+  Send,
   WandSparkles,
+  X,
 } from "lucide-react";
 import {
   copyPlainText,
   downloadResumeDocumentDocx,
   downloadResumeDocumentPdf,
 } from "../lib/exportResume";
+import { useSettings } from "../context/SettingsContext";
 import { openAIErrorMessage } from "../lib/openai";
 import { reviseResumeSectionWithProvider } from "../lib/providers/dispatch";
 import type { LLMProvider } from "../lib/providers/types";
 import { structuredResumeToDocument } from "../lib/resumeDocument";
 import {
-  DEFAULT_TEMPLATE_ID,
   type ResumeTemplateId,
 } from "../lib/resumeTemplates";
 import {
   diffWords,
+  experienceRoleToText,
   replaceSection,
   resumeToPlainText,
-  scoreKeywords,
   sectionText,
   type DiffToken,
   type StructuredResume,
 } from "../lib/resume";
-import type { ExportType, ResumeRecord } from "../lib/storage";
+import type { ExportType } from "../lib/storage";
 
 type ResumeReviewProps = {
   jobDescription: string;
@@ -41,17 +39,7 @@ type ResumeReviewProps = {
   resume: StructuredResume;
   provider: LLMProvider;
   onResumeChange: (resume: StructuredResume) => void;
-  sourceResume?: ResumeRecord | null;
-  runTitle?: string;
-  runId?: string;
   initialTemplateId?: ResumeTemplateId;
-  onStartNewSession?: () => void;
-  onShowJob?: () => void;
-  onSaveVersion?: (
-    resume: StructuredResume,
-    score: number,
-    templateId: ResumeTemplateId,
-  ) => Promise<void>;
   onSaveReview?: (
     resume: StructuredResume,
     templateId: ResumeTemplateId,
@@ -64,8 +52,21 @@ type SectionConfig = {
   label: string;
 };
 
-type ReviewTab = "results" | "keywords" | "editor" | "export";
-type ReviewTabConfig = { id: ReviewTab; label: string; icon: ReactNode; badge?: number };
+type SectionComparison = {
+  id: string;
+  label: string;
+  before: string;
+  after: string;
+  tokens: DiffToken[];
+  added: string[];
+  removed: string[];
+};
+
+const EXPORT_OPTIONS: Array<{ type: ExportType; label: string }> = [
+  { type: "docx", label: "DOCX" },
+  { type: "pdf", label: "PDF" },
+  { type: "copy", label: "Text" },
+];
 
 export function ResumeReview({
   jobDescription,
@@ -73,59 +74,35 @@ export function ResumeReview({
   resume,
   provider,
   onResumeChange,
-  runTitle,
   initialTemplateId,
-  onStartNewSession,
-  onShowJob,
-  onSaveVersion,
   onSaveReview,
   onExported,
 }: ResumeReviewProps) {
-  const [activeTab, setActiveTab] = useState<ReviewTab>("results");
-  const [revisionInstructions, setRevisionInstructions] = useState<Record<string, string>>({});
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [assistantSectionId, setAssistantSectionId] = useState("summary");
+  const [assistantInstruction, setAssistantInstruction] = useState("");
   const [revisingSectionId, setRevisingSectionId] = useState("");
+  const [revisionStatus, setRevisionStatus] = useState("");
   const [revisionError, setRevisionError] = useState("");
-  const [exportStatus, setExportStatus] = useState("");
   const [exportError, setExportError] = useState("");
-  const [versionStatus, setVersionStatus] = useState("");
-  const [versionError, setVersionError] = useState("");
-  const [isSavingVersion, setIsSavingVersion] = useState(false);
+  const [selectedExportTypes, setSelectedExportTypes] = useState<ExportType[]>(["docx", "pdf"]);
+  const [isExporting, setIsExporting] = useState(false);
   const [saveReviewStatus, setSaveReviewStatus] = useState("");
   const [saveReviewError, setSaveReviewError] = useState("");
   const [isSavingReview, setIsSavingReview] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<ResumeTemplateId>(DEFAULT_TEMPLATE_ID);
+  const { selectedTemplateId, setSelectedTemplateId } = useSettings();
 
   useEffect(() => {
     if (initialTemplateId) {
       setSelectedTemplateId(initialTemplateId);
     }
-  }, [initialTemplateId]);
+  }, [initialTemplateId, setSelectedTemplateId]);
 
-  const optimizedText = useMemo(() => resumeToPlainText(resume), [resume]);
   const resumeDocument = useMemo(() => structuredResumeToDocument(resume), [resume]);
-  const diff = useMemo(
-    () => diffWords(originalResumeText, optimizedText),
-    [optimizedText, originalResumeText],
+  const sectionComparisons = useMemo(
+    () => buildSectionComparisons(originalResumeText, resume),
+    [originalResumeText, resume],
   );
-  const originalScore = useMemo(
-    () => scoreKeywords(jobDescription, originalResumeText),
-    [jobDescription, originalResumeText],
-  );
-  const optimizedScore = useMemo(
-    () => scoreKeywords(jobDescription, optimizedText),
-    [jobDescription, optimizedText],
-  );
-  const beforePct = Math.round(originalScore.ratio * 100);
-  const afterPct = Math.round(optimizedScore.ratio * 100);
-  const scoreDelta = afterPct - beforePct;
-  const partialKeywords = useMemo(
-    () => getPartialKeywords(optimizedScore.missing, optimizedText),
-    [optimizedScore.missing, optimizedText],
-  );
-  const missingKeywords = optimizedScore.missing.filter((keyword) => !partialKeywords.includes(keyword));
-  const relevantKeywordCount =
-    optimizedScore.matched.length + partialKeywords.length + missingKeywords.length;
-  const scoreRingStyle = { "--score": `${afterPct}%` } as CSSProperties;
 
   const sections: SectionConfig[] = [
     { id: "summary", label: "Summary" },
@@ -136,17 +113,22 @@ export function ResumeReview({
     { id: "skills", label: "Skills" },
     { id: "education", label: "Education" },
   ];
+  const selectedAssistantSection =
+    sections.find((section) => section.id === assistantSectionId) ?? sections[0];
 
-  async function handleReviseSection(event: FormEvent<HTMLFormElement>, section: SectionConfig) {
+  async function handleAssistantRevise(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const instruction = revisionInstructions[section.id]?.trim();
+    if (!selectedAssistantSection) return;
+
+    const instruction = assistantInstruction.trim();
 
     if (!instruction) {
       setRevisionError("Add a revision instruction before submitting.");
       return;
     }
 
-    setRevisingSectionId(section.id);
+    setRevisingSectionId(selectedAssistantSection.id);
+    setRevisionStatus("");
     setRevisionError("");
 
     try {
@@ -154,13 +136,14 @@ export function ResumeReview({
         provider,
         jobDescription,
         resume,
-        sectionLabel: section.label,
-        sectionText: sectionText(resume, section.id),
+        sectionLabel: selectedAssistantSection.label,
+        sectionText: sectionText(resume, selectedAssistantSection.id),
         instruction,
       });
-      onResumeChange(replaceSection(resume, section.id, revisedText));
+      onResumeChange(replaceSection(resume, selectedAssistantSection.id, revisedText));
       setSaveReviewStatus("");
-      setRevisionInstructions((current) => ({ ...current, [section.id]: "" }));
+      setRevisionStatus(`${selectedAssistantSection.label} updated.`);
+      setAssistantInstruction("");
     } catch (error) {
       setRevisionError(openAIErrorMessage(error));
     } finally {
@@ -168,44 +151,47 @@ export function ResumeReview({
     }
   }
 
-  async function handleExport(action: "docx" | "pdf" | "copy") {
-    setExportStatus("");
-    setExportError("");
+  function toggleExportType(type: ExportType) {
+    setSelectedExportTypes((current) => {
+      const next = current.includes(type)
+        ? current.filter((item) => item !== type)
+        : [...current, type];
+      return EXPORT_OPTIONS.map((option) => option.type).filter((item) => next.includes(item));
+    });
+  }
 
-    try {
-      if (action === "docx") {
-        await downloadResumeDocumentDocx(resumeDocument, selectedTemplateId, "syncresume-optimized-resume.docx");
-        await onExported?.(action);
-        setExportStatus("DOCX downloaded.");
-      }
-      if (action === "pdf") {
-        await downloadResumeDocumentPdf(resumeDocument, selectedTemplateId, "syncresume-optimized-resume.pdf");
-        await onExported?.(action);
-        setExportStatus("PDF downloaded.");
-      }
-      if (action === "copy") {
-        await copyPlainText(resume);
-        await onExported?.(action);
-        setExportStatus("Copied to clipboard.");
-      }
-    } catch (error) {
-      setExportError(error instanceof Error ? error.message : "Export failed.");
+  async function exportOne(action: ExportType) {
+    if (action === "docx") {
+      await downloadResumeDocumentDocx(resumeDocument, selectedTemplateId, "syncresume-optimized-resume.docx");
+      await onExported?.(action);
+    }
+    if (action === "pdf") {
+      await downloadResumeDocumentPdf(resumeDocument, selectedTemplateId, "syncresume-optimized-resume.pdf");
+      await onExported?.(action);
+    }
+    if (action === "copy") {
+      await copyPlainText(resume);
+      await onExported?.(action);
     }
   }
 
-  async function handleSaveVersion() {
-    if (!onSaveVersion) return;
+  async function handleExportSelected() {
+    if (selectedExportTypes.length === 0) {
+      setExportError("Select at least one export format.");
+      return;
+    }
 
-    setVersionStatus("");
-    setVersionError("");
-    setIsSavingVersion(true);
+    setExportError("");
+    setIsExporting(true);
+
     try {
-      await onSaveVersion(resume, afterPct, selectedTemplateId);
-      setVersionStatus("Saved as a tailored resume version.");
+      for (const action of selectedExportTypes) {
+        await exportOne(action);
+      }
     } catch (error) {
-      setVersionError(error instanceof Error ? error.message : "Could not save tailored version.");
+      setExportError(error instanceof Error ? error.message : "Export failed.");
     } finally {
-      setIsSavingVersion(false);
+      setIsExporting(false);
     }
   }
 
@@ -225,505 +211,581 @@ export function ResumeReview({
     }
   }
 
-  const tabs: ReviewTabConfig[] = [
-    { id: "results", label: "Results", icon: <ArrowLeftRight /> },
-    { id: "keywords", label: "Keywords", icon: <KeyRound />, badge: relevantKeywordCount },
-    { id: "editor", label: "Refine", icon: <PenLine /> },
-    { id: "export", label: "Export", icon: <Download /> },
-  ];
-
   return (
     <section className="review-workspace" aria-label="Review workspace">
       <ReviewTopbar
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
+        selectedExportTypes={selectedExportTypes}
+        isExporting={isExporting}
+        onToggleExportType={toggleExportType}
+        onExportSelected={handleExportSelected}
         canSaveReview={Boolean(onSaveReview)}
         isSavingReview={isSavingReview}
         onSaveReview={handleSaveReview}
-        scoreRingStyle={scoreRingStyle}
-        beforePct={beforePct}
-        afterPct={afterPct}
-        scoreDelta={scoreDelta}
-        matchedCount={optimizedScore.matched.length}
-        partialCount={partialKeywords.length}
       />
 
-      <div className="tab-content" role="tabpanel">
-        {activeTab === "results" && (
-          <ResultsTab
-            diff={diff}
-            versionStatus={versionStatus}
-            versionError={versionError}
-            exportStatus={exportStatus}
-            exportError={exportError}
-          />
-        )}
+      <div className="tab-content">
+        <ResultsTab sections={sectionComparisons} />
 
-        {activeTab === "keywords" && (
-          <KeywordsTab
-            relevantKeywordCount={relevantKeywordCount}
-            matchedKeywords={optimizedScore.matched}
-            partialKeywords={partialKeywords}
-            missingKeywords={missingKeywords}
-          />
-        )}
-
-        {activeTab === "editor" && (
-          <RefineTab
-            sections={sections}
-            revisionInstructions={revisionInstructions}
-            revisingSectionId={revisingSectionId}
-            onInstructionChange={(sectionId, value) =>
-              setRevisionInstructions((current) => ({
-                ...current,
-                [sectionId]: value,
-              }))
-            }
-            onReviseSection={handleReviseSection}
-            versionStatus={versionStatus}
-            versionError={versionError}
-            exportStatus={exportStatus}
-            exportError={exportError}
-            revisionError={revisionError}
-          />
-        )}
-
-        {activeTab === "export" && (
-          <ExportTab
-            canSaveVersion={Boolean(onSaveVersion)}
-            isSavingVersion={isSavingVersion}
-            onExport={handleExport}
-            onSaveVersion={handleSaveVersion}
-            versionStatus={versionStatus}
-            versionError={versionError}
-            exportStatus={exportStatus}
-            exportError={exportError}
-          />
-        )}
+        <StatusMessages
+          exportError={exportError}
+        />
         {saveReviewStatus && <p className="export-status-msg">{saveReviewStatus}</p>}
         {saveReviewError && <div className="inline-error">{saveReviewError}</div>}
       </div>
 
-      <ReviewFooter
-        runTitle={runTitle}
-        jobDescription={jobDescription}
-        onShowJob={onShowJob}
-        onStartNewSession={onStartNewSession}
+      <RevisionAssistant
+        isOpen={isAssistantOpen}
+        sections={sections}
+        selectedSectionId={selectedAssistantSection?.id ?? ""}
+        instruction={assistantInstruction}
+        revisingSectionId={revisingSectionId}
+        revisionStatus={revisionStatus}
+        revisionError={revisionError}
+        onOpen={() => setIsAssistantOpen(true)}
+        onClose={() => setIsAssistantOpen(false)}
+        onSectionChange={(sectionId) => {
+          setAssistantSectionId(sectionId);
+          setRevisionStatus("");
+          setRevisionError("");
+        }}
+        onInstructionChange={(value) => {
+          setAssistantInstruction(value);
+          setRevisionStatus("");
+          setRevisionError("");
+        }}
+        onSubmit={handleAssistantRevise}
       />
     </section>
   );
 }
 
 function ReviewTopbar({
-  tabs,
-  activeTab,
-  onTabChange,
+  selectedExportTypes,
+  isExporting,
+  onToggleExportType,
+  onExportSelected,
   canSaveReview,
   isSavingReview,
   onSaveReview,
-  scoreRingStyle,
-  beforePct,
-  afterPct,
-  scoreDelta,
-  matchedCount,
-  partialCount,
 }: {
-  tabs: ReviewTabConfig[];
-  activeTab: ReviewTab;
-  onTabChange: (tab: ReviewTab) => void;
+  selectedExportTypes: ExportType[];
+  isExporting: boolean;
+  onToggleExportType: (type: ExportType) => void;
+  onExportSelected: () => Promise<void>;
   canSaveReview: boolean;
   isSavingReview: boolean;
   onSaveReview: () => Promise<void>;
-  scoreRingStyle: CSSProperties;
-  beforePct: number;
-  afterPct: number;
-  scoreDelta: number;
-  matchedCount: number;
-  partialCount: number;
 }) {
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportGroupRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!exportGroupRef.current?.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isExportMenuOpen]);
+
   return (
     <div className="review-topbar">
-      <div className="tab-bar" role="tablist">
-        {tabs.map((tab) => (
+      <div className="review-topbar-actions">
+        <div className="review-export-group" ref={exportGroupRef}>
           <button
-            key={tab.id}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            className={`tab ${activeTab === tab.id ? "active" : ""}`}
-            onClick={() => onTabChange(tab.id)}
+            className="btn btn-secondary btn-sm review-export-button"
+            type="button"
+            disabled={isExporting || selectedExportTypes.length === 0}
+            onClick={() => void onExportSelected()}
           >
-            {tab.icon}
-            {tab.label}
-            {typeof tab.badge === "number" && <span className="tab-badge">{tab.badge}</span>}
+            {isExporting ? (
+              <Loader2 className="spin" aria-hidden="true" />
+            ) : (
+              <Download aria-hidden="true" />
+            )}
+            Export
           </button>
-        ))}
-      </div>
-
-      {canSaveReview && (
-        <button
-          className="btn btn-primary btn-sm review-topbar-save"
-          type="button"
-          disabled={isSavingReview}
-          onClick={() => void onSaveReview()}
-        >
-          {isSavingReview ? (
-            <Loader2 className="spin" aria-hidden="true" />
-          ) : (
-            <Save aria-hidden="true" />
-          )}
-          Save
-        </button>
-      )}
-
-      <div className="review-score-strip" aria-label="Optimization score summary">
-        <div className="score-ring score-ring-compact" style={scoreRingStyle} aria-hidden="true" />
-        <span className="score-before">{beforePct}%</span>
-        <strong className="score-after">{afterPct}%</strong>
-        <span className="score-delta">{scoreDelta >= 0 ? `+${scoreDelta}` : scoreDelta}</span>
-        <span className="score-stat score-stat-matched">
-          <span aria-hidden="true" />
-          <strong>{matchedCount}</strong> matched
-        </span>
-        <span className="score-stat score-stat-partial">
-          <span aria-hidden="true" />
-          <strong>{partialCount}</strong> partial
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function ResultsTab({
-  diff,
-  versionStatus,
-  versionError,
-  exportStatus,
-  exportError,
-}: {
-  diff: DiffToken[];
-  versionStatus: string;
-  versionError: string;
-  exportStatus: string;
-  exportError: string;
-}) {
-  return (
-    <div className="results-stage">
-      <div className="diff-grid">
-        <DiffPane title="Original" tokens={diff} side="original" />
-        <DiffPane title="Optimized" tokens={diff} side="optimized" />
-      </div>
-      <StatusMessages
-        versionStatus={versionStatus}
-        versionError={versionError}
-        exportStatus={exportStatus}
-        exportError={exportError}
-      />
-    </div>
-  );
-}
-
-function KeywordsTab({
-  relevantKeywordCount,
-  matchedKeywords,
-  partialKeywords,
-  missingKeywords,
-}: {
-  relevantKeywordCount: number;
-  matchedKeywords: string[];
-  partialKeywords: string[];
-  missingKeywords: string[];
-}) {
-  return (
-    <div className="keywords-stage">
-      <aside className="keywords-summary">
-        <strong>{relevantKeywordCount}</strong>
-        <span>relevant terms extracted from job description</span>
-      </aside>
-      <div className="keywords-groups">
-        <KeywordBucket title={`Matched (${matchedKeywords.length})`} variant="matched" keywords={matchedKeywords} />
-        <KeywordBucket title={`Partial (${partialKeywords.length})`} variant="partial" keywords={partialKeywords} />
-        <KeywordBucket title={`Missing (${missingKeywords.length})`} variant="missing" keywords={missingKeywords} />
-      </div>
-    </div>
-  );
-}
-
-function RefineTab({
-  sections,
-  revisionInstructions,
-  revisingSectionId,
-  onInstructionChange,
-  onReviseSection,
-  versionStatus,
-  versionError,
-  exportStatus,
-  exportError,
-  revisionError,
-}: {
-  sections: SectionConfig[];
-  revisionInstructions: Record<string, string>;
-  revisingSectionId: string;
-  onInstructionChange: (sectionId: string, value: string) => void;
-  onReviseSection: (event: FormEvent<HTMLFormElement>, section: SectionConfig) => void | Promise<void>;
-  versionStatus: string;
-  versionError: string;
-  exportStatus: string;
-  exportError: string;
-  revisionError: string;
-}) {
-  return (
-    <div className="refine-stage">
-      {sections.map((section) => (
-        <article className="refine-card" key={section.id}>
-          <h3>{section.label}</h3>
-          <form
-            className="refine-form"
-            onSubmit={(event) => onReviseSection(event, section)}
+          <button
+            className="btn btn-secondary btn-sm review-export-menu-button"
+            type="button"
+            aria-label="Choose export formats"
+            aria-expanded={isExportMenuOpen}
+            disabled={isExporting}
+            onClick={() => setIsExportMenuOpen((isOpen) => !isOpen)}
           >
-            <input
-              className="revision-input"
-              type="text"
-              value={revisionInstructions[section.id] ?? ""}
-              placeholder={section.id === "summary" ? "Ask AI to revise this section..." : "e.g. add more impact metrics"}
-              disabled={revisingSectionId.length > 0}
-              onChange={(event) => onInstructionChange(section.id, event.target.value)}
-            />
-            <button
-              className="btn btn-secondary"
-              type="submit"
-              disabled={
-                revisingSectionId.length > 0 ||
-                !(revisionInstructions[section.id] ?? "").trim()
-              }
-            >
-              {revisingSectionId === section.id ? (
-                <Loader2 className="spin" aria-hidden="true" />
-              ) : (
-                <WandSparkles aria-hidden="true" />
-              )}
-              Revise
-            </button>
-          </form>
-        </article>
-      ))}
-      <StatusMessages
-        versionStatus={versionStatus}
-        versionError={versionError}
-        exportStatus={exportStatus}
-        exportError={exportError}
-      />
-      {revisionError && <div className="inline-error" style={{ marginTop: 12 }}>{revisionError}</div>}
-    </div>
-  );
-}
-
-function ExportTab({
-  canSaveVersion,
-  isSavingVersion,
-  onExport,
-  onSaveVersion,
-  versionStatus,
-  versionError,
-  exportStatus,
-  exportError,
-}: {
-  canSaveVersion: boolean;
-  isSavingVersion: boolean;
-  onExport: (action: "docx" | "pdf" | "copy") => Promise<void>;
-  onSaveVersion: () => Promise<void>;
-  versionStatus: string;
-  versionError: string;
-  exportStatus: string;
-  exportError: string;
-}) {
-  return (
-    <div className="export-stage">
-      <ExportCard
-        icon={<FileDown />}
-        title="DOCX"
-        actionLabel="Download"
-        onAction={() => void onExport("docx")}
-      />
-      <ExportCard
-        icon={<Download />}
-        title="PDF"
-        actionLabel="Download"
-        tone="danger"
-        onAction={() => void onExport("pdf")}
-      />
-      <ExportCard
-        icon={<ClipboardCopy />}
-        title="Plain text"
-        actionLabel="Copy"
-        onAction={() => void onExport("copy")}
-      />
-      {canSaveVersion && (
-        <ExportCard
-          icon={isSavingVersion ? <Loader2 className="spin" /> : <Save />}
-          title="Version"
-          actionLabel={isSavingVersion ? "Saving..." : "Save version"}
-          disabled={isSavingVersion}
-          onAction={() => void onSaveVersion()}
-        />
-      )}
-      <StatusMessages
-        versionStatus={versionStatus}
-        versionError={versionError}
-        exportStatus={exportStatus}
-        exportError={exportError}
-      />
-    </div>
-  );
-}
-
-function ReviewFooter({
-  runTitle,
-  jobDescription,
-  onShowJob,
-  onStartNewSession,
-}: {
-  runTitle?: string;
-  jobDescription: string;
-  onShowJob?: () => void;
-  onStartNewSession?: () => void;
-}) {
-  return (
-    <div className="review-footer-bar">
-      <div className="review-footer-job">
-        <p className="section-label">Target job</p>
-        <span>
-          {runTitle || "Target job"} · {jobDescription.trim().length.toLocaleString()} characters
-        </span>
-      </div>
-      <div className="review-footer-actions">
-        <button className="btn btn-secondary" type="button" disabled={!onShowJob} onClick={onShowJob}>
-          <ArrowLeftRight aria-hidden="true" />
-          Show job
-        </button>
-        <button className="btn btn-secondary" type="button" onClick={onStartNewSession}>
-          <RefreshCw aria-hidden="true" />
-          Start new
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function StatusMessages({
-  versionStatus,
-  versionError,
-  exportStatus,
-  exportError,
-}: {
-  versionStatus: string;
-  versionError: string;
-  exportStatus: string;
-  exportError: string;
-}) {
-  return (
-    <>
-      {versionStatus && <p className="export-status-msg">{versionStatus}</p>}
-      {versionError && <div className="inline-error">{versionError}</div>}
-      {exportStatus && <p className="export-status-msg">{exportStatus}</p>}
-      {exportError && <div className="inline-error">{exportError}</div>}
-    </>
-  );
-}
-
-function KeywordBucket({
-  title,
-  variant,
-  keywords,
-}: {
-  title: string;
-  variant: "matched" | "partial" | "missing";
-  keywords: string[];
-}) {
-  return (
-    <div className="keyword-bucket">
-      <p className="section-label">{title}</p>
-      <div className="keyword-chips">
-        {keywords.length > 0 ? (
-          keywords.map((keyword) => (
-            <span key={keyword} className={`chip chip-${variant}`}>
-              {keyword}
-            </span>
-          ))
-        ) : (
-          <span className="keyword-empty">None</span>
+            <ListTodo aria-hidden="true" />
+          </button>
+          {isExportMenuOpen && (
+            <div className="export-format-menu" aria-label="Export formats">
+              {EXPORT_OPTIONS.map((option) => (
+                <label
+                  className={`export-format-toggle ${
+                    selectedExportTypes.includes(option.type) ? "active" : ""
+                  }`}
+                  key={option.type}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedExportTypes.includes(option.type)}
+                    disabled={isExporting}
+                    onChange={() => onToggleExportType(option.type)}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        {canSaveReview && (
+          <button
+            className="btn btn-primary btn-sm review-topbar-save"
+            type="button"
+            disabled={isSavingReview}
+            onClick={() => void onSaveReview()}
+          >
+            {isSavingReview ? (
+              <Loader2 className="spin" aria-hidden="true" />
+            ) : (
+              <Save aria-hidden="true" />
+            )}
+            Save
+          </button>
         )}
       </div>
     </div>
   );
 }
 
-function ExportCard({
-  icon,
-  title,
-  actionLabel,
-  disabled = false,
-  tone = "accent",
-  onAction,
+function ResultsTab({
+  sections,
 }: {
-  icon: ReactNode;
-  title: string;
-  actionLabel: string;
-  disabled?: boolean;
-  tone?: "accent" | "danger";
-  onAction: () => void;
+  sections: SectionComparison[];
 }) {
   return (
-    <article className={`export-card export-card-${tone}`}>
-      <span className="export-card-icon" aria-hidden="true">
-        {icon}
-      </span>
-      <h3>{title}</h3>
-      <button className="btn btn-secondary" type="button" disabled={disabled} onClick={onAction}>
-        {actionLabel}
-      </button>
-    </article>
+    <div className="results-stage">
+      <div className="section-diff-list">
+        {sections.map((section) => (
+          <section className={`section-diff-block section-diff-${section.id}`} key={section.id}>
+            <div className="section-diff-header">
+              <h3>{section.label}</h3>
+            </div>
+            <div className="diff-grid">
+              <DiffPane text={section.before} changes={section.removed} side="original" />
+              <DiffPane text={section.after} changes={section.added} side="optimized" />
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function getPartialKeywords(keywords: string[], optimizedText: string): string[] {
-  const haystack = normalizeComparable(optimizedText);
-  return keywords.filter((keyword) => {
-    const parts = keyword.split(/\s+/).filter((part) => part.length > 3);
-    return parts.length > 1 && parts.some((part) => haystack.includes(normalizeComparable(part)));
-  });
+function RevisionAssistant({
+  isOpen,
+  sections,
+  selectedSectionId,
+  instruction,
+  revisingSectionId,
+  revisionStatus,
+  revisionError,
+  onOpen,
+  onClose,
+  onSectionChange,
+  onInstructionChange,
+  onSubmit,
+}: {
+  isOpen: boolean;
+  sections: SectionConfig[];
+  selectedSectionId: string;
+  instruction: string;
+  revisingSectionId: string;
+  revisionStatus: string;
+  revisionError: string;
+  onOpen: () => void;
+  onClose: () => void;
+  onSectionChange: (sectionId: string) => void;
+  onInstructionChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+}) {
+  const assistantRef = useRef<HTMLDivElement | null>(null);
+  const selectedSection = sections.find((section) => section.id === selectedSectionId);
+  const isRevising = Boolean(revisingSectionId);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (assistantRef.current?.contains(target)) return;
+      onClose();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isOpen, onClose]);
+
+  return (
+    <div className="review-assistant" ref={assistantRef}>
+      {isOpen && (
+        <aside className="review-assistant-panel" aria-label="AI section assistant">
+          <div className="review-assistant-header">
+            <div>
+              <p className="section-label">AI assistant</p>
+              <h3>Revise a section</h3>
+            </div>
+            <button type="button" className="icon-button" aria-label="Close assistant" onClick={onClose}>
+              <X aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="assistant-section-options" aria-label="Choose section">
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                className={`assistant-section-chip ${section.id === selectedSectionId ? "active" : ""}`}
+                disabled={isRevising}
+                onClick={() => onSectionChange(section.id)}
+              >
+                {section.label}
+              </button>
+            ))}
+          </div>
+
+          <form className="assistant-chat-form" onSubmit={onSubmit}>
+            <textarea
+              className="assistant-chat-input"
+              value={instruction}
+              rows={4}
+              disabled={isRevising}
+              placeholder={
+                selectedSection?.id === "summary"
+                  ? "Ask AI to sharpen this summary for the target job..."
+                  : "e.g. add impact metrics, make it more concise, or mirror the job language"
+              }
+              onChange={(event) => onInstructionChange(event.target.value)}
+            />
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={isRevising || !instruction.trim() || !selectedSection}
+            >
+              {isRevising ? (
+                <Loader2 className="spin" aria-hidden="true" />
+              ) : (
+                <Send aria-hidden="true" />
+              )}
+              {isRevising ? "Revising..." : "Ask AI"}
+            </button>
+          </form>
+
+          {revisionStatus && <p className="export-status-msg">{revisionStatus}</p>}
+          {revisionError && <div className="inline-error">{revisionError}</div>}
+        </aside>
+      )}
+
+      <button
+        type="button"
+        className="review-assistant-fab"
+        aria-label="Open AI section assistant"
+        aria-expanded={isOpen}
+        onClick={isOpen ? onClose : onOpen}
+      >
+        {isOpen ? <X aria-hidden="true" /> : <MessageCircle aria-hidden="true" />}
+        <WandSparkles aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+function StatusMessages({ exportError }: { exportError: string }) {
+  return (
+    <>
+      {exportError && <div className="inline-error">{exportError}</div>}
+    </>
+  );
 }
 
 function normalizeComparable(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9+#.\s-]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function buildSectionComparisons(originalResumeText: string, resume: StructuredResume): SectionComparison[] {
+  const originalSections = extractOriginalResumeSections(originalResumeText);
+  const optimizedSections = [
+    {
+      id: "summary",
+      label: "Summary",
+      before: originalSections.summary,
+      after: resume.summary,
+    },
+    {
+      id: "experience",
+      label: "Experience",
+      before: originalSections.experience,
+      after: resume.experience.map(experienceRoleToText).filter(Boolean).join("\n\n"),
+    },
+    {
+      id: "skills",
+      label: "Skills",
+      before: originalSections.skills,
+      after: resume.skills.join(", "),
+    },
+    {
+      id: "education",
+      label: "Education",
+      before: originalSections.education,
+      after: resume.education.join("\n"),
+    },
+  ];
+
+  const comparisons = optimizedSections
+    .map((section) => ({
+      ...section,
+      before: section.before.trim(),
+      after: section.after.trim(),
+    }))
+    .filter((section) => section.before || section.after)
+    .map((section) => ({
+      ...section,
+      tokens: diffWords(section.before, section.after),
+    }))
+    .map((section) => ({
+      ...section,
+      added: extractChangePhrases(section.tokens, "added"),
+      removed: extractChangePhrases(section.tokens, "removed"),
+    }));
+
+  if (comparisons.length > 0 && comparisons.some((section) => section.before)) {
+    return comparisons;
+  }
+
+  const fallbackAfter = resumeToPlainText(resume);
+  const fallbackTokens = diffWords(originalResumeText.trim(), fallbackAfter);
+  return [
+    {
+      id: "resume",
+      label: "Resume",
+      before: originalResumeText.trim(),
+      after: fallbackAfter,
+      tokens: fallbackTokens,
+      added: extractChangePhrases(fallbackTokens, "added"),
+      removed: extractChangePhrases(fallbackTokens, "removed"),
+    },
+  ];
+}
+
+function extractOriginalResumeSections(text: string): Record<"summary" | "experience" | "skills" | "education", string> {
+  const normalizedText = text.replace(/\r\n?/g, "\n");
+  const headings = findResumeHeadings(normalizedText);
+  const sections = {
+    summary: "",
+    experience: "",
+    skills: "",
+    education: "",
+  };
+
+  if (headings.length === 0) {
+    return sections;
+  }
+
+  for (let index = 0; index < headings.length; index += 1) {
+    const heading = headings[index];
+    const nextHeading = headings[index + 1];
+    const start = heading.index + heading.text.length;
+    const end = nextHeading?.index ?? normalizedText.length;
+    const value = normalizedText.slice(start, end).trim();
+    sections[heading.section] = [sections[heading.section], value].filter(Boolean).join("\n\n");
+  }
+
+  return sections;
+}
+
+function findResumeHeadings(text: string): Array<{
+  section: "summary" | "experience" | "skills" | "education";
+  text: string;
+  index: number;
+}> {
+  const headingMap: Array<{
+    section: "summary" | "experience" | "skills" | "education";
+    labels: string[];
+  }> = [
+    {
+      section: "summary",
+      labels: ["professional summary", "career summary", "summary", "profile"],
+    },
+    {
+      section: "experience",
+      labels: ["professional experience", "work experience", "employment history", "experience"],
+    },
+    {
+      section: "skills",
+      labels: ["technical skills", "core skills", "skills"],
+    },
+    {
+      section: "education",
+      labels: ["education", "academic background"],
+    },
+  ];
+
+  const matches: Array<{
+    section: "summary" | "experience" | "skills" | "education";
+    text: string;
+    index: number;
+  }> = [];
+
+  for (const item of headingMap) {
+    for (const label of item.labels) {
+      const pattern = new RegExp(`(^|\\n|\\s{2,})(${escapeRegExp(label)})(?=\\s|:|$)`, "gi");
+      for (const match of text.matchAll(pattern)) {
+        const prefix = match[1] ?? "";
+        const headingText = match[2] ?? "";
+        matches.push({
+          section: item.section,
+          text: headingText,
+          index: (match.index ?? 0) + prefix.length,
+        });
+      }
+
+      const uppercaseLabel = label.toUpperCase();
+      const uppercasePattern = new RegExp(`(^|\\s)(${escapeRegExp(uppercaseLabel)})(?=\\s|:|$)`, "g");
+      for (const match of text.matchAll(uppercasePattern)) {
+        const prefix = match[1] ?? "";
+        const headingText = match[2] ?? "";
+        matches.push({
+          section: item.section,
+          text: headingText,
+          index: (match.index ?? 0) + prefix.length,
+        });
+      }
+    }
+  }
+
+  return matches
+    .sort((a, b) => a.index - b.index || b.text.length - a.text.length)
+    .filter((match, index, sorted) => {
+      const previous = sorted[index - 1];
+      return !previous || match.index >= previous.index + previous.text.length;
+    });
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function DiffPane({
-  title,
-  tokens,
+  text,
+  changes,
   side,
 }: {
-  title: string;
-  tokens: DiffToken[];
+  text: string;
+  changes: string[];
   side: "original" | "optimized";
 }) {
+  const label = side === "original" ? "Removed" : "Added";
+  const variant = side === "original" ? "removed" : "added";
+
   return (
-    <article className={`diff-pane diff-pane-${side}`}>
-      <div className="diff-pane-header">
-        <h3>{title}</h3>
-        <span className="diff-pane-badge">{side === "optimized" ? "after" : "before"}</span>
-      </div>
+    <article
+      className={`diff-pane diff-pane-${side}`}
+      aria-label={side === "optimized" ? "Optimized resume" : "Original resume"}
+    >
       <pre>
-        {tokens
-          .filter((token) =>
-            side === "original" ? token.type !== "added" : token.type !== "removed",
-          )
-          .map((token, index) => (
-            <mark className={`diff-${token.type}`} key={`${token.type}-${index}`}>
-              {token.value}
-            </mark>
-          ))}
+        {text ? (
+          text
+        ) : (
+          <span className="diff-empty">
+            {side === "original" ? "No matching original text found." : "No optimized text."}
+          </span>
+        )}
       </pre>
+      <div className="diff-pane-tools">
+        <ChangeChip label={label} items={changes} variant={variant} />
+      </div>
     </article>
   );
+}
+
+function ChangeChip({
+  label,
+  items,
+  variant,
+}: {
+  label: string;
+  items: string[];
+  variant: "added" | "removed";
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const count = items.length;
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function collapseOnScroll() {
+      setIsOpen(false);
+    }
+
+    window.addEventListener("scroll", collapseOnScroll, { capture: true, passive: true });
+    return () => window.removeEventListener("scroll", collapseOnScroll, { capture: true });
+  }, [isOpen]);
+
+  return (
+    <div className={`change-chip change-chip-${variant} ${isOpen ? "open" : ""}`}>
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        disabled={count === 0}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        {label} <span>{count}</span>
+      </button>
+      {isOpen && (
+        <div className="change-chip-popover">
+          <p>{items.join(", ")}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function extractChangePhrases(tokens: DiffToken[], type: "added" | "removed"): string[] {
+  const items: string[] = [];
+  const seen = new Set<string>();
+
+  for (const token of tokens) {
+    if (token.type !== type) continue;
+
+    for (const phrase of splitChangePhrase(token.value)) {
+      const normalized = normalizeComparable(phrase);
+      if (!normalized || seen.has(normalized) || !isMeaningfulChange(phrase)) continue;
+
+      seen.add(normalized);
+      items.push(phrase);
+
+      if (items.length >= 8) {
+        return items;
+      }
+    }
+  }
+
+  return items;
+}
+
+function splitChangePhrase(value: string): string[] {
+  return value
+    .split(/\n+|[•]+|(?:^|\s)[-*]\s+/)
+    .map((item) => item.replace(/\s+/g, " ").trim())
+    .map((item) => item.replace(/^[,;:.\s]+|[,;:.\s]+$/g, ""))
+    .filter(Boolean)
+    .map((item) => (item.length > 140 ? `${item.slice(0, 137).trim()}...` : item));
+}
+
+function isMeaningfulChange(value: string): boolean {
+  const words = value.match(/[A-Za-z0-9+#.]+/g) ?? [];
+  return value.length >= 4 && words.some((word) => word.length > 3);
 }
