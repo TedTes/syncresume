@@ -4,9 +4,11 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  ClipboardCopy,
   FileText,
   Link2,
   Loader2,
+  Mail,
   Sparkles,
   Upload,
 } from "lucide-react";
@@ -17,7 +19,10 @@ import { useSettings } from "../context/SettingsContext";
 import { fetchJobPageText } from "../lib/fetchJobPage";
 import { deriveTailoredResumeName, extractJobTitle } from "../lib/jobTitle";
 import { openAIErrorMessage } from "../lib/openai";
-import { optimizeResumeWithProvider } from "../lib/providers/dispatch";
+import {
+  generateCoverLetterWithProvider,
+  optimizeResumeWithProvider,
+} from "../lib/providers/dispatch";
 import { normalizeStructuredResume, resumeToPlainText, type StructuredResume } from "../lib/resume";
 import type { ResumeTemplateId } from "../lib/resumeTemplates";
 
@@ -55,6 +60,10 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
   const [linkValue, setLinkValue] = useState("");
   const [isFetchingJD, setIsFetchingJD] = useState(false);
   const [fetchJDError, setFetchJDError] = useState("");
+  const [coverLetter, setCoverLetter] = useState("");
+  const [coverLetterStatus, setCoverLetterStatus] = useState("");
+  const [coverLetterError, setCoverLetterError] = useState("");
+  const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false);
 
   const [optimizedResume, setOptimizedResume] = useState<StructuredResume | null>(null);
   const [reviewOriginalResumeText, setReviewOriginalResumeText] = useState("");
@@ -68,6 +77,8 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
 
   const hasJD = jobDescription.trim().length > 0;
   const canOptimize = hasJD && Boolean(activeResume) && !isOptimizing;
+  const canGenerateCoverLetter =
+    hasJD && Boolean(activeResume) && !isGeneratingCoverLetter && !isOptimizing && !isFetchingJD;
   const isJobReferenceCollapsed = Boolean(optimizedResume && isJobPanelCollapsed);
   const ContentTag = embedded ? "section" : "main";
 
@@ -96,9 +107,18 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
     setReviewSourceResumeId("");
     setReviewTemplateId((activeResume?.templateId as ResumeTemplateId | undefined) ?? "ats-simple");
     setOptimizeError("");
+    setCoverLetter("");
+    setCoverLetterStatus("");
+    setCoverLetterError("");
     setCurrentRunId("");
     setIsJobPanelCollapsed(false);
   }
+
+  useEffect(() => {
+    setCoverLetter("");
+    setCoverLetterStatus("");
+    setCoverLetterError("");
+  }, [activeResume?.id]);
 
   useEffect(() => {
     if (!reviewRunId) return;
@@ -202,6 +222,42 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
       setOptimizeError(openAIErrorMessage(error));
     } finally {
       setIsOptimizing(false);
+    }
+  }
+
+  async function handleGenerateCoverLetter() {
+    if (!canGenerateCoverLetter || !activeResume) return;
+
+    setCoverLetterStatus("");
+    setCoverLetterError("");
+    setIsGeneratingCoverLetter(true);
+
+    try {
+      const resumeText = optimizedResume ? resumeToPlainText(optimizedResume) : activeResume.text;
+      const generated = await generateCoverLetterWithProvider({
+        provider,
+        jobDescription,
+        resumeText,
+        jobTitle: extractJobTitle(jobDescription),
+      });
+      setCoverLetter(generated);
+      setCoverLetterStatus("Cover letter generated.");
+    } catch (error) {
+      setCoverLetterError(openAIErrorMessage(error));
+    } finally {
+      setIsGeneratingCoverLetter(false);
+    }
+  }
+
+  async function handleCopyCoverLetter() {
+    setCoverLetterStatus("");
+    setCoverLetterError("");
+
+    try {
+      await navigator.clipboard.writeText(coverLetter);
+      setCoverLetterStatus("Cover letter copied.");
+    } catch {
+      setCoverLetterError("Could not copy the cover letter.");
     }
   }
 
@@ -361,6 +417,19 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
                     {jobAddMode === "paste" ? "Use link" : "Paste JD"}
                   </button>
                   <button
+                    type="button"
+                    className="mode-switch-button"
+                    disabled={!canGenerateCoverLetter}
+                    onClick={handleGenerateCoverLetter}
+                  >
+                    {isGeneratingCoverLetter ? (
+                      <Loader2 className="spin" aria-hidden="true" />
+                    ) : (
+                      <Mail aria-hidden="true" />
+                    )}
+                    {coverLetter ? "Regenerate cover" : "Cover letter"}
+                  </button>
+                  <button
                     className="btn btn-primary btn-optimize"
                     type="button"
                     disabled={!canOptimize}
@@ -469,6 +538,57 @@ export default function OptimizerPage({ embedded = false, onOpenResumes, reviewR
                 </div>
               </div>
             </div>
+          )}
+
+          {(coverLetter || isGeneratingCoverLetter || coverLetterError || coverLetterStatus) && (
+            <section className="job-cover-panel" aria-label="Cover letter">
+              <div className="cover-letter-header">
+                <div>
+                  <p className="section-label">Cover letter</p>
+                  <h3>
+                    {optimizedResume
+                      ? "Generated from the tailored resume and target job."
+                      : "Generated from the selected resume and target job."}
+                  </h3>
+                </div>
+                <div className="cover-letter-actions">
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    disabled={!canGenerateCoverLetter}
+                    onClick={handleGenerateCoverLetter}
+                  >
+                    {isGeneratingCoverLetter ? (
+                      <Loader2 className="spin" aria-hidden="true" />
+                    ) : (
+                      <Mail aria-hidden="true" />
+                    )}
+                    {coverLetter ? "Regenerate" : "Generate"}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    disabled={!coverLetter.trim()}
+                    onClick={handleCopyCoverLetter}
+                  >
+                    <ClipboardCopy aria-hidden="true" />
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                className="cover-letter-textarea job-cover-textarea"
+                value={coverLetter}
+                disabled={isGeneratingCoverLetter}
+                onChange={(event) => setCoverLetter(event.target.value)}
+                placeholder="Your generated cover letter will appear here. You can edit it before copying."
+                spellCheck
+              />
+
+              {coverLetterStatus && <p className="export-status-msg">{coverLetterStatus}</p>}
+              {coverLetterError && <div className="inline-error">{coverLetterError}</div>}
+            </section>
           )}
 
           {optimizeError && <div className="inline-error">{optimizeError}</div>}
