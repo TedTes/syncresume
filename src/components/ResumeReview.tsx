@@ -65,6 +65,7 @@ type SectionConfig = {
 };
 
 type ReviewTab = "results" | "keywords" | "editor" | "export";
+type ReviewTabConfig = { id: ReviewTab; label: string; icon: ReactNode; badge?: number };
 
 export function ResumeReview({
   jobDescription,
@@ -224,7 +225,7 @@ export function ResumeReview({
     }
   }
 
-  const tabs: { id: ReviewTab; label: string; icon: ReactNode; badge?: number }[] = [
+  const tabs: ReviewTabConfig[] = [
     { id: "results", label: "Results", icon: <ArrowLeftRight /> },
     { id: "keywords", label: "Keywords", icon: <KeyRound />, badge: relevantKeywordCount },
     { id: "editor", label: "Refine", icon: <PenLine /> },
@@ -233,179 +234,400 @@ export function ResumeReview({
 
   return (
     <section className="review-workspace" aria-label="Review workspace">
-      <div className="review-topbar">
-        <div className="tab-bar" role="tablist">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              className={`tab ${activeTab === tab.id ? "active" : ""}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.icon}
-              {tab.label}
-              {typeof tab.badge === "number" && <span className="tab-badge">{tab.badge}</span>}
-            </button>
-          ))}
-        </div>
-
-        {onSaveReview && (
-          <button
-            className="btn btn-primary btn-sm review-topbar-save"
-            type="button"
-            disabled={isSavingReview}
-            onClick={() => void handleSaveReview()}
-          >
-            {isSavingReview ? (
-              <Loader2 className="spin" aria-hidden="true" />
-            ) : (
-              <Save aria-hidden="true" />
-            )}
-            Save
-          </button>
-        )}
-
-        <div className="review-score-strip" aria-label="Optimization score summary">
-          <div className="score-ring score-ring-compact" style={scoreRingStyle} aria-hidden="true" />
-          <span className="score-before">{beforePct}%</span>
-          <strong className="score-after">{afterPct}%</strong>
-          <span className="score-delta">{scoreDelta >= 0 ? `+${scoreDelta}` : scoreDelta}</span>
-          <span className="score-stat score-stat-matched">
-            <span aria-hidden="true" />
-            <strong>{optimizedScore.matched.length}</strong> matched
-          </span>
-          <span className="score-stat score-stat-partial">
-            <span aria-hidden="true" />
-            <strong>{partialKeywords.length}</strong> partial
-          </span>
-        </div>
-      </div>
+      <ReviewTopbar
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        canSaveReview={Boolean(onSaveReview)}
+        isSavingReview={isSavingReview}
+        onSaveReview={handleSaveReview}
+        scoreRingStyle={scoreRingStyle}
+        beforePct={beforePct}
+        afterPct={afterPct}
+        scoreDelta={scoreDelta}
+        matchedCount={optimizedScore.matched.length}
+        partialCount={partialKeywords.length}
+      />
 
       <div className="tab-content" role="tabpanel">
         {activeTab === "results" && (
-          <div className="results-stage">
-            <div className="diff-grid">
-              <DiffPane title="Original" tokens={diff} side="original" />
-              <DiffPane title="Optimized" tokens={diff} side="optimized" />
-            </div>
-            {versionStatus && <p className="export-status-msg">{versionStatus}</p>}
-            {versionError && <div className="inline-error">{versionError}</div>}
-            {exportStatus && <p className="export-status-msg">{exportStatus}</p>}
-            {exportError && <div className="inline-error">{exportError}</div>}
-          </div>
+          <ResultsTab
+            diff={diff}
+            versionStatus={versionStatus}
+            versionError={versionError}
+            exportStatus={exportStatus}
+            exportError={exportError}
+          />
         )}
 
         {activeTab === "keywords" && (
-          <div className="keywords-stage">
-            <aside className="keywords-summary">
-              <strong>{relevantKeywordCount}</strong>
-              <span>relevant terms extracted from job description</span>
-            </aside>
-            <div className="keywords-groups">
-              <KeywordBucket title={`Matched (${optimizedScore.matched.length})`} variant="matched" keywords={optimizedScore.matched} />
-              <KeywordBucket title={`Partial (${partialKeywords.length})`} variant="partial" keywords={partialKeywords} />
-              <KeywordBucket title={`Missing (${missingKeywords.length})`} variant="missing" keywords={missingKeywords} />
-            </div>
-          </div>
+          <KeywordsTab
+            relevantKeywordCount={relevantKeywordCount}
+            matchedKeywords={optimizedScore.matched}
+            partialKeywords={partialKeywords}
+            missingKeywords={missingKeywords}
+          />
         )}
 
         {activeTab === "editor" && (
-          <div className="refine-stage">
-            {sections.map((section) => (
-              <article className="refine-card" key={section.id}>
-                <h3>{section.label}</h3>
-                <form
-                  className="refine-form"
-                  onSubmit={(event) => handleReviseSection(event, section)}
-                >
-                  <input
-                    className="revision-input"
-                    type="text"
-                    value={revisionInstructions[section.id] ?? ""}
-                    placeholder={section.id === "summary" ? "Ask AI to revise this section..." : "e.g. add more impact metrics"}
-                    disabled={revisingSectionId.length > 0}
-                    onChange={(event) =>
-                      setRevisionInstructions((current) => ({
-                        ...current,
-                        [section.id]: event.target.value,
-                      }))
-                    }
-                  />
-                  <button
-                    className="btn btn-secondary"
-                    type="submit"
-                    disabled={
-                      revisingSectionId.length > 0 ||
-                      !(revisionInstructions[section.id] ?? "").trim()
-                    }
-                  >
-                    {revisingSectionId === section.id ? (
-                      <Loader2 className="spin" aria-hidden="true" />
-                    ) : (
-                      <WandSparkles aria-hidden="true" />
-                    )}
-                    Revise
-                  </button>
-                </form>
-              </article>
-            ))}
-            {versionStatus && <p className="export-status-msg">{versionStatus}</p>}
-            {versionError && <div className="inline-error">{versionError}</div>}
-            {exportStatus && <p className="export-status-msg">{exportStatus}</p>}
-            {exportError && <div className="inline-error">{exportError}</div>}
-            {revisionError && <div className="inline-error" style={{ marginTop: 12 }}>{revisionError}</div>}
-          </div>
+          <RefineTab
+            sections={sections}
+            revisionInstructions={revisionInstructions}
+            revisingSectionId={revisingSectionId}
+            onInstructionChange={(sectionId, value) =>
+              setRevisionInstructions((current) => ({
+                ...current,
+                [sectionId]: value,
+              }))
+            }
+            onReviseSection={handleReviseSection}
+            versionStatus={versionStatus}
+            versionError={versionError}
+            exportStatus={exportStatus}
+            exportError={exportError}
+            revisionError={revisionError}
+          />
         )}
 
         {activeTab === "export" && (
-          <div className="export-stage">
-            <ExportCard
-              icon={<FileDown />}
-              title="DOCX"
-              actionLabel="Download"
-              onAction={() => void handleExport("docx")}
-            />
-            <ExportCard
-              icon={<Download />}
-              title="PDF"
-              actionLabel="Download"
-              tone="danger"
-              onAction={() => void handleExport("pdf")}
-            />
-            <ExportCard
-              icon={<ClipboardCopy />}
-              title="Plain text"
-              actionLabel="Copy"
-              onAction={() => void handleExport("copy")}
-            />
-            {exportStatus && <p className="export-status-msg">{exportStatus}</p>}
-            {exportError && <div className="inline-error">{exportError}</div>}
-          </div>
+          <ExportTab
+            canSaveVersion={Boolean(onSaveVersion)}
+            isSavingVersion={isSavingVersion}
+            onExport={handleExport}
+            onSaveVersion={handleSaveVersion}
+            versionStatus={versionStatus}
+            versionError={versionError}
+            exportStatus={exportStatus}
+            exportError={exportError}
+          />
         )}
         {saveReviewStatus && <p className="export-status-msg">{saveReviewStatus}</p>}
         {saveReviewError && <div className="inline-error">{saveReviewError}</div>}
       </div>
 
-      <div className="review-footer-bar">
-        <div className="review-footer-job">
-          <p className="section-label">Target job</p>
-          <span>
-            {runTitle || "Target job"} · {jobDescription.trim().length.toLocaleString()} characters
-          </span>
-        </div>
-        <div className="review-footer-actions">
-          <button className="btn btn-secondary" type="button" disabled={!onShowJob} onClick={onShowJob}>
-            <ArrowLeftRight aria-hidden="true" />
-            Show job
-          </button>
-          <button className="btn btn-secondary" type="button" onClick={onStartNewSession}>
-            <RefreshCw aria-hidden="true" />
-            Start new
-          </button>
-        </div>
-      </div>
+      <ReviewFooter
+        runTitle={runTitle}
+        jobDescription={jobDescription}
+        onShowJob={onShowJob}
+        onStartNewSession={onStartNewSession}
+      />
     </section>
+  );
+}
+
+function ReviewTopbar({
+  tabs,
+  activeTab,
+  onTabChange,
+  canSaveReview,
+  isSavingReview,
+  onSaveReview,
+  scoreRingStyle,
+  beforePct,
+  afterPct,
+  scoreDelta,
+  matchedCount,
+  partialCount,
+}: {
+  tabs: ReviewTabConfig[];
+  activeTab: ReviewTab;
+  onTabChange: (tab: ReviewTab) => void;
+  canSaveReview: boolean;
+  isSavingReview: boolean;
+  onSaveReview: () => Promise<void>;
+  scoreRingStyle: CSSProperties;
+  beforePct: number;
+  afterPct: number;
+  scoreDelta: number;
+  matchedCount: number;
+  partialCount: number;
+}) {
+  return (
+    <div className="review-topbar">
+      <div className="tab-bar" role="tablist">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`tab ${activeTab === tab.id ? "active" : ""}`}
+            onClick={() => onTabChange(tab.id)}
+          >
+            {tab.icon}
+            {tab.label}
+            {typeof tab.badge === "number" && <span className="tab-badge">{tab.badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      {canSaveReview && (
+        <button
+          className="btn btn-primary btn-sm review-topbar-save"
+          type="button"
+          disabled={isSavingReview}
+          onClick={() => void onSaveReview()}
+        >
+          {isSavingReview ? (
+            <Loader2 className="spin" aria-hidden="true" />
+          ) : (
+            <Save aria-hidden="true" />
+          )}
+          Save
+        </button>
+      )}
+
+      <div className="review-score-strip" aria-label="Optimization score summary">
+        <div className="score-ring score-ring-compact" style={scoreRingStyle} aria-hidden="true" />
+        <span className="score-before">{beforePct}%</span>
+        <strong className="score-after">{afterPct}%</strong>
+        <span className="score-delta">{scoreDelta >= 0 ? `+${scoreDelta}` : scoreDelta}</span>
+        <span className="score-stat score-stat-matched">
+          <span aria-hidden="true" />
+          <strong>{matchedCount}</strong> matched
+        </span>
+        <span className="score-stat score-stat-partial">
+          <span aria-hidden="true" />
+          <strong>{partialCount}</strong> partial
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ResultsTab({
+  diff,
+  versionStatus,
+  versionError,
+  exportStatus,
+  exportError,
+}: {
+  diff: DiffToken[];
+  versionStatus: string;
+  versionError: string;
+  exportStatus: string;
+  exportError: string;
+}) {
+  return (
+    <div className="results-stage">
+      <div className="diff-grid">
+        <DiffPane title="Original" tokens={diff} side="original" />
+        <DiffPane title="Optimized" tokens={diff} side="optimized" />
+      </div>
+      <StatusMessages
+        versionStatus={versionStatus}
+        versionError={versionError}
+        exportStatus={exportStatus}
+        exportError={exportError}
+      />
+    </div>
+  );
+}
+
+function KeywordsTab({
+  relevantKeywordCount,
+  matchedKeywords,
+  partialKeywords,
+  missingKeywords,
+}: {
+  relevantKeywordCount: number;
+  matchedKeywords: string[];
+  partialKeywords: string[];
+  missingKeywords: string[];
+}) {
+  return (
+    <div className="keywords-stage">
+      <aside className="keywords-summary">
+        <strong>{relevantKeywordCount}</strong>
+        <span>relevant terms extracted from job description</span>
+      </aside>
+      <div className="keywords-groups">
+        <KeywordBucket title={`Matched (${matchedKeywords.length})`} variant="matched" keywords={matchedKeywords} />
+        <KeywordBucket title={`Partial (${partialKeywords.length})`} variant="partial" keywords={partialKeywords} />
+        <KeywordBucket title={`Missing (${missingKeywords.length})`} variant="missing" keywords={missingKeywords} />
+      </div>
+    </div>
+  );
+}
+
+function RefineTab({
+  sections,
+  revisionInstructions,
+  revisingSectionId,
+  onInstructionChange,
+  onReviseSection,
+  versionStatus,
+  versionError,
+  exportStatus,
+  exportError,
+  revisionError,
+}: {
+  sections: SectionConfig[];
+  revisionInstructions: Record<string, string>;
+  revisingSectionId: string;
+  onInstructionChange: (sectionId: string, value: string) => void;
+  onReviseSection: (event: FormEvent<HTMLFormElement>, section: SectionConfig) => void | Promise<void>;
+  versionStatus: string;
+  versionError: string;
+  exportStatus: string;
+  exportError: string;
+  revisionError: string;
+}) {
+  return (
+    <div className="refine-stage">
+      {sections.map((section) => (
+        <article className="refine-card" key={section.id}>
+          <h3>{section.label}</h3>
+          <form
+            className="refine-form"
+            onSubmit={(event) => onReviseSection(event, section)}
+          >
+            <input
+              className="revision-input"
+              type="text"
+              value={revisionInstructions[section.id] ?? ""}
+              placeholder={section.id === "summary" ? "Ask AI to revise this section..." : "e.g. add more impact metrics"}
+              disabled={revisingSectionId.length > 0}
+              onChange={(event) => onInstructionChange(section.id, event.target.value)}
+            />
+            <button
+              className="btn btn-secondary"
+              type="submit"
+              disabled={
+                revisingSectionId.length > 0 ||
+                !(revisionInstructions[section.id] ?? "").trim()
+              }
+            >
+              {revisingSectionId === section.id ? (
+                <Loader2 className="spin" aria-hidden="true" />
+              ) : (
+                <WandSparkles aria-hidden="true" />
+              )}
+              Revise
+            </button>
+          </form>
+        </article>
+      ))}
+      <StatusMessages
+        versionStatus={versionStatus}
+        versionError={versionError}
+        exportStatus={exportStatus}
+        exportError={exportError}
+      />
+      {revisionError && <div className="inline-error" style={{ marginTop: 12 }}>{revisionError}</div>}
+    </div>
+  );
+}
+
+function ExportTab({
+  canSaveVersion,
+  isSavingVersion,
+  onExport,
+  onSaveVersion,
+  versionStatus,
+  versionError,
+  exportStatus,
+  exportError,
+}: {
+  canSaveVersion: boolean;
+  isSavingVersion: boolean;
+  onExport: (action: "docx" | "pdf" | "copy") => Promise<void>;
+  onSaveVersion: () => Promise<void>;
+  versionStatus: string;
+  versionError: string;
+  exportStatus: string;
+  exportError: string;
+}) {
+  return (
+    <div className="export-stage">
+      <ExportCard
+        icon={<FileDown />}
+        title="DOCX"
+        actionLabel="Download"
+        onAction={() => void onExport("docx")}
+      />
+      <ExportCard
+        icon={<Download />}
+        title="PDF"
+        actionLabel="Download"
+        tone="danger"
+        onAction={() => void onExport("pdf")}
+      />
+      <ExportCard
+        icon={<ClipboardCopy />}
+        title="Plain text"
+        actionLabel="Copy"
+        onAction={() => void onExport("copy")}
+      />
+      {canSaveVersion && (
+        <ExportCard
+          icon={isSavingVersion ? <Loader2 className="spin" /> : <Save />}
+          title="Version"
+          actionLabel={isSavingVersion ? "Saving..." : "Save version"}
+          disabled={isSavingVersion}
+          onAction={() => void onSaveVersion()}
+        />
+      )}
+      <StatusMessages
+        versionStatus={versionStatus}
+        versionError={versionError}
+        exportStatus={exportStatus}
+        exportError={exportError}
+      />
+    </div>
+  );
+}
+
+function ReviewFooter({
+  runTitle,
+  jobDescription,
+  onShowJob,
+  onStartNewSession,
+}: {
+  runTitle?: string;
+  jobDescription: string;
+  onShowJob?: () => void;
+  onStartNewSession?: () => void;
+}) {
+  return (
+    <div className="review-footer-bar">
+      <div className="review-footer-job">
+        <p className="section-label">Target job</p>
+        <span>
+          {runTitle || "Target job"} · {jobDescription.trim().length.toLocaleString()} characters
+        </span>
+      </div>
+      <div className="review-footer-actions">
+        <button className="btn btn-secondary" type="button" disabled={!onShowJob} onClick={onShowJob}>
+          <ArrowLeftRight aria-hidden="true" />
+          Show job
+        </button>
+        <button className="btn btn-secondary" type="button" onClick={onStartNewSession}>
+          <RefreshCw aria-hidden="true" />
+          Start new
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StatusMessages({
+  versionStatus,
+  versionError,
+  exportStatus,
+  exportError,
+}: {
+  versionStatus: string;
+  versionError: string;
+  exportStatus: string;
+  exportError: string;
+}) {
+  return (
+    <>
+      {versionStatus && <p className="export-status-msg">{versionStatus}</p>}
+      {versionError && <div className="inline-error">{versionError}</div>}
+      {exportStatus && <p className="export-status-msg">{exportStatus}</p>}
+      {exportError && <div className="inline-error">{exportError}</div>}
+    </>
   );
 }
 
@@ -440,12 +662,14 @@ function ExportCard({
   icon,
   title,
   actionLabel,
+  disabled = false,
   tone = "accent",
   onAction,
 }: {
   icon: ReactNode;
   title: string;
   actionLabel: string;
+  disabled?: boolean;
   tone?: "accent" | "danger";
   onAction: () => void;
 }) {
@@ -455,7 +679,7 @@ function ExportCard({
         {icon}
       </span>
       <h3>{title}</h3>
-      <button className="btn btn-secondary" type="button" onClick={onAction}>
+      <button className="btn btn-secondary" type="button" disabled={disabled} onClick={onAction}>
         {actionLabel}
       </button>
     </article>

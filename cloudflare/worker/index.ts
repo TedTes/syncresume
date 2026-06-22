@@ -5,27 +5,10 @@ import {
   reviseSectionWithProvider,
 } from "./llm/dispatch";
 import {
-  getPartialKeywords,
+  buildResumeReviewSnapshot,
   normalizeStructuredResume,
-  resumeToPlainText,
-  scoreKeywordDetails,
 } from "./resume";
 import { getClerkEmail, verifyClerkRequest } from "./auth/clerk";
-
-export interface Env {
-  DB: D1Database;
-  RESUME_BUCKET: R2Bucket;
-  APP_ORIGIN?: string;
-  CLERK_JWKS_URL?: string;
-  CLERK_ISSUER?: string;
-  CLERK_AUTHORIZED_PARTIES?: string;
-  OPENAI_API_KEY?: string;
-  OPENAI_MODEL?: string;
-  ANTHROPIC_API_KEY?: string;
-  ANTHROPIC_MODEL?: string;
-  GEMINI_API_KEY?: string;
-  GEMINI_MODEL?: string;
-}
 
 type JsonBody = Record<string, unknown> | Array<unknown>;
 type JsonRecord = Record<string, unknown>;
@@ -279,13 +262,11 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
     jobDescription,
     resumeText,
   });
-  const optimizedResumeText = resumeToPlainText(optimizedResume);
-  const originalScore = scoreKeywordDetails(jobDescription, resumeText);
-  const optimizedScore = scoreKeywordDetails(jobDescription, optimizedResumeText);
-  const partialKeywords = getPartialKeywords(optimizedScore.missing, optimizedResumeText);
-  const missingKeywords = optimizedScore.missing.filter((keyword) => !partialKeywords.includes(keyword));
-  const beforeScore = Math.round(originalScore.ratio * 100);
-  const score = Math.round(optimizedScore.ratio * 100);
+  const snapshot = buildResumeReviewSnapshot({
+    jobDescription,
+    originalResumeText: resumeText,
+    optimizedResume,
+  });
   let run = null;
 
   if (resumeId) {
@@ -322,12 +303,12 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
         jobDescription,
         resumeText,
         JSON.stringify(optimizedResume),
-        optimizedResumeText,
-        beforeScore,
-        score,
-        JSON.stringify(optimizedScore.matched),
-        JSON.stringify(partialKeywords),
-        JSON.stringify(missingKeywords),
+        snapshot.optimizedResumeText,
+        snapshot.beforeScore,
+        snapshot.score,
+        JSON.stringify(snapshot.matchedKeywords),
+        JSON.stringify(snapshot.partialKeywords),
+        JSON.stringify(snapshot.missingKeywords),
         templateId,
       )
       .first<RunRow>();
@@ -335,7 +316,7 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
     run = row ? mapRun(row) : null;
   }
 
-  return json({ resume: optimizedResume, score, run }, { headers });
+  return json({ resume: optimizedResume, score: snapshot.score, run }, { headers });
 }
 
 async function handleReviseSection(request: Request, env: Env, headers: Headers): Promise<Response> {
@@ -472,6 +453,14 @@ async function handleSetActiveResume(
   resumeId: string,
 ): Promise<Response> {
   const { user } = await requireSession(request, env);
+  const target = await env.DB.prepare("select id from resumes where user_id = ? and id = ?")
+    .bind(user.id, resumeId)
+    .first<{ id: string }>();
+
+  if (!target) {
+    return json({ error: "Resume not found." }, { status: 404, headers });
+  }
+
   await env.DB.batch([
     env.DB.prepare("update resumes set is_active = 0, updated_at = current_timestamp where user_id = ?")
       .bind(user.id),
@@ -746,27 +735,24 @@ async function handleUpdateRunReview(
   }
 
   const optimizedResume = normalizeStructuredResume(body.resume);
-  const optimizedResumeText = resumeToPlainText(optimizedResume);
   const jobDescription = asNonEmptyString(body.jobDescription) || existing.job_description;
   const originalResumeText = asNonEmptyString(body.originalResumeText) || existing.original_resume_text || "";
   const templateId = normalizeResumeTemplateId(
     asNonEmptyString(body.templateId) || existing.selected_template_id || "",
   );
+  const snapshot = buildResumeReviewSnapshot({
+    jobDescription,
+    originalResumeText,
+    optimizedResume,
+  });
 
   if (jobDescription.length < 20) {
     return json({ error: "Job description is required before saving review changes." }, { status: 400, headers });
   }
 
-  if (optimizedResumeText.length < MIN_RESUME_TEXT_LENGTH) {
+  if (snapshot.optimizedResumeText.length < MIN_RESUME_TEXT_LENGTH) {
     return json({ error: "Optimized resume content is too short to save." }, { status: 400, headers });
   }
-
-  const originalScore = scoreKeywordDetails(jobDescription, originalResumeText);
-  const optimizedScore = scoreKeywordDetails(jobDescription, optimizedResumeText);
-  const partialKeywords = getPartialKeywords(optimizedScore.missing, optimizedResumeText);
-  const missingKeywords = optimizedScore.missing.filter((keyword) => !partialKeywords.includes(keyword));
-  const beforeScore = Math.round(originalScore.ratio * 100);
-  const score = Math.round(optimizedScore.ratio * 100);
 
   const row = await env.DB.prepare(
     [
@@ -789,12 +775,12 @@ async function handleUpdateRunReview(
       jobDescription,
       originalResumeText,
       JSON.stringify(optimizedResume),
-      optimizedResumeText,
-      beforeScore,
-      score,
-      JSON.stringify(optimizedScore.matched),
-      JSON.stringify(partialKeywords),
-      JSON.stringify(missingKeywords),
+      snapshot.optimizedResumeText,
+      snapshot.beforeScore,
+      snapshot.score,
+      JSON.stringify(snapshot.matchedKeywords),
+      JSON.stringify(snapshot.partialKeywords),
+      JSON.stringify(snapshot.missingKeywords),
       templateId,
       user.id,
       runId,

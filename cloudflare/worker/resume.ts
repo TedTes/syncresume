@@ -21,6 +21,15 @@ export type KeywordScore = {
   ratio: number;
 };
 
+export type ResumeReviewSnapshot = {
+  optimizedResumeText: string;
+  beforeScore: number;
+  score: number;
+  matchedKeywords: string[];
+  partialKeywords: string[];
+  missingKeywords: string[];
+};
+
 export const emptyResume: StructuredResume = {
   summary: "",
   experience: [],
@@ -142,6 +151,31 @@ export function resumeToPlainText(resume: StructuredResume): string {
   }
 
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export function buildResumeReviewSnapshot({
+  jobDescription,
+  originalResumeText,
+  optimizedResume,
+}: {
+  jobDescription: string;
+  originalResumeText: string;
+  optimizedResume: StructuredResume;
+}): ResumeReviewSnapshot {
+  const optimizedResumeText = resumeToPlainText(optimizedResume);
+  const originalScore = scoreKeywordDetails(jobDescription, originalResumeText);
+  const optimizedScore = scoreKeywordDetails(jobDescription, optimizedResumeText);
+  const partialKeywords = getPartialKeywords(optimizedScore.missing, optimizedResumeText);
+  const missingKeywords = optimizedScore.missing.filter((keyword) => !partialKeywords.includes(keyword));
+
+  return {
+    optimizedResumeText,
+    beforeScore: Math.round(originalScore.ratio * 100),
+    score: Math.round(optimizedScore.ratio * 100),
+    matchedKeywords: optimizedScore.matched,
+    partialKeywords,
+    missingKeywords,
+  };
 }
 
 export function scoreKeywords(jobDescription: string, resumeText: string): number {
