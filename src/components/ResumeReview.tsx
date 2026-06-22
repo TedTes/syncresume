@@ -367,6 +367,10 @@ function ResultsTab({
 }) {
   return (
     <div className="results-stage">
+      <div className="diff-column-labels" aria-hidden="true">
+        <span>Before</span>
+        <span>After</span>
+      </div>
       <div className="section-diff-list">
         {sections.map((section) => (
           <section className={`section-diff-block section-diff-${section.id}`} key={section.id}>
