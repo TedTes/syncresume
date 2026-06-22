@@ -109,6 +109,14 @@ const JOB_TITLE_SKIP_PREFIXES = [
   "what you",
   "who you",
 ];
+const LOW_QUALITY_JOB_TITLE_PATTERNS = [
+  /^\d+\+?\s*(years?|yrs?)\b/i,
+  /^\d+\s*[-–]\s*\d+\s*(years?|yrs?)\b/i,
+  /\b(years?|yrs?)\s+of\s+experience\b/i,
+  /\bexperience\s+(in|with|required)\b/i,
+  /\bmust\s+have\b/i,
+  /\breports?\s+to\b/i,
+];
 
 const defaultCorsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
@@ -305,7 +313,7 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
         user.id,
         resumeId,
         resumeName,
-        asNonEmptyString(body.title) || deriveRunTitle(jobDescription),
+        cleanRunTitle(asNonEmptyString(body.title)) || deriveRunTitle(jobDescription),
         jobDescription,
         resumeText,
         JSON.stringify(optimizedResume),
@@ -736,7 +744,9 @@ async function handleCreateRun(request: Request, env: Env, headers: Headers): Pr
   const score = Number(body.score ?? 0);
   const status = body.status === "exported" ? "exported" : "draft";
 
-  if (!resumeId || !resumeName || !title || !jobDescription) {
+  const normalizedTitle = cleanRunTitle(title) || deriveRunTitle(jobDescription);
+
+  if (!resumeId || !resumeName || !normalizedTitle || !jobDescription) {
     return json({ error: "Run title, resume, and job description are required." }, { status: 400, headers });
   }
 
@@ -748,7 +758,7 @@ async function handleCreateRun(request: Request, env: Env, headers: Headers): Pr
       "returning id, title, resume_id, resume_name, job_description, score, status, created_at",
     ].join(" "),
   )
-    .bind(id, user.id, resumeId, resumeName, title, jobDescription, Math.round(score), status)
+    .bind(id, user.id, resumeId, resumeName, normalizedTitle, jobDescription, Math.round(score), status)
     .first<RunRow>();
 
   if (!row) throw new Error("Could not save run.");
@@ -1185,6 +1195,7 @@ function deriveRunTitle(jobDescription: string): string {
     const normalized = line.toLowerCase();
     if (line.length > 86 || /[.!?]$/.test(line)) return false;
     if (JOB_TITLE_SKIP_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return false;
+    if (LOW_QUALITY_JOB_TITLE_PATTERNS.some((pattern) => pattern.test(line))) return false;
     return JOB_TITLE_WORDS.some((word) => normalized.includes(word));
   });
 
@@ -1195,6 +1206,7 @@ function cleanRunTitle(value: string): string {
   const cleaned = value.replace(/^\W+|\W+$/g, "").replace(/\s+/g, " ").trim();
   if (!cleaned || cleaned.length < 3) return "";
   if (JOB_TITLE_SKIP_PREFIXES.some((prefix) => cleaned.toLowerCase().startsWith(prefix))) return "";
+  if (LOW_QUALITY_JOB_TITLE_PATTERNS.some((pattern) => pattern.test(cleaned))) return "";
   return cleaned.length > 70 ? `${cleaned.slice(0, 67)}...` : cleaned;
 }
 

@@ -22,6 +22,15 @@ const SKIP_PREFIXES = [
   "who you",
 ];
 
+const LOW_QUALITY_TITLE_PATTERNS = [
+  /^\d+\+?\s*(years?|yrs?)\b/i,
+  /^\d+\s*[-–]\s*\d+\s*(years?|yrs?)\b/i,
+  /\b(years?|yrs?)\s+of\s+experience\b/i,
+  /\bexperience\s+(in|with|required)\b/i,
+  /\bmust\s+have\b/i,
+  /\breports?\s+to\b/i,
+];
+
 const TITLE_WORDS = [
   "analyst",
   "architect",
@@ -67,6 +76,7 @@ function isLikelyTitleLine(line: string): boolean {
   if (line.length > 86) return false;
   if (/[.!?]$/.test(line)) return false;
   if (SKIP_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return false;
+  if (LOW_QUALITY_TITLE_PATTERNS.some((pattern) => pattern.test(line))) return false;
   return TITLE_WORDS.some((word) => normalized.includes(word));
 }
 
@@ -77,5 +87,6 @@ function cleanJobTitle(value: string): string {
     .trim();
   if (!cleaned || cleaned.length < 3) return "";
   if (SKIP_PREFIXES.some((prefix) => cleaned.toLowerCase().startsWith(prefix))) return "";
+  if (LOW_QUALITY_TITLE_PATTERNS.some((pattern) => pattern.test(cleaned))) return "";
   return cleaned.length > 70 ? `${cleaned.slice(0, 67)}...` : cleaned;
 }
