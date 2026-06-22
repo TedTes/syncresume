@@ -3,8 +3,8 @@ import {
   CheckCircle2,
   ClipboardPaste,
   Download,
-  FileDown,
   FileText,
+  ListTodo,
   Loader2,
   PenLine,
   Save,
@@ -13,10 +13,10 @@ import {
 } from "lucide-react";
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ResumeTemplateSelector } from "../components/ResumeTemplateSelector";
 import { ResumeTemplatePreview } from "../components/ResumeTemplatePreview";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../context/SettingsContext";
 import {
   downloadResumeDocumentDocx,
   downloadResumeDocumentPdf,
@@ -31,10 +31,7 @@ import {
   type ResumeDocument,
 } from "../lib/resumeDocument";
 import {
-  DEFAULT_TEMPLATE_ID,
   normalizeResumeTemplateId,
-  RESUME_TEMPLATES,
-  type ResumeTemplateId,
 } from "../lib/resumeTemplates";
 import type { ResumeFileType, ResumeRecord } from "../lib/storage";
 
@@ -51,6 +48,12 @@ type UploadQueueItem = {
 };
 
 type ResumeInputMode = "upload" | "paste";
+type EditorExportType = "docx" | "pdf";
+
+const EDITOR_EXPORT_OPTIONS: Array<{ type: EditorExportType; label: string }> = [
+  { type: "docx", label: "DOCX" },
+  { type: "pdf", label: "PDF" },
+];
 
 type FilePreview = {
   resumeId: string;
@@ -103,6 +106,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     deleteResume,
   } = useAppData();
   const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
+  const { selectedTemplateId, setSelectedTemplateId } = useSettings();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
@@ -117,7 +121,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
   const [editingResumeId, setEditingResumeId] = useState("");
   const [editedResumeDocument, setEditedResumeDocument] = useState<ResumeDocument | null>(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<ResumeTemplateId>(DEFAULT_TEMPLATE_ID);
+  const [selectedEditorExportTypes, setSelectedEditorExportTypes] = useState<EditorExportType[]>([
+    "docx",
+    "pdf",
+  ]);
+  const [isEditorExportMenuOpen, setIsEditorExportMenuOpen] = useState(false);
   const [editError, setEditError] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [isSavingExtractedText, setIsSavingExtractedText] = useState(false);
@@ -125,6 +133,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const [pendingDeleteResume, setPendingDeleteResume] = useState<ResumeRecord | null>(null);
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorExportGroupRef = useRef<HTMLDivElement | null>(null);
   const requiresSignIn = hasBackend && !user;
   const uploadsDisabled = isUploading || isAuthLoading || requiresSignIn;
   const previewResume = resumes.find((resume) => resume.id === previewId) ?? null;
@@ -177,6 +186,19 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     };
   }, [filePreview?.url]);
 
+  useEffect(() => {
+    if (!isEditorExportMenuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!editorExportGroupRef.current?.contains(event.target as Node)) {
+        setIsEditorExportMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isEditorExportMenuOpen]);
+
   function closePreview() {
     setPreviewId("");
     setPreviewLoadingId("");
@@ -196,6 +218,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   function closeExtractedEditor() {
     setEditingResumeId("");
     setEditedResumeDocument(null);
+    setIsEditorExportMenuOpen(false);
     setEditError("");
     setEditStatus("");
   }
@@ -206,6 +229,36 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     setEditedResumeDocument(updateResumeDocumentSection(editedResumeDocument, sectionId, content));
     setEditStatus("");
     setEditError("");
+  }
+
+  function toggleEditorExportType(type: EditorExportType) {
+    setSelectedEditorExportTypes((current) => {
+      const next = current.includes(type)
+        ? current.filter((item) => item !== type)
+        : [...current, type];
+
+      return EDITOR_EXPORT_OPTIONS.map((option) => option.type).filter((item) =>
+        next.includes(item),
+      );
+    });
+  }
+
+  async function handleExportEditedResume() {
+    if (!editedResumeDocument || !editingResume || selectedEditorExportTypes.length === 0) return;
+
+    setEditError("");
+    try {
+      for (const type of selectedEditorExportTypes) {
+        if (type === "docx") {
+          await downloadResumeDocumentDocx(editedResumeDocument, selectedTemplateId, editingResume.name);
+        }
+        if (type === "pdf") {
+          await downloadResumeDocumentPdf(editedResumeDocument, selectedTemplateId, editingResume.name);
+        }
+      }
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : "Could not export resume.");
+    }
   }
 
   function switchResumeInputMode(mode: ResumeInputMode) {
@@ -525,36 +578,47 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             </button>
             <span className="pdf-fullpage-name">{editingResume.name} · extracted text</span>
             <div className="pdf-fullpage-actions">
-              <ResumeTemplateSelector
-                selectedTemplateId={selectedTemplateId}
-                onSelect={setSelectedTemplateId}
-              />
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={!editedResumeDocument}
-                onClick={() => {
-                  if (editedResumeDocument) {
-                    void downloadResumeDocumentDocx(editedResumeDocument, selectedTemplateId, editingResume.name);
-                  }
-                }}
-              >
-                <FileDown aria-hidden="true" />
-                DOCX
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={!editedResumeDocument}
-                onClick={() => {
-                  if (editedResumeDocument) {
-                    void downloadResumeDocumentPdf(editedResumeDocument, selectedTemplateId, editingResume.name);
-                  }
-                }}
-              >
-                <Download aria-hidden="true" />
-                PDF
-              </button>
+              <div className="review-export-group" ref={editorExportGroupRef}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm review-export-button"
+                  disabled={!editedResumeDocument || selectedEditorExportTypes.length === 0}
+                  onClick={() => void handleExportEditedResume()}
+                >
+                  <Download aria-hidden="true" />
+                  Export
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm review-export-menu-button"
+                  aria-label="Choose export formats"
+                  aria-expanded={isEditorExportMenuOpen}
+                  disabled={!editedResumeDocument}
+                  onClick={() => setIsEditorExportMenuOpen((isOpen) => !isOpen)}
+                >
+                  <ListTodo aria-hidden="true" />
+                </button>
+                {isEditorExportMenuOpen && (
+                  <div className="export-format-menu" aria-label="Export formats">
+                    {EDITOR_EXPORT_OPTIONS.map((option) => (
+                      <label
+                        className={`export-format-toggle ${
+                          selectedEditorExportTypes.includes(option.type) ? "active" : ""
+                        }`}
+                        key={option.type}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedEditorExportTypes.includes(option.type)}
+                          disabled={!editedResumeDocument}
+                          onChange={() => toggleEditorExportType(option.type)}
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
@@ -573,7 +637,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           <div className="extracted-editor-shell">
             <div className="extracted-editor-meta">
               <span>{currentEditedResumeText.trim().length.toLocaleString()} chars</span>
-              <span>Choose a template, edit sections, then export a clean ATS-safe file.</span>
             </div>
             {editedResumeDocument && (
               <>
@@ -599,7 +662,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                   <aside className="template-preview-panel" aria-label="Template preview">
                     <div className="template-preview-header">
                       <span>Live preview</span>
-                      <small>{RESUME_TEMPLATES.find((template) => template.id === selectedTemplateId)?.name}</small>
                     </div>
                     <ResumeTemplatePreview
                       document={editedResumeDocument}

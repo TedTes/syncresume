@@ -1,5 +1,10 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { getProviderInfo, PROVIDERS, type LLMProvider } from "../lib/providers/types";
+import {
+  DEFAULT_TEMPLATE_ID,
+  normalizeResumeTemplateId,
+  type ResumeTemplateId,
+} from "../lib/resumeTemplates";
 
 type OptimizationToggles = {
   autoDetectRequirements: boolean;
@@ -9,6 +14,7 @@ type OptimizationToggles = {
 
 const TOGGLES_KEY = "syncresume.settings.toggles.v1";
 const PROVIDER_KEY = "syncresume.settings.provider.v1";
+const TEMPLATE_KEY = "syncresume.settings.template.v1";
 
 const defaultToggles: OptimizationToggles = {
   autoDetectRequirements: true,
@@ -32,10 +38,17 @@ function readProvider(): LLMProvider {
   return provider?.enabled ? provider.id : "openai";
 }
 
+function readTemplate(): ResumeTemplateId {
+  const raw = window.localStorage.getItem(TEMPLATE_KEY);
+  return normalizeResumeTemplateId(raw);
+}
+
 type SettingsContextValue = {
   provider: LLMProvider;
   setProvider: (provider: LLMProvider) => void;
   model: string;
+  selectedTemplateId: ResumeTemplateId;
+  setSelectedTemplateId: (templateId: ResumeTemplateId) => void;
   toggles: OptimizationToggles;
   setToggle: (key: keyof OptimizationToggles, value: boolean) => void;
 };
@@ -44,11 +57,18 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [provider, setProviderState] = useState<LLMProvider>(() => readProvider());
+  const [selectedTemplateId, setSelectedTemplateIdState] = useState<ResumeTemplateId>(() =>
+    readTemplate(),
+  );
   const [toggles, setToggles] = useState<OptimizationToggles>(() => readToggles());
 
   useEffect(() => {
     window.localStorage.setItem(PROVIDER_KEY, provider);
   }, [provider]);
+
+  useEffect(() => {
+    window.localStorage.setItem(TEMPLATE_KEY, selectedTemplateId);
+  }, [selectedTemplateId]);
 
   useEffect(() => {
     window.localStorage.setItem(TOGGLES_KEY, JSON.stringify(toggles));
@@ -58,6 +78,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setToggles((current) => ({ ...current, [key]: value }));
   }
 
+  const setSelectedTemplateId = useCallback((templateId: ResumeTemplateId) => {
+    setSelectedTemplateIdState(normalizeResumeTemplateId(templateId) || DEFAULT_TEMPLATE_ID);
+  }, []);
+
   const value: SettingsContextValue = {
     provider,
     setProvider: (nextProvider) => {
@@ -66,6 +90,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
     },
     model: getProviderInfo(provider).model,
+    selectedTemplateId,
+    setSelectedTemplateId,
     toggles,
     setToggle,
   };

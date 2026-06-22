@@ -1,18 +1,55 @@
 import { FileText, LayoutGrid, RefreshCw, Settings } from "lucide-react";
 import { UserButton } from "@clerk/clerk-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../context/SettingsContext";
 import { AuthGate } from "./AuthGate";
+import { ResumeTemplatePanel, ResumeTemplateSelector } from "./ResumeTemplateSelector";
 
-const NAV_ITEMS = [
+const PRIMARY_NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { to: "/workspace", label: "Workspace", icon: FileText },
+];
+
+const SECONDARY_NAV_ITEMS = [
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function AppShell() {
   const { user } = useAuth();
+  const { selectedTemplateId, setSelectedTemplateId } = useSettings();
+  const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
+  const location = useLocation();
   const initials = user?.email?.slice(0, 2).toUpperCase() || "SR";
+
+  useEffect(() => {
+    setIsTemplatePanelOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isTemplatePanelOpen) return;
+
+    function eventStartedInsideTemplateUi(target: EventTarget | null) {
+      return target instanceof Element && Boolean(target.closest(".template-drawer-push, .sidebar"));
+    }
+
+    function collapseOnPageMovement(event: Event) {
+      if (eventStartedInsideTemplateUi(event.target)) return;
+      setIsTemplatePanelOpen(false);
+    }
+
+    const movementOptions = { capture: true, passive: true };
+    document.addEventListener("scroll", collapseOnPageMovement, true);
+    document.addEventListener("wheel", collapseOnPageMovement, movementOptions);
+    document.addEventListener("touchmove", collapseOnPageMovement, movementOptions);
+
+    return () => {
+      document.removeEventListener("scroll", collapseOnPageMovement, true);
+      document.removeEventListener("wheel", collapseOnPageMovement, movementOptions);
+      document.removeEventListener("touchmove", collapseOnPageMovement, movementOptions);
+    };
+  }, [isTemplatePanelOpen]);
 
   return (
     <div className="app-shell">
@@ -22,7 +59,31 @@ export function AppShell() {
         </div>
 
         <div className="sidebar-nav">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+          {PRIMARY_NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) => `sidebar-nav-item ${isActive ? "active" : ""}`}
+              title={label}
+              aria-label={label}
+            >
+              <Icon aria-hidden="true" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+          <ResumeTemplateSelector
+            selectedTemplateId={selectedTemplateId}
+            onSelect={setSelectedTemplateId}
+            triggerClassName={`sidebar-nav-item sidebar-template-trigger ${
+              isTemplatePanelOpen ? "active" : ""
+            }`}
+            triggerLabel="Templates"
+            showSelectedName={false}
+            isOpen={isTemplatePanelOpen}
+            onOpenChange={setIsTemplatePanelOpen}
+            renderPanel={false}
+          />
+          {SECONDARY_NAV_ITEMS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -53,6 +114,15 @@ export function AppShell() {
           )}
         </div>
       </nav>
+
+      {isTemplatePanelOpen && (
+        <ResumeTemplatePanel
+          selectedTemplateId={selectedTemplateId}
+          onSelect={setSelectedTemplateId}
+          onClose={() => setIsTemplatePanelOpen(false)}
+          className="template-drawer-push"
+        />
+      )}
 
       <div className="main-area">
         <AuthGate>
