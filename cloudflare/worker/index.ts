@@ -1,5 +1,6 @@
 import { fetchJobPageText } from "./jobPage";
 import {
+  generateCoverLetterWithProvider,
   normalizeLLMProvider,
   optimizeResumeWithProvider,
   reviseSectionWithProvider,
@@ -7,6 +8,7 @@ import {
 import {
   buildResumeReviewSnapshot,
   normalizeStructuredResume,
+  resumeToPlainText,
 } from "./resume";
 import { getClerkEmail, verifyClerkRequest } from "./auth/clerk";
 
@@ -207,6 +209,10 @@ export default {
         return await handleReviseSection(request, env, corsHeaders);
       }
 
+      if (url.pathname === "/api/generate-cover-letter" && request.method === "POST") {
+        return await handleGenerateCoverLetter(request, env, corsHeaders);
+      }
+
       if (url.pathname === "/api/fetch-job-page" && request.method === "POST") {
         return await handleFetchJobPage(request, corsHeaders);
       }
@@ -345,6 +351,42 @@ async function handleReviseSection(request: Request, env: Env, headers: Headers)
   });
 
   return json({ revisedText }, { headers });
+}
+
+async function handleGenerateCoverLetter(
+  request: Request,
+  env: Env,
+  headers: Headers,
+): Promise<Response> {
+  await requireSession(request, env);
+  const body = await readJson(request);
+  const provider = normalizeLLMProvider(String(body.provider || "openai"));
+  const jobDescription = asNonEmptyString(body.jobDescription);
+  const directResumeText = asNonEmptyString(body.resumeText);
+  const resumeText = directResumeText || resumeToPlainText(normalizeStructuredResume(body.resume));
+  const jobTitle = asNonEmptyString(body.jobTitle);
+
+  if (jobDescription.length < 20) {
+    return json(
+      { error: "Add a complete job description before generating a cover letter." },
+      { status: 400, headers },
+    );
+  }
+
+  if (resumeText.length < MIN_RESUME_TEXT_LENGTH) {
+    return json(
+      { error: "A readable resume is required before generating a cover letter." },
+      { status: 400, headers },
+    );
+  }
+
+  const coverLetter = await generateCoverLetterWithProvider(env, provider, {
+    jobDescription,
+    resumeText,
+    jobTitle,
+  });
+
+  return json({ coverLetter }, { headers });
 }
 
 async function handleFetchJobPage(request: Request, headers: Headers): Promise<Response> {

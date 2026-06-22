@@ -4,7 +4,7 @@ import {
   resumeToPlainText,
   type StructuredResume,
 } from "../../resume";
-import type { LLMEnv, LLMProvider, OptimizeInput, ReviseSectionInput } from "../types";
+import type { CoverLetterInput, LLMEnv, LLMProvider, OptimizeInput, ReviseSectionInput } from "../types";
 
 type ResponseFormat = {
   type: "json_schema";
@@ -44,6 +44,7 @@ const RESPONSES_URL = "https://api.openai.com/v1/responses";
 export const openAIProvider: LLMProvider = {
   optimize,
   reviseSection,
+  generateCoverLetter,
 };
 
 async function optimize(env: LLMEnv, { jobDescription, resumeText }: OptimizeInput) {
@@ -101,6 +102,38 @@ async function reviseSection(
       sectionText.trim(),
     ].join("\n"),
     maxOutputTokens: 1200,
+    timeoutMs: 45000,
+  });
+}
+
+async function generateCoverLetter(
+  env: LLMEnv,
+  { jobDescription, resumeText, jobTitle }: CoverLetterInput,
+) {
+  return createTextResponse(env, {
+    instructions: [
+      "You write concise, professional cover letters for job applications.",
+      "Use only facts present in the resume and job description.",
+      "Do not fabricate employers, titles, dates, degrees, certifications, metrics, projects, availability, or contact details.",
+      "Align the candidate's strongest relevant experience to the role.",
+      "Write in first person with a confident, direct tone.",
+      "Return only the cover letter text. No Markdown, labels, or commentary.",
+    ].join(" "),
+    input: [
+      jobTitle ? `TARGET ROLE: ${jobTitle}` : "",
+      "JOB DESCRIPTION:",
+      jobDescription.trim(),
+      "",
+      "CURRENT RESUME:",
+      resumeText.trim(),
+      "",
+      "Output requirements:",
+      "- 3 to 5 short paragraphs.",
+      "- No recipient address block unless it is explicitly provided.",
+      "- Do not repeat the full resume.",
+      "- Keep it under 450 words.",
+    ].filter(Boolean).join("\n"),
+    maxOutputTokens: 1300,
     timeoutMs: 45000,
   });
 }

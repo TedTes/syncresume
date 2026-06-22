@@ -125,3 +125,41 @@ export async function reviseResumeSectionWithProvider({
 
   return data.revisedText.trim();
 }
+
+type CoverLetterArgs = {
+  provider: LLMProvider;
+  jobDescription: string;
+  resumeText: string;
+  jobTitle?: string;
+};
+
+export async function generateCoverLetterWithProvider({
+  provider,
+  jobDescription,
+  resumeText,
+  jobTitle,
+}: CoverLetterArgs): Promise<string> {
+  if (provider !== "openai") {
+    notImplemented(provider);
+  }
+
+  if (!hasCloudflareConfig()) {
+    throw new Error("Cloudflare API is not configured. Set VITE_CLOUDFLARE_API_URL.");
+  }
+
+  const data = await cloudflareRequest<{ coverLetter?: string }>("/api/generate-cover-letter", {
+    method: "POST",
+    body: {
+      provider,
+      jobDescription,
+      resumeText,
+      jobTitle,
+    },
+  });
+
+  if (!data.coverLetter?.trim()) {
+    throw new Error("The backend returned an empty cover letter.");
+  }
+
+  return data.coverLetter.trim();
+}

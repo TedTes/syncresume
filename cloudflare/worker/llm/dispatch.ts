@@ -1,5 +1,12 @@
 import { openAIProvider } from "./providers/openai";
-import type { LLMEnv, LLMProvider, LLMProviderName, OptimizeInput, ReviseSectionInput } from "./types";
+import type {
+  CoverLetterInput,
+  LLMEnv,
+  LLMProvider,
+  LLMProviderName,
+  OptimizeInput,
+  ReviseSectionInput,
+} from "./types";
 
 const providers: Partial<Record<LLMProviderName, LLMProvider>> = {
   openai: openAIProvider,
@@ -26,6 +33,14 @@ export async function reviseSectionWithProvider(
   input: ReviseSectionInput,
 ) {
   return getProvider(providerName).reviseSection(env, input);
+}
+
+export async function generateCoverLetterWithProvider(
+  env: LLMEnv,
+  providerName: LLMProviderName,
+  input: CoverLetterInput,
+) {
+  return getProvider(providerName).generateCoverLetter(env, input);
 }
 
 function getProvider(providerName: LLMProviderName): LLMProvider {
