@@ -706,7 +706,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                     onClick={() => downloadTextPdf(previewResume.text, previewResume.name)}
                   >
                     <Download aria-hidden="true" />
-                    PDF
+                    Export
                   </button>
                 </>
               )}

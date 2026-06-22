@@ -52,7 +52,7 @@ export function AppShell() {
   }, [isTemplatePanelOpen]);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isTemplatePanelOpen ? "template-panel-open" : ""}`}>
       <nav className="sidebar" aria-label="Primary">
         <div className="sidebar-brand-mark" aria-hidden="true">
           <RefreshCw />
