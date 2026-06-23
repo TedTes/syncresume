@@ -39,15 +39,23 @@ export function AppShell() {
       setIsTemplatePanelOpen(false);
     }
 
+    function collapseOnViewportChange() {
+      setIsTemplatePanelOpen(false);
+    }
+
     const movementOptions = { capture: true, passive: true };
     document.addEventListener("scroll", collapseOnPageMovement, true);
     document.addEventListener("wheel", collapseOnPageMovement, movementOptions);
     document.addEventListener("touchmove", collapseOnPageMovement, movementOptions);
+    window.addEventListener("resize", collapseOnViewportChange);
+    window.addEventListener("orientationchange", collapseOnViewportChange);
 
     return () => {
       document.removeEventListener("scroll", collapseOnPageMovement, true);
       document.removeEventListener("wheel", collapseOnPageMovement, movementOptions);
       document.removeEventListener("touchmove", collapseOnPageMovement, movementOptions);
+      window.removeEventListener("resize", collapseOnViewportChange);
+      window.removeEventListener("orientationchange", collapseOnViewportChange);
     };
   }, [isTemplatePanelOpen]);
 

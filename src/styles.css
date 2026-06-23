@@ -464,8 +464,8 @@ a {
 
 .structured-editor-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.82fr);
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
   gap: 18px;
   width: min(1240px, 100%);
   margin: 0 auto;
@@ -738,6 +738,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  align-self: stretch;
   min-width: 0;
 }
 
@@ -757,6 +758,7 @@ a {
 }
 
 .resume-template-preview {
+  flex: 1;
   min-height: 520px;
   padding: 34px 38px;
   border: 1px solid var(--border);
@@ -3925,7 +3927,7 @@ a {
 /* ============ Responsive ============ */
 @media (max-width: 860px) {
   .app-shell.template-panel-open {
-    --template-rail-width: min(300px, 42vw);
+    --template-rail-width: 0px;
   }
 
   .workspace-fullpage-overlay {
@@ -3933,7 +3935,7 @@ a {
   }
 
   .app-shell.template-panel-open .workspace-fullpage-overlay {
-    left: calc(var(--sidebar-width) + var(--template-rail-width));
+    left: 0;
   }
 
   .workspace-flow {
@@ -3946,8 +3948,16 @@ a {
   }
 
   .template-drawer-push {
-    width: var(--template-rail-width);
-    flex-basis: var(--template-rail-width);
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: var(--sidebar-width);
+    z-index: 80;
+    width: min(300px, calc(100vw - var(--sidebar-width) - 10px));
+    max-width: min(300px, calc(100vw - var(--sidebar-width) - 10px));
+    height: 100dvh;
+    flex: 0 0 auto;
+    box-shadow: 24px 0 80px rgba(0, 0, 0, 0.42);
   }
 
   .workspace-grid {
@@ -4194,7 +4204,7 @@ a {
   }
 
   .app-shell.template-panel-open {
-    --template-rail-width: 220px;
+    --template-rail-width: 0px;
   }
 
   .sidebar {
@@ -4236,8 +4246,9 @@ a {
   }
 
   .template-drawer-push {
-    width: var(--template-rail-width);
-    flex-basis: var(--template-rail-width);
+    width: min(260px, calc(100vw - var(--sidebar-width) - 8px));
+    max-width: min(260px, calc(100vw - var(--sidebar-width) - 8px));
+    flex-basis: auto;
   }
 
   .page-content {
