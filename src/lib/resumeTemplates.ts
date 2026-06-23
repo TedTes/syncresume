@@ -1,6 +1,15 @@
 import type { ResumeDocument, ResumeSection, ResumeSectionType } from "./resumeDocument";
 
-export type ResumeTemplateId = "ats-simple" | "modern" | "compact" | "executive";
+export type ResumeTemplateId =
+  | "ats-simple"
+  | "modern"
+  | "compact"
+  | "executive"
+  | "sidebar"
+  | "timeline"
+  | "technical";
+
+export type ResumeTemplateRenderer = "single-column" | "sidebar" | "timeline" | "technical";
 
 export type ResumeTemplate = {
   id: ResumeTemplateId;
@@ -9,6 +18,8 @@ export type ResumeTemplate = {
   isAtsSafe: boolean;
   density: "comfortable" | "balanced" | "compact";
   className: string;
+  thumbnailClassName: string;
+  renderer: ResumeTemplateRenderer;
   sectionOrder: ResumeSectionType[];
   pdf: {
     margin: number;
@@ -30,6 +41,8 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
     isAtsSafe: true,
     density: "balanced",
     className: "template-ats-simple",
+    thumbnailClassName: "thumbnail-single",
+    renderer: "single-column",
     sectionOrder: [
       "contact",
       "summary",
@@ -59,6 +72,8 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
     isAtsSafe: true,
     density: "comfortable",
     className: "template-modern",
+    thumbnailClassName: "thumbnail-modern",
+    renderer: "single-column",
     sectionOrder: [
       "contact",
       "summary",
@@ -88,6 +103,8 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
     isAtsSafe: true,
     density: "compact",
     className: "template-compact",
+    thumbnailClassName: "thumbnail-compact",
+    renderer: "single-column",
     sectionOrder: [
       "contact",
       "summary",
@@ -117,6 +134,8 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
     isAtsSafe: true,
     density: "comfortable",
     className: "template-executive",
+    thumbnailClassName: "thumbnail-executive",
+    renderer: "single-column",
     sectionOrder: [
       "contact",
       "summary",
@@ -137,6 +156,99 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
       headingSize: 12,
       sectionGap: 14,
       accent: [83, 72, 56],
+    },
+  },
+  {
+    id: "sidebar",
+    name: "Sidebar",
+    description: "Two-zone layout with contact and skills in a compact side rail.",
+    isAtsSafe: false,
+    density: "balanced",
+    className: "template-sidebar",
+    thumbnailClassName: "thumbnail-sidebar",
+    renderer: "sidebar",
+    sectionOrder: [
+      "contact",
+      "summary",
+      "skills",
+      "experience",
+      "projects",
+      "education",
+      "certifications",
+      "awards",
+      "publications",
+      "volunteering",
+      "custom",
+    ],
+    pdf: {
+      margin: 50,
+      fontSize: 9.8,
+      lineHeight: 13.5,
+      headingSize: 11,
+      sectionGap: 9,
+      accent: [16, 120, 88],
+    },
+  },
+  {
+    id: "timeline",
+    name: "Timeline",
+    description: "Experience-forward rhythm for resumes with strong career progression.",
+    isAtsSafe: true,
+    density: "balanced",
+    className: "template-timeline",
+    thumbnailClassName: "thumbnail-timeline",
+    renderer: "timeline",
+    sectionOrder: [
+      "contact",
+      "summary",
+      "experience",
+      "projects",
+      "skills",
+      "education",
+      "certifications",
+      "awards",
+      "publications",
+      "volunteering",
+      "custom",
+    ],
+    pdf: {
+      margin: 56,
+      fontSize: 10,
+      lineHeight: 14,
+      headingSize: 11.5,
+      sectionGap: 11,
+      accent: [74, 95, 122],
+    },
+  },
+  {
+    id: "technical",
+    name: "Technical",
+    description: "Skills-first layout for engineering and systems-heavy resumes.",
+    isAtsSafe: true,
+    density: "compact",
+    className: "template-technical",
+    thumbnailClassName: "thumbnail-technical",
+    renderer: "technical",
+    sectionOrder: [
+      "contact",
+      "skills",
+      "summary",
+      "experience",
+      "projects",
+      "education",
+      "certifications",
+      "awards",
+      "publications",
+      "volunteering",
+      "custom",
+    ],
+    pdf: {
+      margin: 46,
+      fontSize: 9.4,
+      lineHeight: 12.8,
+      headingSize: 10.5,
+      sectionGap: 8,
+      accent: [16, 120, 88],
     },
   },
 ];

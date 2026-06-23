@@ -14,6 +14,79 @@ export function ResumeTemplatePreview({ document, templateId }: ResumeTemplatePr
   const contactSection = sections.find((section) => section.type === "contact");
   const bodySections = sections.filter((section) => section.type !== "contact");
 
+  if (template.renderer === "sidebar") {
+    const railSections = bodySections.filter((section) =>
+      ["skills", "certifications", "education"].includes(section.type),
+    );
+    const mainSections = bodySections.filter((section) => !railSections.includes(section));
+
+    return (
+      <article className={`resume-template-preview ${template.className}`} aria-label={`${template.name} preview`}>
+        <aside className="template-sidebar-rail">
+          {contactSection ? (
+            <header className="template-contact">
+              {renderContact(contactSection)}
+            </header>
+          ) : (
+            <header className="template-contact">
+              <h1>{document.title.replace(/\.[^.]+$/, "")}</h1>
+            </header>
+          )}
+          {railSections.map((section) => (
+            <TemplateSection section={section} key={section.id} />
+          ))}
+        </aside>
+        <div className="template-sidebar-main">
+          {mainSections.map((section) => (
+            <TemplateSection section={section} key={section.id} />
+          ))}
+        </div>
+      </article>
+    );
+  }
+
+  if (template.renderer === "timeline") {
+    return (
+      <article className={`resume-template-preview ${template.className}`} aria-label={`${template.name} preview`}>
+        {contactSection ? (
+          <header className="template-contact">
+            {renderContact(contactSection)}
+          </header>
+        ) : (
+          <header className="template-contact">
+            <h1>{document.title.replace(/\.[^.]+$/, "")}</h1>
+          </header>
+        )}
+
+        {bodySections.map((section) => (
+          <TemplateSection section={section} key={section.id} />
+        ))}
+      </article>
+    );
+  }
+
+  if (template.renderer === "technical") {
+    return (
+      <article className={`resume-template-preview ${template.className}`} aria-label={`${template.name} preview`}>
+        {contactSection ? (
+          <header className="template-contact">
+            {renderContact(contactSection)}
+          </header>
+        ) : (
+          <header className="template-contact">
+            <h1>{document.title.replace(/\.[^.]+$/, "")}</h1>
+          </header>
+        )}
+
+        <div className="template-technical-grid">
+          {bodySections.map((section) => (
+            <TemplateSection section={section} key={section.id} />
+          ))}
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className={`resume-template-preview ${template.className}`} aria-label={`${template.name} preview`}>
       {contactSection ? (
@@ -27,12 +100,18 @@ export function ResumeTemplatePreview({ document, templateId }: ResumeTemplatePr
       )}
 
       {bodySections.map((section) => (
-        <section className="template-section" key={section.id}>
-          <h2>{section.title}</h2>
-          <SectionContent section={section} />
-        </section>
+        <TemplateSection section={section} key={section.id} />
       ))}
     </article>
+  );
+}
+
+function TemplateSection({ section }: { section: ResumeSection }) {
+  return (
+    <section className={`template-section template-section-${section.type}`}>
+      <h2>{section.title}</h2>
+      <SectionContent section={section} />
+    </section>
   );
 }
 

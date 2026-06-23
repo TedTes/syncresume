@@ -662,10 +662,10 @@ a {
 
 .template-drawer-option {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-height: 96px;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px 12px;
+  min-height: 112px;
   padding: 12px 42px 12px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -687,6 +687,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .template-drawer-option-main strong {
@@ -707,6 +708,114 @@ a {
   font-size: 0.76rem;
   font-style: normal;
   line-height: 1.4;
+}
+
+.template-thumbnail {
+  grid-row: span 2;
+  display: grid;
+  grid-template-rows: 18px 1fr 10px;
+  gap: 6px;
+  width: 72px;
+  height: 88px;
+  padding: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: #f7f7f4;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+.template-thumbnail-header,
+.template-thumbnail-footer,
+.template-thumbnail-body span {
+  display: block;
+  border-radius: 999px;
+  background: #1f2937;
+  opacity: 0.82;
+}
+
+.template-thumbnail-header {
+  width: 76%;
+  height: 8px;
+  margin-inline: auto;
+}
+
+.template-thumbnail-body {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+
+.template-thumbnail-body span {
+  height: 5px;
+}
+
+.template-thumbnail-body span:nth-child(2) {
+  width: 84%;
+}
+
+.template-thumbnail-body span:nth-child(3) {
+  width: 92%;
+}
+
+.template-thumbnail-body span:nth-child(4) {
+  width: 68%;
+}
+
+.template-thumbnail-footer {
+  width: 46%;
+  height: 5px;
+}
+
+.thumbnail-modern {
+  border-top: 4px solid #107858;
+}
+
+.thumbnail-compact {
+  gap: 4px;
+  padding: 7px;
+}
+
+.thumbnail-compact .template-thumbnail-body {
+  gap: 3px;
+}
+
+.thumbnail-executive .template-thumbnail-header {
+  height: 10px;
+}
+
+.thumbnail-sidebar {
+  grid-template-columns: 22px 1fr;
+  grid-template-rows: 1fr;
+  gap: 5px;
+}
+
+.thumbnail-sidebar::before {
+  content: "";
+  border-radius: 5px;
+  background: #173f31;
+}
+
+.thumbnail-sidebar .template-thumbnail-header,
+.thumbnail-sidebar .template-thumbnail-footer {
+  display: none;
+}
+
+.thumbnail-timeline {
+  position: relative;
+}
+
+.thumbnail-timeline::before {
+  content: "";
+  position: absolute;
+  top: 31px;
+  bottom: 15px;
+  left: 17px;
+  width: 2px;
+  background: #4b5f7a;
+}
+
+.thumbnail-technical .template-thumbnail-body {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .template-drawer-selected {
@@ -857,6 +966,96 @@ a {
 
 .template-executive .template-section h2 {
   color: #534838;
+}
+
+.template-sidebar {
+  display: grid;
+  grid-template-columns: minmax(155px, 0.34fr) minmax(0, 0.66fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #fbfbf8;
+}
+
+.template-sidebar-rail {
+  padding: 30px 22px;
+  background: #163c30;
+  color: #f4faf6;
+}
+
+.template-sidebar-main {
+  min-width: 0;
+  padding: 34px 36px;
+}
+
+.template-sidebar .template-contact {
+  text-align: left;
+}
+
+.template-sidebar .template-sidebar-rail .template-contact h1,
+.template-sidebar .template-sidebar-rail .template-contact p,
+.template-sidebar .template-sidebar-rail .template-section h2,
+.template-sidebar .template-sidebar-rail .template-section-body p,
+.template-sidebar .template-sidebar-rail .template-section-body li {
+  color: #f4faf6;
+}
+
+.template-sidebar .template-sidebar-rail .template-contact p,
+.template-sidebar .template-sidebar-rail .template-section-body p,
+.template-sidebar .template-sidebar-rail .template-section-body li {
+  opacity: 0.82;
+}
+
+.template-sidebar .template-sidebar-rail .template-section h2 {
+  padding-top: 10px;
+  border-top: 1px solid rgba(244, 250, 246, 0.22);
+}
+
+.template-timeline .template-section h2 {
+  color: #334155;
+}
+
+.template-timeline .template-section-experience,
+.template-timeline .template-section-projects {
+  position: relative;
+  padding-left: 18px;
+  border-left: 2px solid rgba(51, 65, 85, 0.2);
+}
+
+.template-timeline .template-section-experience::before,
+.template-timeline .template-section-projects::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #334155;
+}
+
+.template-technical {
+  background: #f5f7f4;
+}
+
+.template-technical .template-contact {
+  text-align: left;
+}
+
+.template-technical .template-technical-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.template-technical .template-section-skills {
+  padding: 12px;
+  border: 1px solid rgba(16, 120, 88, 0.22);
+  border-radius: 8px;
+  background: rgba(16, 120, 88, 0.08);
+}
+
+.template-technical .template-section h2 {
+  color: #107858;
 }
 
 .export-template-preview {
@@ -1012,6 +1211,16 @@ a {
 
 .btn svg {
   flex-shrink: 0;
+}
+
+.spin-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-primary {

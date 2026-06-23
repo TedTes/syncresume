@@ -4,6 +4,7 @@ import {
   RESUME_TEMPLATES,
   type ResumeTemplateId,
 } from "../lib/resumeTemplates";
+import { ResumeTemplateThumbnail } from "./ResumeTemplateThumbnail";
 
 type ResumeTemplateSelectorProps = {
   selectedTemplateId: ResumeTemplateId;
@@ -115,6 +116,7 @@ export function ResumeTemplatePanel({
               className={`template-drawer-option ${isSelected ? "selected" : ""}`}
               onClick={() => onSelect(template.id)}
             >
+              <ResumeTemplateThumbnail templateId={template.id} />
               <span className="template-drawer-option-main">
                 <strong>{template.name}</strong>
                 {template.isAtsSafe && <small>ATS-safe</small>}
