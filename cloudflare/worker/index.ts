@@ -19,6 +19,9 @@ type UserRow = {
   id: string;
   email: string;
   plan: string;
+  stripe_customer_id?: string | null;
+  subscription_status?: string | null;
+  subscription_current_period_end?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -62,6 +65,24 @@ type RunRow = {
   created_at: string;
 };
 
+type AiActionType = "optimize_resume" | "revise_section" | "cover_letter";
+
+type UsageSummary = {
+  period: string;
+  aiActionsUsed: number;
+  aiActionsLimit: number;
+  aiActionsRemaining: number;
+};
+
+type BillingSummary = {
+  plan: string;
+  subscriptionStatus: string;
+  subscriptionCurrentPeriodEnd: string | null;
+  usage: UsageSummary;
+  checkoutEnabled: boolean;
+  portalEnabled: boolean;
+};
+
 class HttpError extends Error {
   status: number;
 
@@ -74,8 +95,21 @@ class HttpError extends Error {
 
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
 const MIN_RESUME_TEXT_LENGTH = 20;
-const RESUME_TEMPLATE_IDS = new Set(["ats-simple", "modern", "compact", "executive"]);
+const RESUME_TEMPLATE_IDS = new Set([
+  "ats-simple",
+  "modern",
+  "compact",
+  "executive",
+  "sidebar",
+  "timeline",
+  "technical",
+]);
 const RESUME_VERSION_TYPES = new Set(["base", "tailored"]);
+const BILLING_PLAN_FREE = "Free";
+const BILLING_PLAN_PRO = "Pro";
+const DEFAULT_FREE_AI_ACTIONS = 3;
+const DEFAULT_PRO_AI_ACTIONS = 100;
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 const JOB_TITLE_WORDS = [
   "analyst",
   "architect",
@@ -123,6 +157,19 @@ const defaultCorsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+const LOCAL_DEV_CORS_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:5176",
+  "http://localhost:5177",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
+  "http://127.0.0.1:5176",
+  "http://127.0.0.1:5177",
+];
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const corsHeaders = createCorsHeaders(request, env);
@@ -141,7 +188,20 @@ export default {
 
       if (url.pathname === "/api/me" && request.method === "GET") {
         const { user } = await requireSession(request, env);
-        return json({ user: publicUser(user) }, { headers: corsHeaders });
+        const billing = await getBillingSummary(env, user);
+        return json({ user: publicUser(user, billing) }, { headers: corsHeaders });
+      }
+
+      if (url.pathname === "/api/billing/checkout" && request.method === "POST") {
+        return await handleCreateBillingCheckout(request, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/billing/portal" && request.method === "POST") {
+        return await handleCreateBillingPortal(request, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/stripe/webhook" && request.method === "POST") {
+        return await handleStripeWebhook(request, env, corsHeaders);
       }
 
       if (url.pathname === "/api/resumes" && request.method === "GET") {
@@ -272,6 +332,8 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
     return json({ error: "Upload or paste a readable resume before optimizing." }, { status: 400, headers });
   }
 
+  await assertAiActionAllowed(env, user, "optimize_resume");
+
   const optimizedResume = await optimizeResumeWithProvider(env, provider, {
     jobDescription,
     resumeText,
@@ -330,11 +392,19 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
     run = row ? mapRun(row) : null;
   }
 
+  await recordAiUsage(env, user, "optimize_resume", {
+    provider,
+    model: getProviderModel(env, provider),
+    inputChars: jobDescription.length + resumeText.length,
+    outputChars: snapshot.optimizedResumeText.length,
+    runId: run && typeof run.id === "string" ? run.id : null,
+  });
+
   return json({ resume: optimizedResume, score: snapshot.score, run }, { headers });
 }
 
 async function handleReviseSection(request: Request, env: Env, headers: Headers): Promise<Response> {
-  await requireSession(request, env);
+  const { user } = await requireSession(request, env);
   const body = await readJson(request);
   const provider = normalizeLLMProvider(String(body.provider || "openai"));
   const jobDescription = asNonEmptyString(body.jobDescription);
@@ -350,12 +420,21 @@ async function handleReviseSection(request: Request, env: Env, headers: Headers)
     return json({ error: "Missing job description or section text." }, { status: 400, headers });
   }
 
+  await assertAiActionAllowed(env, user, "revise_section");
+
   const revisedText = await reviseSectionWithProvider(env, provider, {
     jobDescription,
     resume: normalizeStructuredResume(body.resume),
     sectionLabel,
     sectionText,
     instruction,
+  });
+
+  await recordAiUsage(env, user, "revise_section", {
+    provider,
+    model: getProviderModel(env, provider),
+    inputChars: jobDescription.length + sectionText.length + instruction.length,
+    outputChars: revisedText.length,
   });
 
   return json({ revisedText }, { headers });
@@ -366,7 +445,7 @@ async function handleGenerateCoverLetter(
   env: Env,
   headers: Headers,
 ): Promise<Response> {
-  await requireSession(request, env);
+  const { user } = await requireSession(request, env);
   const body = await readJson(request);
   const provider = normalizeLLMProvider(String(body.provider || "openai"));
   const jobDescription = asNonEmptyString(body.jobDescription);
@@ -388,10 +467,19 @@ async function handleGenerateCoverLetter(
     );
   }
 
+  await assertAiActionAllowed(env, user, "cover_letter");
+
   const coverLetter = await generateCoverLetterWithProvider(env, provider, {
     jobDescription,
     resumeText,
     jobTitle,
+  });
+
+  await recordAiUsage(env, user, "cover_letter", {
+    provider,
+    model: getProviderModel(env, provider),
+    inputChars: jobDescription.length + resumeText.length + jobTitle.length,
+    outputChars: coverLetter.length,
   });
 
   return json({ coverLetter }, { headers });
@@ -401,6 +489,104 @@ async function handleFetchJobPage(request: Request, headers: Headers): Promise<R
   const body = await readJson(request);
   const text = await fetchJobPageText(asNonEmptyString(body.url));
   return json({ text }, { headers });
+}
+
+async function handleCreateBillingCheckout(
+  request: Request,
+  env: Env,
+  headers: Headers,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  requireStripeRuntime(env, ["STRIPE_SECRET_KEY", "STRIPE_PRICE_ID"]);
+
+  const customerId = await getOrCreateStripeCustomer(env, user);
+  const successUrl = resolveAppUrl(env.BILLING_SUCCESS_URL, env.APP_ORIGIN, "/settings?billing=success");
+  const cancelUrl = resolveAppUrl(env.BILLING_CANCEL_URL, env.APP_ORIGIN, "/settings?billing=cancelled");
+  const session = await stripePost(env, "/checkout/sessions", {
+    mode: "subscription",
+    customer: customerId,
+    "line_items[0][price]": env.STRIPE_PRICE_ID,
+    "line_items[0][quantity]": "1",
+    client_reference_id: user.id,
+    "metadata[user_id]": user.id,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    allow_promotion_codes: "true",
+  });
+  const url = asNonEmptyString(session.url);
+
+  if (!url) {
+    throw new HttpError("Stripe did not return a checkout URL.", 502);
+  }
+
+  return json({ url }, { headers });
+}
+
+async function handleCreateBillingPortal(
+  request: Request,
+  env: Env,
+  headers: Headers,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  requireStripeRuntime(env, ["STRIPE_SECRET_KEY"]);
+
+  if (!user.stripe_customer_id) {
+    throw new HttpError("Upgrade before opening billing management.", 400);
+  }
+
+  const session = await stripePost(env, "/billing_portal/sessions", {
+    customer: user.stripe_customer_id,
+    return_url: resolveAppUrl(env.BILLING_PORTAL_RETURN_URL, env.APP_ORIGIN, "/settings"),
+  });
+  const url = asNonEmptyString(session.url);
+
+  if (!url) {
+    throw new HttpError("Stripe did not return a billing portal URL.", 502);
+  }
+
+  return json({ url }, { headers });
+}
+
+async function handleStripeWebhook(
+  request: Request,
+  env: Env,
+  headers: Headers,
+): Promise<Response> {
+  requireStripeRuntime(env, ["STRIPE_WEBHOOK_SECRET"]);
+  const payload = await request.text();
+  const signature = request.headers.get("Stripe-Signature") ?? "";
+
+  await verifyStripeSignature(payload, signature, env.STRIPE_WEBHOOK_SECRET);
+
+  const event = JSON.parse(payload) as {
+    id?: string;
+    type?: string;
+    data?: { object?: JsonRecord };
+  };
+
+  if (!event.id || !event.type) {
+    throw new HttpError("Invalid Stripe webhook event.", 400);
+  }
+
+  const alreadyProcessed = await env.DB.prepare(
+    "select id from billing_events where provider_event_id = ?",
+  )
+    .bind(event.id)
+    .first<{ id: string }>();
+
+  if (alreadyProcessed) {
+    return json({ received: true, duplicate: true }, { headers });
+  }
+
+  await env.DB.prepare(
+    "insert into billing_events (id, provider_event_id, event_type, payload) values (?, ?, ?, ?)",
+  )
+    .bind(crypto.randomUUID(), event.id, event.type, payload)
+    .run();
+
+  await processStripeEvent(env, event.type, event.data?.object ?? {});
+
+  return json({ received: true }, { headers });
 }
 
 async function handleListResumes(request: Request, env: Env, headers: Headers): Promise<Response> {
@@ -888,26 +1074,32 @@ async function requireSession(
   request: Request,
   env: Env,
 ): Promise<{ user: UserRow }> {
+  let claims;
   try {
-    const claims = await verifyClerkRequest(request, env);
-    const email = getClerkEmail(claims);
-    const user = await findOrCreateUser(env, claims.sub, email);
-    return { user };
+    claims = await verifyClerkRequest(request, env);
   } catch (error) {
     throw new HttpError(error instanceof Error ? error.message : "Sign in before continuing.", 401);
   }
+
+  const email = getClerkEmail(claims);
+  const user = await findOrCreateUser(env, claims.sub, email);
+  return { user };
 }
 
 async function findOrCreateUser(env: Env, clerkUserId: string, email: string): Promise<UserRow> {
+  const userColumns = [
+    "id, email, plan, stripe_customer_id, subscription_status,",
+    "subscription_current_period_end, created_at, updated_at",
+  ].join(" ");
   let user = await env.DB.prepare(
-    "select id, email, plan, created_at, updated_at from users where email = ?",
+    `select ${userColumns} from users where email = ?`,
   )
     .bind(email)
     .first<UserRow>();
 
   if (!user) {
     user = await env.DB.prepare(
-      "select id, email, plan, created_at, updated_at from users where id = ?",
+      `select ${userColumns} from users where id = ?`,
     )
       .bind(clerkUserId)
       .first<UserRow>();
@@ -918,7 +1110,7 @@ async function findOrCreateUser(env: Env, clerkUserId: string, email: string): P
       .bind(clerkUserId, email)
       .run();
     user = await env.DB.prepare(
-      "select id, email, plan, created_at, updated_at from users where id = ?",
+      `select ${userColumns} from users where id = ?`,
     )
       .bind(clerkUserId)
       .first<UserRow>();
@@ -931,22 +1123,380 @@ async function findOrCreateUser(env: Env, clerkUserId: string, email: string): P
   return user;
 }
 
+async function getBillingSummary(env: Env, user: UserRow): Promise<BillingSummary> {
+  const plan = resolveEffectivePlan(user);
+  const usage = await getUsageSummary(env, user.id, plan);
+
+  return {
+    plan,
+    subscriptionStatus: user.subscription_status || (plan === BILLING_PLAN_PRO ? "active" : "free"),
+    subscriptionCurrentPeriodEnd: user.subscription_current_period_end ?? null,
+    usage,
+    checkoutEnabled: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_ID),
+    portalEnabled: Boolean(env.STRIPE_SECRET_KEY && user.stripe_customer_id),
+  };
+}
+
+async function getUsageSummary(env: Env, userId: string, plan: string): Promise<UsageSummary> {
+  const period = getCurrentBillingPeriod();
+  const limit = await getMonthlyAiActionLimit(env, plan);
+  const row = await env.DB.prepare(
+    [
+      "select coalesce(sum(request_units), 0) as used",
+      "from usage_ledger",
+      "where user_id = ? and billing_period = ?",
+    ].join(" "),
+  )
+    .bind(userId, period)
+    .first<{ used: number | null }>()
+    .catch(() => null);
+  const used = Math.max(0, Number(row?.used ?? 0));
+
+  return {
+    period,
+    aiActionsUsed: used,
+    aiActionsLimit: limit,
+    aiActionsRemaining: Math.max(0, limit - used),
+  };
+}
+
+async function getMonthlyAiActionLimit(env: Env, plan: string): Promise<number> {
+  const fallback = plan === BILLING_PLAN_PRO ? DEFAULT_PRO_AI_ACTIONS : DEFAULT_FREE_AI_ACTIONS;
+  const row = await env.DB.prepare("select monthly_ai_actions from usage_limits where plan = ?")
+    .bind(plan)
+    .first<{ monthly_ai_actions: number }>()
+    .catch(() => null);
+  const limit = Number(row?.monthly_ai_actions ?? fallback);
+  return Number.isFinite(limit) && limit > 0 ? limit : fallback;
+}
+
+async function assertAiActionAllowed(
+  env: Env,
+  user: UserRow,
+  actionType: AiActionType,
+): Promise<void> {
+  const plan = resolveEffectivePlan(user);
+  const usage = await getUsageSummary(env, user.id, plan);
+
+  if (usage.aiActionsRemaining <= 0) {
+    const label = aiActionLabel(actionType);
+    throw new HttpError(
+      `Monthly ${label} limit reached for the ${plan} plan. Upgrade to Pro to continue.`,
+      402,
+    );
+  }
+}
+
+async function recordAiUsage(
+  env: Env,
+  user: UserRow,
+  actionType: AiActionType,
+  details: {
+    provider: string;
+    model?: string;
+    inputChars?: number;
+    outputChars?: number;
+    runId?: string | null;
+  },
+): Promise<void> {
+  await env.DB.prepare(
+    [
+      "insert into usage_ledger",
+      "(id, user_id, action_type, provider, model, request_units, input_chars, output_chars, run_id, billing_period)",
+      "values (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)",
+    ].join(" "),
+  )
+    .bind(
+      crypto.randomUUID(),
+      user.id,
+      actionType,
+      details.provider,
+      details.model ?? null,
+      Math.max(0, Math.round(details.inputChars ?? 0)),
+      Math.max(0, Math.round(details.outputChars ?? 0)),
+      details.runId ?? null,
+      getCurrentBillingPeriod(),
+    )
+    .run();
+}
+
+function resolveEffectivePlan(user: UserRow): string {
+  const plan = normalizeBillingPlan(user.plan);
+  const status = (user.subscription_status ?? "").toLowerCase();
+
+  if (status && status !== "free") {
+    return plan === BILLING_PLAN_PRO && ACTIVE_SUBSCRIPTION_STATUSES.has(status)
+      ? BILLING_PLAN_PRO
+      : BILLING_PLAN_FREE;
+  }
+
+  return plan;
+}
+
+function normalizeBillingPlan(plan: string | null | undefined): string {
+  return String(plan ?? "").toLowerCase() === "pro" ? BILLING_PLAN_PRO : BILLING_PLAN_FREE;
+}
+
+function getCurrentBillingPeriod(date = new Date()): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function aiActionLabel(actionType: AiActionType): string {
+  if (actionType === "cover_letter") return "cover letter";
+  if (actionType === "revise_section") return "AI revision";
+  return "resume optimization";
+}
+
+function getProviderModel(env: Env, provider: string): string {
+  const llmEnv = env as Env & { ANTHROPIC_MODEL?: string; GEMINI_MODEL?: string };
+  if (provider === "openai") return env.OPENAI_MODEL || "gpt-5.4-mini";
+  if (provider === "anthropic") return llmEnv.ANTHROPIC_MODEL || "anthropic";
+  if (provider === "gemini") return llmEnv.GEMINI_MODEL || "gemini";
+  return provider;
+}
+
+async function getOrCreateStripeCustomer(env: Env, user: UserRow): Promise<string> {
+  if (user.stripe_customer_id) {
+    return user.stripe_customer_id;
+  }
+
+  const customer = await stripePost(env, "/customers", {
+    email: user.email,
+    "metadata[user_id]": user.id,
+  });
+  const customerId = asNonEmptyString(customer.id);
+
+  if (!customerId) {
+    throw new HttpError("Stripe did not return a customer id.", 502);
+  }
+
+  await env.DB.prepare(
+    "update users set stripe_customer_id = ?, updated_at = current_timestamp where id = ?",
+  )
+    .bind(customerId, user.id)
+    .run();
+  user.stripe_customer_id = customerId;
+
+  return customerId;
+}
+
+async function processStripeEvent(env: Env, eventType: string, object: JsonRecord): Promise<void> {
+  if (eventType === "checkout.session.completed") {
+    const userId = getString(object.client_reference_id) || getMetadataValue(object, "user_id");
+    const customerId = getString(object.customer);
+
+    if (userId && customerId) {
+      await env.DB.prepare(
+        [
+          "update users",
+          "set stripe_customer_id = ?, plan = ?, subscription_status = ?, updated_at = current_timestamp",
+          "where id = ?",
+        ].join(" "),
+      )
+        .bind(customerId, BILLING_PLAN_PRO, "active", userId)
+        .run();
+    }
+    return;
+  }
+
+  if (eventType === "customer.subscription.updated" || eventType === "customer.subscription.deleted") {
+    await syncStripeSubscription(env, object);
+  }
+}
+
+async function syncStripeSubscription(env: Env, object: JsonRecord): Promise<void> {
+  const stripeSubscriptionId = getString(object.id);
+  const stripeCustomerId = getString(object.customer);
+  const status = getString(object.status) || "unknown";
+  const userIdFromMetadata = getMetadataValue(object, "user_id");
+  const currentPeriodEnd = stripeTimestampToIso(object.current_period_end);
+  const cancelAtPeriodEnd = Boolean(object.cancel_at_period_end) ? 1 : 0;
+
+  if (!stripeSubscriptionId || !stripeCustomerId) return;
+
+  let userId = userIdFromMetadata;
+  if (!userId) {
+    const user = await env.DB.prepare("select id from users where stripe_customer_id = ?")
+      .bind(stripeCustomerId)
+      .first<{ id: string }>();
+    userId = user?.id ?? "";
+  }
+
+  if (!userId) return;
+
+  await env.DB.prepare(
+    [
+      "insert into subscriptions",
+      [
+        "(id, user_id, stripe_customer_id, stripe_subscription_id, plan, status,",
+        "current_period_end, cancel_at_period_end)",
+      ].join(" "),
+      "values (?, ?, ?, ?, ?, ?, ?, ?)",
+      "on conflict(stripe_subscription_id) do update set",
+      [
+        "status = excluded.status,",
+        "current_period_end = excluded.current_period_end,",
+        "cancel_at_period_end = excluded.cancel_at_period_end,",
+        "updated_at = current_timestamp",
+      ].join(" "),
+    ].join(" "),
+  )
+    .bind(
+      crypto.randomUUID(),
+      userId,
+      stripeCustomerId,
+      stripeSubscriptionId,
+      BILLING_PLAN_PRO,
+      status,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    )
+    .run();
+
+  const plan = ACTIVE_SUBSCRIPTION_STATUSES.has(status.toLowerCase())
+    ? BILLING_PLAN_PRO
+    : BILLING_PLAN_FREE;
+  await env.DB.prepare(
+    [
+      "update users",
+      [
+        "set stripe_customer_id = ?, plan = ?, subscription_status = ?,",
+        "subscription_current_period_end = ?, updated_at = current_timestamp",
+      ].join(" "),
+      "where id = ?",
+    ].join(" "),
+  )
+    .bind(stripeCustomerId, plan, status, currentPeriodEnd, userId)
+    .run();
+}
+
+function requireStripeRuntime(env: Env, keys: Array<keyof Env>): void {
+  const missing = keys.filter((key) => !env[key]);
+  if (missing.length) {
+    throw new HttpError(`${missing.join(", ")} is not configured.`, 500);
+  }
+}
+
+async function stripePost(
+  env: Env,
+  path: string,
+  fields: Record<string, string | number | boolean | null | undefined>,
+): Promise<JsonRecord> {
+  const body = new URLSearchParams();
+  Object.entries(fields).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && String(value) !== "") {
+      body.set(key, String(value));
+    }
+  });
+
+  const response = await fetch(`https://api.stripe.com/v1${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  const payload = (await response.json().catch(() => ({}))) as JsonRecord & {
+    error?: { message?: string };
+  };
+
+  if (!response.ok) {
+    throw new HttpError(payload.error?.message || "Stripe request failed.", 502);
+  }
+
+  return payload;
+}
+
+async function verifyStripeSignature(
+  payload: string,
+  signatureHeader: string,
+  webhookSecret: string,
+): Promise<void> {
+  const parts = Object.fromEntries(
+    signatureHeader
+      .split(",")
+      .map((part) => part.split("="))
+      .filter(([key, value]) => key && value),
+  );
+  const timestamp = parts.t;
+  const signature = parts.v1;
+
+  if (!timestamp || !signature) {
+    throw new HttpError("Missing Stripe signature.", 400);
+  }
+
+  const signedPayload = `${timestamp}.${payload}`;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(webhookSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedPayload));
+  const expected = [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+  if (!constantTimeEqual(expected, signature)) {
+    throw new HttpError("Invalid Stripe signature.", 400);
+  }
+}
+
+function constantTimeEqual(left: string, right: string): boolean {
+  const maxLength = Math.max(left.length, right.length);
+  let diff = left.length ^ right.length;
+
+  for (let index = 0; index < maxLength; index += 1) {
+    diff |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+
+  return diff === 0;
+}
+
+function resolveAppUrl(configured: string | undefined, appOrigin: string, fallbackPath: string): string {
+  if (configured) return configured;
+  return new URL(fallbackPath, appOrigin).toString();
+}
+
+function stripeTimestampToIso(value: unknown): string | null {
+  const seconds = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return new Date(seconds * 1000).toISOString();
+}
+
+function getString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function getMetadataValue(object: JsonRecord, key: string): string {
+  const metadata = object.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "";
+  const value = (metadata as JsonRecord)[key];
+  return typeof value === "string" ? value : "";
+}
+
 function createCorsHeaders(request: Request, env: Env): Headers {
   const headers = new Headers(defaultCorsHeaders);
   const requestOrigin = normalizeOrigin(request.headers.get("Origin") ?? "");
   const allowedOrigins = getAllowedCorsOrigins(env);
-  const allowedOrigin =
-    requestOrigin && allowedOrigins.includes(requestOrigin)
+  const allowedOrigin = requestOrigin
+    ? allowedOrigins.includes(requestOrigin)
       ? requestOrigin
-      : allowedOrigins[0] || requestOrigin || "*";
+      : ""
+    : allowedOrigins[0] || "*";
 
-  headers.set("Access-Control-Allow-Origin", allowedOrigin);
+  if (allowedOrigin) {
+    headers.set("Access-Control-Allow-Origin", allowedOrigin);
+  }
   headers.set("Vary", "Origin");
   return headers;
 }
 
 function getAllowedCorsOrigins(env: Env): string[] {
-  return [env.APP_ORIGIN, env.CLERK_AUTHORIZED_PARTIES]
+  const appBaseUrl = (env as Env & { APP_BASE_URL?: string }).APP_BASE_URL;
+  return [env.APP_ORIGIN, appBaseUrl, env.CLERK_AUTHORIZED_PARTIES, ...LOCAL_DEV_CORS_ORIGINS]
     .filter(Boolean)
     .flatMap((value) => String(value).split(","))
     .map(normalizeOrigin)
@@ -1220,11 +1770,21 @@ function isFileLike(value: unknown): value is File {
   );
 }
 
-function publicUser(user: UserRow): JsonRecord {
+function publicUser(user: UserRow, billing?: BillingSummary): JsonRecord {
   return {
     id: user.id,
     email: user.email,
-    plan: user.plan,
+    plan: billing?.plan ?? user.plan,
+    subscriptionStatus: billing?.subscriptionStatus ?? user.subscription_status ?? "free",
+    subscriptionCurrentPeriodEnd:
+      billing?.subscriptionCurrentPeriodEnd ?? user.subscription_current_period_end ?? null,
+    usage: billing?.usage,
+    billing: billing
+      ? {
+          checkoutEnabled: billing.checkoutEnabled,
+          portalEnabled: billing.portalEnabled,
+        }
+      : undefined,
     createdAt: user.created_at,
   };
 }
