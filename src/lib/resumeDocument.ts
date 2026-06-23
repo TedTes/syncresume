@@ -4,6 +4,7 @@ export type ResumeSectionType =
   | "contact"
   | "summary"
   | "skills"
+  | "languages"
   | "experience"
   | "education"
   | "certifications"
@@ -28,24 +29,57 @@ export type ResumeDocument = {
 };
 
 const KNOWN_RESUME_HEADINGS: { heading: string; type: ResumeSectionType }[] = [
+  { heading: "CONTACT INFORMATION", type: "contact" },
+  { heading: "CONTACT", type: "contact" },
   { heading: "PROFESSIONAL SUMMARY", type: "summary" },
+  { heading: "EXECUTIVE SUMMARY", type: "summary" },
+  { heading: "CAREER SUMMARY", type: "summary" },
+  { heading: "PROFESSIONAL PROFILE", type: "summary" },
   { heading: "SUMMARY", type: "summary" },
   { heading: "PROFILE", type: "summary" },
   { heading: "OBJECTIVE", type: "summary" },
+  { heading: "CORE COMPETENCIES", type: "skills" },
+  { heading: "AREAS OF EXPERTISE", type: "skills" },
   { heading: "TECHNICAL SKILLS", type: "skills" },
+  { heading: "TECHNICAL EXPERTISE", type: "skills" },
   { heading: "CORE SKILLS", type: "skills" },
+  { heading: "KEY SKILLS", type: "skills" },
+  { heading: "TECHNOLOGIES", type: "skills" },
+  { heading: "TECH STACK", type: "skills" },
   { heading: "SKILLS", type: "skills" },
+  { heading: "SPOKEN LANGUAGES", type: "languages" },
+  { heading: "SPEAKING LANGUAGES", type: "languages" },
+  { heading: "LANGUAGE PROFICIENCY", type: "languages" },
+  { heading: "LANGUAGE SKILLS", type: "languages" },
+  { heading: "LANGUAGES", type: "languages" },
+  { heading: "LANGUAGE", type: "languages" },
   { heading: "PROFESSIONAL EXPERIENCE", type: "experience" },
+  { heading: "RELEVANT EXPERIENCE", type: "experience" },
+  { heading: "EMPLOYMENT EXPERIENCE", type: "experience" },
   { heading: "WORK EXPERIENCE", type: "experience" },
+  { heading: "WORK HISTORY", type: "experience" },
+  { heading: "CAREER HISTORY", type: "experience" },
   { heading: "EXPERIENCE", type: "experience" },
   { heading: "EMPLOYMENT HISTORY", type: "experience" },
+  { heading: "PROJECT EXPERIENCE", type: "projects" },
   { heading: "PROJECTS", type: "projects" },
   { heading: "SELECTED PROJECTS", type: "projects" },
+  { heading: "EDUCATION AND CERTIFICATIONS", type: "education" },
+  { heading: "EDUCATION & CERTIFICATIONS", type: "education" },
+  { heading: "EDUCATION AND TRAINING", type: "education" },
   { heading: "EDUCATION", type: "education" },
+  { heading: "PROFESSIONAL CERTIFICATIONS", type: "certifications" },
+  { heading: "CERTIFICATIONS AND TRAINING", type: "certifications" },
+  { heading: "LICENSES AND CERTIFICATIONS", type: "certifications" },
+  { heading: "LICENSES & CERTIFICATIONS", type: "certifications" },
   { heading: "CERTIFICATIONS", type: "certifications" },
   { heading: "CERTIFICATES", type: "certifications" },
+  { heading: "TRAINING", type: "certifications" },
+  { heading: "HONORS AND AWARDS", type: "awards" },
+  { heading: "HONORS & AWARDS", type: "awards" },
   { heading: "AWARDS", type: "awards" },
   { heading: "PUBLICATIONS", type: "publications" },
+  { heading: "COMMUNITY INVOLVEMENT", type: "volunteering" },
   { heading: "VOLUNTEER EXPERIENCE", type: "volunteering" },
   { heading: "VOLUNTEERING", type: "volunteering" },
 ];
@@ -220,17 +254,28 @@ function isLikelyResumeHeading(match: RegExpMatchArray, text: string): boolean {
   const rawMatch = match[0] ?? "";
   const heading = match[1] ?? "";
   const before = text[start - 1] ?? "\n";
+  const after = text.slice(start + heading.length, start + heading.length + 36);
   const sourceHeading = text.slice(start, start + heading.length);
   const startsLine = start === 0 || /[\n\r]/.test(before);
   const hasColon = rawMatch.endsWith(":");
   const isUppercaseHeading = sourceHeading === sourceHeading.toUpperCase();
+  const normalizedHeading = heading.toUpperCase();
 
   if (/[A-Za-z0-9]/.test(before)) return false;
-  if (!startsLine && !hasColon && INLINE_AMBIGUOUS_HEADINGS.has(heading.toUpperCase())) {
+  if (isCompositeSkillLabel(normalizedHeading, after)) return false;
+  if (!startsLine && !hasColon && INLINE_AMBIGUOUS_HEADINGS.has(normalizedHeading)) {
     return false;
   }
 
   return startsLine || hasColon || isUppercaseHeading;
+}
+
+function isCompositeSkillLabel(heading: string, afterHeading: string): boolean {
+  if (heading !== "LANGUAGE" && heading !== "LANGUAGES") return false;
+
+  return /^\s*(?:&|\/|\+|AND\s+(?:FRAMEWORKS|LIBRARIES|TOOLS|TECHNOLOGIES)|FRAMEWORKS|LIBRARIES|TOOLS|TECHNOLOGIES|PROGRAMMING)/i.test(
+    afterHeading,
+  );
 }
 
 function formatSectionContent(value: string): string {

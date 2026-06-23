@@ -24,7 +24,7 @@ import {
   optimizeResumeWithProvider,
 } from "../lib/providers/dispatch";
 import { normalizeStructuredResume, resumeToPlainText, type StructuredResume } from "../lib/resume";
-import type { ResumeTemplateId } from "../lib/resumeTemplates";
+import type { ResumeTemplateId } from "../templates/registry";
 
 const ResumeReview = lazy(() =>
   import("../components/ResumeReview").then((module) => ({ default: module.ResumeReview })),

@@ -1,11 +1,10 @@
 import { resumeToPlainText, type StructuredResume } from "./resume";
-import type { ResumeDocument, ResumeSection } from "./resumeDocument";
+import type { ResumeDocument } from "./resumeDocument";
 import {
-  getResumeTemplate,
-  orderSectionsForTemplate,
-  type ResumeTemplate,
+  getResumeTemplateDefinition,
   type ResumeTemplateId,
-} from "./resumeTemplates";
+} from "../templates/registry";
+import { getTemplateDocxBlocks } from "../render/renderDocx";
 
 const FILE_BASENAME = "syncresume-optimized-resume";
 
@@ -144,69 +143,79 @@ export async function downloadTextPdf(text: string, fileName = "syncresume-extra
 }
 
 export async function downloadResumeDocumentPdf(
-  document: ResumeDocument,
+  resumeDocument: ResumeDocument,
   templateId: ResumeTemplateId,
   fileName = "syncresume-resume.pdf",
 ) {
   const { jsPDF } = await import("jspdf");
-  const template = getResumeTemplate(templateId);
-  const pdf = new jsPDF({ unit: "pt", format: "letter" });
-  const page = {
-    width: pdf.internal.pageSize.getWidth(),
-    height: pdf.internal.pageSize.getHeight(),
-    margin: template.pdf.margin,
-  };
-  const maxWidth = page.width - page.margin * 2;
-  let y = page.margin;
+  const { createRoot } = await import("react-dom/client");
+  const html2canvas = (await import("html2canvas")).default;
+  const { renderResumeHtmlElement } = await import("../render/renderHtml");
 
-  const addPageIfNeeded = (height = template.pdf.lineHeight) => {
-    if (y + height > page.height - page.margin) {
-      pdf.addPage();
-      y = page.margin;
+  const host = document.createElement("div");
+  const renderTarget = document.createElement("div");
+  host.className = "resume-pdf-render-host";
+  renderTarget.className = "resume-pdf-render-target";
+  host.appendChild(renderTarget);
+  document.body.appendChild(host);
+
+  const root = createRoot(renderTarget);
+
+  try {
+    root.render(renderResumeHtmlElement(resumeDocument, templateId));
+    await waitForBrowserPaint();
+    await waitForBrowserPaint();
+
+    const previewElement = renderTarget.querySelector(".resume-template-preview") as HTMLElement | null;
+    if (!previewElement) {
+      throw new Error("Could not render resume template.");
     }
-  };
 
-  const addText = (
-    text: string,
-    options: { bold?: boolean; center?: boolean; indent?: number; size?: number } = {},
-  ) => {
-    const indent = options.indent ?? 0;
-    pdf.setFont("helvetica", options.bold ? "bold" : "normal");
-    pdf.setFontSize(options.size ?? template.pdf.fontSize);
-    const lines = pdf.splitTextToSize(text, maxWidth - indent);
-    for (const line of lines) {
-      addPageIfNeeded(template.pdf.lineHeight);
-      pdf.text(line, options.center ? page.width / 2 : page.margin + indent, y, {
-        align: options.center ? "center" : "left",
-      });
-      y += template.pdf.lineHeight;
+    const canvas = await html2canvas(previewElement, {
+      backgroundColor: "#f7f7f4",
+      logging: false,
+      scale: 2,
+      useCORS: true,
+      width: previewElement.scrollWidth,
+      height: previewElement.scrollHeight,
+      windowWidth: previewElement.scrollWidth,
+      windowHeight: previewElement.scrollHeight,
+    });
+
+    const pdf = new jsPDF({ unit: "pt", format: "letter", orientation: "portrait" });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const sliceHeight = Math.floor((pageHeight / pageWidth) * canvas.width);
+    let sourceY = 0;
+    let pageIndex = 0;
+
+    while (sourceY < canvas.height) {
+      const height = Math.min(sliceHeight, canvas.height - sourceY);
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = height;
+      const ctx = pageCanvas.getContext("2d");
+      if (!ctx) throw new Error("Could not prepare resume PDF page.");
+
+      ctx.drawImage(canvas, 0, sourceY, canvas.width, height, 0, 0, canvas.width, height);
+      if (pageIndex > 0) pdf.addPage();
+      pdf.addImage(
+        pageCanvas.toDataURL("image/png"),
+        "PNG",
+        0,
+        0,
+        pageWidth,
+        (height * pageWidth) / canvas.width,
+      );
+      sourceY += height;
+      pageIndex += 1;
     }
-  };
 
-  const addHeading = (text: string) => {
-    y += Math.max(4, template.pdf.sectionGap - 4);
-    addPageIfNeeded(template.pdf.lineHeight + 6);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(template.pdf.headingSize);
-    pdf.setTextColor(...template.pdf.accent);
-    pdf.text(text.toUpperCase(), page.margin, y);
-    pdf.setTextColor(17, 17, 18);
-    y += template.pdf.lineHeight + 1;
-  };
-
-  const sections = orderSectionsForTemplate(document, template);
-  const contactSection = sections.find((section) => section.type === "contact");
-  if (contactSection) {
-    renderPdfContact(contactSection, addText, template);
-    y += template.pdf.sectionGap;
+    pdf.save(sanitizeDownloadFileName(fileName));
+  } finally {
+    root.unmount();
+    host.remove();
   }
-
-  for (const section of sections.filter((item) => item.type !== "contact")) {
-    addHeading(section.title);
-    renderPdfSectionBody(section, addText, template);
-  }
-
-  pdf.save(sanitizeDownloadFileName(fileName));
 }
 
 export async function downloadResumeDocumentDocx(
@@ -215,8 +224,8 @@ export async function downloadResumeDocumentDocx(
   fileName = "syncresume-resume.docx",
 ) {
   const { Document, Packer, Paragraph, TextRun } = await import("docx");
-  const template = getResumeTemplate(templateId);
-  const sections = orderSectionsForTemplate(document, template);
+  const template = getResumeTemplateDefinition(templateId);
+  const blocks = getTemplateDocxBlocks(document, templateId);
   const paragraphs: InstanceType<typeof Paragraph>[] = [];
   const addText = (text: string, options: { bold?: boolean; center?: boolean; size?: number } = {}) => {
     paragraphs.push(
@@ -236,17 +245,17 @@ export async function downloadResumeDocumentDocx(
     );
   };
 
-  const contactSection = sections.find((section) => section.type === "contact");
-  if (contactSection) {
-    const { name, details } = splitContactContent(contactSection.content);
-    if (name) addText(name, { bold: true, center: true, size: 24 });
-    if (details.length > 0) addText(details.join(" | "), { center: true, size: 19 });
-  }
+  for (const block of blocks) {
+    if (block.isContact) {
+      const { name, details } = splitContactContent(block.lines.join(" | "));
+      if (name) addText(name, { bold: true, center: true, size: 24 });
+      if (details.length > 0) addText(details.join(" | "), { center: true, size: 19 });
+      continue;
+    }
 
-  for (const section of sections.filter((item) => item.type !== "contact")) {
-    addHeading(section.title);
-    for (const line of section.content.split("\n").map((item) => item.trim()).filter(Boolean)) {
-      addText(line);
+    addHeading(block.title);
+    for (const line of block.lines) {
+      addText(line.replace(/^[-•]\s*/, ""));
     }
   }
 
@@ -329,19 +338,15 @@ function saveBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+function waitForBrowserPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
 function sanitizeDownloadFileName(value: string): string {
   const normalized = value.trim().replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]+/g, "-");
   return `${normalized || "syncresume-extracted-resume"}.pdf`;
-}
-
-function renderPdfContact(
-  section: ResumeSection,
-  addText: (text: string, options?: { bold?: boolean; center?: boolean; indent?: number; size?: number }) => void,
-  template: ResumeTemplate,
-) {
-  const { name, details } = splitContactContent(section.content);
-  if (name) addText(name, { bold: true, center: true, size: template.pdf.headingSize + 2 });
-  if (details.length > 0) addText(details.join(" | "), { center: true, size: template.pdf.fontSize });
 }
 
 function splitContactContent(content: string): { name: string; details: string[] } {
@@ -357,19 +362,4 @@ function splitContactContent(content: string): { name: string; details: string[]
     name,
     details: [leftover, ...chunks.slice(1)].filter(Boolean),
   };
-}
-
-function renderPdfSectionBody(
-  section: ResumeSection,
-  addText: (text: string, options?: { bold?: boolean; center?: boolean; indent?: number; size?: number }) => void,
-  template: ResumeTemplate,
-) {
-  const indent = template.density === "compact" ? 8 : 12;
-  for (const line of section.content.split("\n").map((item) => item.trim()).filter(Boolean)) {
-    if (/^[-•]\s+/.test(line)) {
-      addText(`- ${line.replace(/^[-•]\s*/, "")}`, { indent });
-    } else {
-      addText(line);
-    }
-  }
 }
