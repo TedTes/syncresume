@@ -23,7 +23,7 @@ import { hasClerkConfig } from "../lib/clerk/client";
 
 type AuthProviderKind = "clerk";
 type AuthUser = CloudflareUser;
-type Profile = Pick<CloudflareUser, "id" | "email" | "plan">;
+type Profile = CloudflareUser;
 type AuthSession = { provider: "clerk"; userId: string } | null;
 
 type AuthContextValue = {
@@ -47,6 +47,22 @@ function getErrorMessage(error: unknown): string {
 
 function getPrimaryEmail(email: string | null | undefined, fallback: string): string {
   return email?.trim() || fallback;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForSessionToken(
+  getToken: () => Promise<string | null>,
+): Promise<string | null> {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const token = await getToken().catch(() => null);
+    if (token) return token;
+    await sleep(120 + attempt * 80);
+  }
+
+  return null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -92,7 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setAuthError(null);
-    const data = await cloudflareRequest<{ user: CloudflareUser }>("/api/me");
+    const token = await waitForSessionToken(clerkAuth.getToken);
+
+    if (!token) {
+      throw new Error("Session token is still loading. Refresh the page if this continues.");
+    }
+
+    const data = await cloudflareRequest<{ user: CloudflareUser }>("/api/me", {
+      authToken: token,
+    });
     const email = getPrimaryEmail(clerkPrimaryEmail, data.user.email);
     const nextUser = {
       ...data.user,
@@ -100,14 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       plan: data.user.plan || "Free",
     };
 
-    setBackendUser((current) =>
-      current &&
-      current.id === nextUser.id &&
-      current.email === nextUser.email &&
-      current.plan === nextUser.plan
-        ? current
-        : nextUser,
-    );
+    setBackendUser(nextUser);
   }, [clerkAuth.isLoaded, clerkAuth.isSignedIn, clerkPrimaryEmail, clerkUserId, isConfigured]);
 
   useEffect(() => {
@@ -146,9 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await refreshProfile();
       } catch (error) {
-        profileLoadKeyRef.current = null;
         if (active) {
-          setBackendUser(null);
           setAuthError(getErrorMessage(error));
         }
       } finally {
@@ -179,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const user = backendUser;
-  const profile = user ? { id: user.id, email: user.email, plan: user.plan || "Free" } : null;
+  const profile = user;
   const session =
     clerkAuth.isLoaded && clerkAuth.isSignedIn && clerkAuth.userId
       ? { provider: "clerk" as const, userId: clerkAuth.userId }

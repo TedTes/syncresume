@@ -8,8 +8,31 @@ export type CloudflareUser = {
   id: string;
   email: string;
   plan: string;
+  subscriptionStatus?: string;
+  subscriptionCurrentPeriodEnd?: string | null;
+  usage?: {
+    period: string;
+    aiActionsUsed: number;
+    aiActionsLimit: number;
+    aiActionsRemaining: number;
+  };
+  billing?: {
+    checkoutEnabled: boolean;
+    portalEnabled: boolean;
+  };
   createdAt?: string;
 };
+
+export type BillingSessionResponse = {
+  url: string;
+};
+
+export class AuthTokenUnavailableError extends Error {
+  constructor() {
+    super("Session token is not ready yet.");
+    this.name = "AuthTokenUnavailableError";
+  }
+}
 
 export function hasCloudflareConfig(): boolean {
   return Boolean(cloudflareApiUrl);
@@ -27,12 +50,14 @@ function getCloudflareRequestUrl(path: string): string {
   return `${cloudflareApiUrl.replace(/\/$/, "")}${path}`;
 }
 
-async function getAuthHeaders(): Promise<Headers> {
+async function getAuthHeaders(authToken?: string): Promise<Headers> {
   const headers = new Headers();
-  const token = authTokenProvider ? await authTokenProvider() : null;
+  const token = authToken ?? (authTokenProvider ? await authTokenProvider() : null);
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
+  } else if (authTokenProvider) {
+    throw new AuthTokenUnavailableError();
   }
 
   return headers;
@@ -53,9 +78,10 @@ export async function cloudflareRequest<TResponse>(
     body?: Record<string, unknown>;
     formData?: FormData;
     auth?: boolean;
+    authToken?: string;
   } = {},
 ): Promise<TResponse> {
-  const headers = options.auth === false ? new Headers() : await getAuthHeaders();
+  const headers = options.auth === false ? new Headers() : await getAuthHeaders(options.authToken);
 
   let body: BodyInit | undefined;
   if (options.formData) {
@@ -90,4 +116,16 @@ export async function cloudflareBlobRequest(path: string): Promise<Blob> {
   }
 
   return response.blob();
+}
+
+export function createBillingCheckoutSession(): Promise<BillingSessionResponse> {
+  return cloudflareRequest<BillingSessionResponse>("/api/billing/checkout", {
+    method: "POST",
+  });
+}
+
+export function createBillingPortalSession(): Promise<BillingSessionResponse> {
+  return cloudflareRequest<BillingSessionResponse>("/api/billing/portal", {
+    method: "POST",
+  });
 }

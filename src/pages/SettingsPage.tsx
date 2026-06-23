@@ -1,13 +1,40 @@
-import { LogOut, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { CreditCard, Loader2, LogOut, ShieldCheck, Zap } from "lucide-react";
 import { UserButton } from "@clerk/clerk-react";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
+import {
+  createBillingCheckoutSession,
+  createBillingPortalSession,
+} from "../lib/cloudflare/client";
 import { PROVIDERS } from "../lib/providers/types";
 
 export default function SettingsPage() {
   const { provider, setProvider, model, toggles, setToggle } = useSettings();
   const { user, profile, signOut } = useAuth();
+  const [billingAction, setBillingAction] = useState<"checkout" | "portal" | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
   const activeProvider = PROVIDERS.find((info) => info.id === provider) ?? PROVIDERS[0];
+  const usage = profile?.usage;
+  const isPro = profile?.plan === "Pro";
+  const canCheckout = Boolean(profile?.billing?.checkoutEnabled);
+  const canOpenPortal = Boolean(profile?.billing?.portalEnabled);
+
+  async function openBilling(action: "checkout" | "portal") {
+    setBillingAction(action);
+    setBillingError(null);
+
+    try {
+      const session =
+        action === "checkout"
+          ? await createBillingCheckoutSession()
+          : await createBillingPortalSession();
+      window.location.assign(session.url);
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : "Billing request failed.");
+      setBillingAction(null);
+    }
+  }
 
   return (
     <>
@@ -95,9 +122,51 @@ export default function SettingsPage() {
               <span className="settings-readonly-value">{user?.email}</span>
             </div>
             <div className="settings-row">
-              <p className="settings-row-label">Plan</p>
-              <span className="settings-readonly-value">{profile?.plan ?? "Free"}</span>
+              <div>
+                <p className="settings-row-label">Plan</p>
+                <p className="settings-row-desc">
+                  {usage
+                    ? `${usage.aiActionsUsed}/${usage.aiActionsLimit} AI actions used in ${usage.period}.`
+                    : "Monthly AI usage is tracked server-side."}
+                </p>
+              </div>
+              <div className="settings-row-control">
+                <span className="settings-readonly-value settings-provider-badge">
+                  <Zap aria-hidden="true" />
+                  {profile?.plan ?? "Free"}
+                </span>
+                {isPro ? (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    type="button"
+                    disabled={!canOpenPortal || billingAction === "portal"}
+                    onClick={() => void openBilling("portal")}
+                  >
+                    {billingAction === "portal" ? (
+                      <Loader2 aria-hidden="true" className="spin-icon" />
+                    ) : (
+                      <CreditCard aria-hidden="true" />
+                    )}
+                    Manage
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    type="button"
+                    disabled={!canCheckout || billingAction === "checkout"}
+                    onClick={() => void openBilling("checkout")}
+                  >
+                    {billingAction === "checkout" ? (
+                      <Loader2 aria-hidden="true" className="spin-icon" />
+                    ) : (
+                      <CreditCard aria-hidden="true" />
+                    )}
+                    Upgrade
+                  </button>
+                )}
+              </div>
             </div>
+            {billingError ? <p className="settings-inline-error">{billingError}</p> : null}
             <div className="settings-row">
               <div>
                 <p className="settings-row-label">Session</p>
