@@ -1,4 +1,5 @@
-import type { ResumeDocument } from "../resume/schema";
+import type { ReactNode } from "react";
+import type { ResumeDocument, ResumeSection } from "../resume/schema";
 import {
   getResumeTemplateDefinition,
   orderSectionsForTemplate,
@@ -8,9 +9,14 @@ import {
 type ResumeTemplatePreviewProps = {
   document: ResumeDocument;
   templateId: ResumeTemplateId;
+  renderSectionContent?: (section: ResumeSection) => ReactNode;
 };
 
-export function ResumeTemplatePreview({ document, templateId }: ResumeTemplatePreviewProps) {
+export function ResumeTemplatePreview({
+  document,
+  templateId,
+  renderSectionContent,
+}: ResumeTemplatePreviewProps) {
   const template = getResumeTemplateDefinition(templateId);
   const sections = orderSectionsForTemplate(document, template);
   const contactSection = sections.find((section) => section.type === "contact");
@@ -24,6 +30,7 @@ export function ResumeTemplatePreview({ document, templateId }: ResumeTemplatePr
       sections={sections}
       contactSection={contactSection}
       bodySections={bodySections}
+      renderSectionContent={renderSectionContent}
     />
   );
 }

@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { ResumeDocument, ResumeSection, ResumeSectionType } from "../../resume/schema";
 
 export type ResumeTemplateId =
@@ -41,6 +41,7 @@ export type TemplatePreviewProps = {
   sections: ResumeSection[];
   contactSection?: ResumeSection;
   bodySections: ResumeSection[];
+  renderSectionContent?: (section: ResumeSection) => ReactNode;
 };
 
 export type TemplateDocxBlock = {

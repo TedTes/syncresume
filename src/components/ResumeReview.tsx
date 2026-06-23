@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeft,
   Download,
   ListTodo,
   Loader2,
@@ -9,16 +10,19 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   copyPlainText,
   downloadResumeDocumentDocx,
   downloadResumeDocumentPdf,
 } from "../lib/exportResume";
+import { ResumeTemplatePreview } from "./ResumeTemplatePreview";
 import { useSettings } from "../context/SettingsContext";
 import { openAIErrorMessage } from "../lib/openai";
 import { reviseResumeSectionWithProvider } from "../lib/providers/dispatch";
 import type { LLMProvider } from "../lib/providers/types";
 import { structuredResumeToDocument } from "../lib/resumeDocument";
+import type { ResumeDocument, ResumeSection, ResumeSectionType } from "../resume/schema";
 import {
   type ResumeTemplateId,
 } from "../templates/registry";
@@ -55,11 +59,10 @@ type SectionConfig = {
 type SectionComparison = {
   id: string;
   label: string;
+  type: ResumeSectionType;
   before: string;
   after: string;
   tokens: DiffToken[];
-  added: string[];
-  removed: string[];
 };
 
 const EXPORT_OPTIONS: Array<{ type: ExportType; label: string }> = [
@@ -233,7 +236,7 @@ export function ResumeReview({
       />
 
       <div className="tab-content">
-        <ResultsTab sections={sectionComparisons} />
+        <ResultsTab sections={sectionComparisons} templateId={selectedTemplateId} />
 
         <StatusMessages
           exportError={exportError}
@@ -303,6 +306,10 @@ function ReviewTopbar({
 
   return (
     <div className="review-topbar">
+      <Link className="btn btn-secondary btn-sm review-back-button" to="/workspace/optimize">
+        <ArrowLeft aria-hidden="true" />
+        Back
+      </Link>
       <div className="review-topbar-actions">
         <div className="review-export-group" ref={exportGroupRef}>
           <button
@@ -371,27 +378,49 @@ function ReviewTopbar({
 
 function ResultsTab({
   sections,
+  templateId,
 }: {
   sections: SectionComparison[];
+  templateId: ResumeTemplateId;
 }) {
+  const originalDocument = useMemo(
+    () => comparisonDocument(sections, "before"),
+    [sections],
+  );
+  const optimizedDocument = useMemo(
+    () => comparisonDocument(sections, "after"),
+    [sections],
+  );
+  const comparisonById = useMemo(
+    () => new Map(sections.map((section) => [section.id, section])),
+    [sections],
+  );
+
   return (
-    <div className="results-stage">
+    <div className="results-stage results-template-stage">
       <div className="diff-column-labels" aria-hidden="true">
         <span>Before</span>
         <span>After</span>
       </div>
-      <div className="section-diff-list">
-        {sections.map((section) => (
-          <section className={`section-diff-block section-diff-${section.id}`} key={section.id}>
-            <div className="section-diff-header">
-              <h3>{section.label}</h3>
-            </div>
-            <div className="diff-grid">
-              <DiffPane text={section.before} changes={section.removed} side="original" />
-              <DiffPane text={section.after} changes={section.added} side="optimized" />
-            </div>
-          </section>
-        ))}
+      <div className="template-comparison-grid">
+        <div className="template-comparison-pane template-comparison-before">
+          <ResumeTemplatePreview
+            document={originalDocument}
+            templateId={templateId}
+            renderSectionContent={(section) =>
+              renderDiffSectionContent(section, comparisonById, "before")
+            }
+          />
+        </div>
+        <div className="template-comparison-pane template-comparison-after">
+          <ResumeTemplatePreview
+            document={optimizedDocument}
+            templateId={templateId}
+            renderSectionContent={(section) =>
+              renderDiffSectionContent(section, comparisonById, "after")
+            }
+          />
+        </div>
       </div>
     </div>
   );
@@ -524,34 +553,34 @@ function StatusMessages({ exportError }: { exportError: string }) {
   );
 }
 
-function normalizeComparable(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9+#.\s-]/g, " ").replace(/\s+/g, " ").trim();
-}
-
 function buildSectionComparisons(originalResumeText: string, resume: StructuredResume): SectionComparison[] {
   const originalSections = extractOriginalResumeSections(originalResumeText);
   const optimizedSections = [
     {
       id: "summary",
       label: "Summary",
+      type: "summary" as const,
       before: originalSections.summary,
       after: resume.summary,
     },
     {
       id: "experience",
       label: "Experience",
+      type: "experience" as const,
       before: originalSections.experience,
       after: resume.experience.map(experienceRoleToText).filter(Boolean).join("\n\n"),
     },
     {
       id: "skills",
       label: "Skills",
+      type: "skills" as const,
       before: originalSections.skills,
       after: resume.skills.join(", "),
     },
     {
       id: "education",
       label: "Education",
+      type: "education" as const,
       before: originalSections.education,
       after: resume.education.join("\n"),
     },
@@ -567,11 +596,6 @@ function buildSectionComparisons(originalResumeText: string, resume: StructuredR
     .map((section) => ({
       ...section,
       tokens: diffWords(section.before, section.after),
-    }))
-    .map((section) => ({
-      ...section,
-      added: extractChangePhrases(section.tokens, "added"),
-      removed: extractChangePhrases(section.tokens, "removed"),
     }));
 
   if (comparisons.length > 0 && comparisons.some((section) => section.before)) {
@@ -584,13 +608,63 @@ function buildSectionComparisons(originalResumeText: string, resume: StructuredR
     {
       id: "resume",
       label: "Resume",
+      type: "custom",
       before: originalResumeText.trim(),
       after: fallbackAfter,
       tokens: fallbackTokens,
-      added: extractChangePhrases(fallbackTokens, "added"),
-      removed: extractChangePhrases(fallbackTokens, "removed"),
     },
   ];
+}
+
+function comparisonDocument(
+  sections: SectionComparison[],
+  side: "before" | "after",
+): ResumeDocument {
+  return {
+    id: `${side}-comparison`,
+    title: "",
+    sections: sections.map((section, index) => ({
+      id: section.id,
+      type: section.type,
+      title: section.label,
+      content: side === "before" ? section.before : section.after,
+      order: index,
+    })),
+  };
+}
+
+function renderDiffSectionContent(
+  section: ResumeSection,
+  comparisonById: Map<string, SectionComparison>,
+  side: "before" | "after",
+) {
+  const comparison = comparisonById.get(section.id);
+  const sourceText = side === "before" ? comparison?.before : comparison?.after;
+
+  if (!comparison || !sourceText?.trim()) {
+    return (
+      <p className="template-diff-empty">
+        {side === "before" ? "No matching original text found." : "No optimized text."}
+      </p>
+    );
+  }
+
+  return (
+    <div className={`template-diff-content template-diff-${side}`}>
+      {comparison.tokens
+        .filter((token) =>
+          side === "before" ? token.type !== "added" : token.type !== "removed",
+        )
+        .map((token, index) => (
+          <span
+            className={`template-diff-token template-diff-token-${token.type}`}
+            key={`${token.type}-${index}-${token.value.slice(0, 8)}`}
+          >
+            {token.value}
+          </span>
+        ))}
+    </div>
+  );
 }
 
 function extractOriginalResumeSections(text: string): Record<"summary" | "experience" | "skills" | "education", string> {
@@ -689,116 +763,4 @@ function findResumeHeadings(text: string): Array<{
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function DiffPane({
-  text,
-  changes,
-  side,
-}: {
-  text: string;
-  changes: string[];
-  side: "original" | "optimized";
-}) {
-  const label = side === "original" ? "Removed" : "Added";
-  const variant = side === "original" ? "removed" : "added";
-
-  return (
-    <article
-      className={`diff-pane diff-pane-${side}`}
-      aria-label={side === "optimized" ? "Optimized resume" : "Original resume"}
-    >
-      <pre>
-        {text ? (
-          text
-        ) : (
-          <span className="diff-empty">
-            {side === "original" ? "No matching original text found." : "No optimized text."}
-          </span>
-        )}
-      </pre>
-      <div className="diff-pane-tools">
-        <ChangeChip label={label} items={changes} variant={variant} />
-      </div>
-    </article>
-  );
-}
-
-function ChangeChip({
-  label,
-  items,
-  variant,
-}: {
-  label: string;
-  items: string[];
-  variant: "added" | "removed";
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const count = items.length;
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function collapseOnScroll() {
-      setIsOpen(false);
-    }
-
-    window.addEventListener("scroll", collapseOnScroll, { capture: true, passive: true });
-    return () => window.removeEventListener("scroll", collapseOnScroll, { capture: true });
-  }, [isOpen]);
-
-  return (
-    <div className={`change-chip change-chip-${variant} ${isOpen ? "open" : ""}`}>
-      <button
-        type="button"
-        aria-expanded={isOpen}
-        disabled={count === 0}
-        onClick={() => setIsOpen((current) => !current)}
-      >
-        {label} <span>{count}</span>
-      </button>
-      {isOpen && (
-        <div className="change-chip-popover">
-          <p>{items.join(", ")}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function extractChangePhrases(tokens: DiffToken[], type: "added" | "removed"): string[] {
-  const items: string[] = [];
-  const seen = new Set<string>();
-
-  for (const token of tokens) {
-    if (token.type !== type) continue;
-
-    for (const phrase of splitChangePhrase(token.value)) {
-      const normalized = normalizeComparable(phrase);
-      if (!normalized || seen.has(normalized) || !isMeaningfulChange(phrase)) continue;
-
-      seen.add(normalized);
-      items.push(phrase);
-
-      if (items.length >= 8) {
-        return items;
-      }
-    }
-  }
-
-  return items;
-}
-
-function splitChangePhrase(value: string): string[] {
-  return value
-    .split(/\n+|[•]+|(?:^|\s)[-*]\s+/)
-    .map((item) => item.replace(/\s+/g, " ").trim())
-    .map((item) => item.replace(/^[,;:.\s]+|[,;:.\s]+$/g, ""))
-    .filter(Boolean)
-    .map((item) => (item.length > 140 ? `${item.slice(0, 137).trim()}...` : item));
-}
-
-function isMeaningfulChange(value: string): boolean {
-  const words = value.match(/[A-Za-z0-9+#.]+/g) ?? [];
-  return value.length >= 4 && words.some((word) => word.length > 3);
 }

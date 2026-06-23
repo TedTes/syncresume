@@ -7,12 +7,17 @@ export function SingleColumnPreview({
   template,
   contactSection,
   bodySections,
+  renderSectionContent,
 }: TemplatePreviewProps) {
   return (
     <article className={`resume-template-preview ${template.className}`} aria-label={`${template.name} preview`}>
       <TemplateContact documentTitle={document.title} section={contactSection} />
       {bodySections.map((section) => (
-        <TemplateSection section={section} key={section.id} />
+        <TemplateSection
+          section={section}
+          key={section.id}
+          renderSectionContent={renderSectionContent}
+        />
       ))}
     </article>
   );
@@ -23,6 +28,7 @@ export function SidebarPreview({
   template,
   contactSection,
   bodySections,
+  renderSectionContent,
 }: TemplatePreviewProps) {
   const railSections = bodySections.filter((section) =>
     ["skills", "languages", "certifications", "education"].includes(section.type),
@@ -35,12 +41,20 @@ export function SidebarPreview({
       <aside className="template-sidebar-rail">
         <TemplateContact documentTitle={document.title} section={contactSection} />
         {railSections.map((section) => (
-          <TemplateSection section={section} key={section.id} />
+          <TemplateSection
+            section={section}
+            key={section.id}
+            renderSectionContent={renderSectionContent}
+          />
         ))}
       </aside>
       <div className="template-sidebar-main">
         {mainSections.map((section) => (
-          <TemplateSection section={section} key={section.id} />
+          <TemplateSection
+            section={section}
+            key={section.id}
+            renderSectionContent={renderSectionContent}
+          />
         ))}
       </div>
     </article>
@@ -56,13 +70,18 @@ export function TechnicalPreview({
   template,
   contactSection,
   bodySections,
+  renderSectionContent,
 }: TemplatePreviewProps) {
   return (
     <article className={`resume-template-preview ${template.className}`} aria-label={`${template.name} preview`}>
       <TemplateContact documentTitle={document.title} section={contactSection} />
       <div className="template-technical-grid">
         {bodySections.map((section) => (
-          <TemplateSection section={section} key={section.id} />
+          <TemplateSection
+            section={section}
+            key={section.id}
+            renderSectionContent={renderSectionContent}
+          />
         ))}
       </div>
     </article>
@@ -77,9 +96,12 @@ function TemplateContact({
   section?: ResumeSection;
 }) {
   if (!section) {
+    const title = documentTitle.replace(/\.[^.]+$/, "").trim();
+    if (!title) return null;
+
     return (
       <header className="template-contact">
-        <h1>{documentTitle.replace(/\.[^.]+$/, "")}</h1>
+        <h1>{title}</h1>
       </header>
     );
   }
@@ -93,11 +115,21 @@ function TemplateContact({
   );
 }
 
-function TemplateSection({ section }: { section: ResumeSection }) {
+function TemplateSection({
+  section,
+  renderSectionContent,
+}: {
+  section: ResumeSection;
+  renderSectionContent?: (section: ResumeSection) => ReactNode;
+}) {
   return (
     <section className={`template-section template-section-${section.type}`}>
       <h2>{section.title}</h2>
-      <SectionContent section={section} />
+      {renderSectionContent ? (
+        <div className="template-section-body">{renderSectionContent(section)}</div>
+      ) : (
+        <SectionContent section={section} />
+      )}
     </section>
   );
 }
