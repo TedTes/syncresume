@@ -3,7 +3,8 @@ import { useState } from "react";
 import {
   RESUME_TEMPLATES,
   type ResumeTemplateId,
-} from "../lib/resumeTemplates";
+} from "../templates/registry";
+import type { ResumeDocument } from "../resume/schema";
 import { ResumeTemplateThumbnail } from "./ResumeTemplateThumbnail";
 
 type ResumeTemplateSelectorProps = {
@@ -15,6 +16,7 @@ type ResumeTemplateSelectorProps = {
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   renderPanel?: boolean;
+  previewDocument?: ResumeDocument | null;
 };
 
 export function ResumeTemplateSelector({
@@ -26,6 +28,7 @@ export function ResumeTemplateSelector({
   isOpen,
   onOpenChange,
   renderPanel = true,
+  previewDocument = null,
 }: ResumeTemplateSelectorProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const controlled = typeof isOpen === "boolean";
@@ -62,6 +65,7 @@ export function ResumeTemplateSelector({
           <ResumeTemplatePanel
             selectedTemplateId={selectedTemplateId}
             onSelect={onSelect}
+            previewDocument={previewDocument}
             onClose={() => setOpen(false)}
           />
         </div>
@@ -74,6 +78,7 @@ type ResumeTemplatePanelProps = {
   selectedTemplateId: ResumeTemplateId;
   onSelect: (templateId: ResumeTemplateId) => void;
   onClose: () => void;
+  previewDocument?: ResumeDocument | null;
   className?: string;
 };
 
@@ -81,6 +86,7 @@ export function ResumeTemplatePanel({
   selectedTemplateId,
   onSelect,
   onClose,
+  previewDocument = null,
   className = "",
 }: ResumeTemplatePanelProps) {
   return (
@@ -116,12 +122,10 @@ export function ResumeTemplatePanel({
               className={`template-drawer-option ${isSelected ? "selected" : ""}`}
               onClick={() => onSelect(template.id)}
             >
-              <ResumeTemplateThumbnail templateId={template.id} />
+              <ResumeTemplateThumbnail templateId={template.id} document={previewDocument} />
               <span className="template-drawer-option-main">
                 <strong>{template.name}</strong>
-                {template.isAtsSafe && <small>ATS-safe</small>}
               </span>
-              <em>{template.description}</em>
               {isSelected && (
                 <span className="template-drawer-selected" aria-hidden="true">
                   <CheckCircle2 />

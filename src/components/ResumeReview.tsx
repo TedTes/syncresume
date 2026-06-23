@@ -21,7 +21,7 @@ import type { LLMProvider } from "../lib/providers/types";
 import { structuredResumeToDocument } from "../lib/resumeDocument";
 import {
   type ResumeTemplateId,
-} from "../lib/resumeTemplates";
+} from "../templates/registry";
 import {
   diffWords,
   experienceRoleToText,
@@ -90,7 +90,11 @@ export function ResumeReview({
   const [saveReviewStatus, setSaveReviewStatus] = useState("");
   const [saveReviewError, setSaveReviewError] = useState("");
   const [isSavingReview, setIsSavingReview] = useState(false);
-  const { selectedTemplateId, setSelectedTemplateId } = useSettings();
+  const {
+    selectedTemplateId,
+    setSelectedTemplateId,
+    setTemplatePreviewDocument,
+  } = useSettings();
 
   useEffect(() => {
     if (initialTemplateId) {
@@ -115,6 +119,11 @@ export function ResumeReview({
   ];
   const selectedAssistantSection =
     sections.find((section) => section.id === assistantSectionId) ?? sections[0];
+
+  useEffect(() => {
+    setTemplatePreviewDocument(resumeDocument);
+    return () => setTemplatePreviewDocument(null);
+  }, [resumeDocument, setTemplatePreviewDocument]);
 
   async function handleAssistantRevise(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

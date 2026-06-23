@@ -1,9 +1,11 @@
 import { FileText, LayoutGrid, RefreshCw, Settings } from "lucide-react";
 import { UserButton } from "@clerk/clerk-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
+import { parseResumeDocument } from "../resume/schema";
 import { AuthGate } from "./AuthGate";
 import { ResumeTemplatePanel, ResumeTemplateSelector } from "./ResumeTemplateSelector";
 
@@ -18,10 +20,20 @@ const SECONDARY_NAV_ITEMS = [
 
 export function AppShell() {
   const { user } = useAuth();
-  const { selectedTemplateId, setSelectedTemplateId } = useSettings();
+  const { activeResume } = useAppData();
+  const {
+    selectedTemplateId,
+    setSelectedTemplateId,
+    templatePreviewDocument,
+  } = useSettings();
   const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
   const location = useLocation();
   const initials = user?.email?.slice(0, 2).toUpperCase() || "SR";
+  const activeResumeDocument = useMemo(
+    () => (activeResume ? parseResumeDocument(activeResume.text, activeResume.name) : null),
+    [activeResume],
+  );
+  const templatePanelDocument = templatePreviewDocument ?? activeResumeDocument;
 
   useEffect(() => {
     setIsTemplatePanelOpen(false);
@@ -71,7 +83,9 @@ export function AppShell() {
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) => `sidebar-nav-item ${isActive ? "active" : ""}`}
+              className={({ isActive }) =>
+                `sidebar-nav-item ${isActive && !isTemplatePanelOpen ? "active" : ""}`
+              }
               title={label}
               aria-label={label}
             >
@@ -82,6 +96,7 @@ export function AppShell() {
           <ResumeTemplateSelector
             selectedTemplateId={selectedTemplateId}
             onSelect={setSelectedTemplateId}
+            previewDocument={templatePanelDocument}
             triggerClassName={`sidebar-nav-item sidebar-template-trigger ${
               isTemplatePanelOpen ? "active" : ""
             }`}
@@ -95,7 +110,9 @@ export function AppShell() {
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) => `sidebar-nav-item ${isActive ? "active" : ""}`}
+              className={({ isActive }) =>
+                `sidebar-nav-item ${isActive && !isTemplatePanelOpen ? "active" : ""}`
+              }
               title={label}
               aria-label={label}
             >
@@ -127,6 +144,7 @@ export function AppShell() {
         <ResumeTemplatePanel
           selectedTemplateId={selectedTemplateId}
           onSelect={setSelectedTemplateId}
+          previewDocument={templatePanelDocument}
           onClose={() => setIsTemplatePanelOpen(false)}
           className="template-drawer-push"
         />

@@ -1,10 +1,11 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { getProviderInfo, PROVIDERS, type LLMProvider } from "../lib/providers/types";
+import type { ResumeDocument } from "../resume/schema";
 import {
   DEFAULT_TEMPLATE_ID,
   normalizeResumeTemplateId,
   type ResumeTemplateId,
-} from "../lib/resumeTemplates";
+} from "../templates/registry";
 
 type OptimizationToggles = {
   autoDetectRequirements: boolean;
@@ -49,6 +50,8 @@ type SettingsContextValue = {
   model: string;
   selectedTemplateId: ResumeTemplateId;
   setSelectedTemplateId: (templateId: ResumeTemplateId) => void;
+  templatePreviewDocument: ResumeDocument | null;
+  setTemplatePreviewDocument: (document: ResumeDocument | null) => void;
   toggles: OptimizationToggles;
   setToggle: (key: keyof OptimizationToggles, value: boolean) => void;
 };
@@ -60,6 +63,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [selectedTemplateId, setSelectedTemplateIdState] = useState<ResumeTemplateId>(() =>
     readTemplate(),
   );
+  const [templatePreviewDocument, setTemplatePreviewDocument] = useState<ResumeDocument | null>(null);
   const [toggles, setToggles] = useState<OptimizationToggles>(() => readToggles());
 
   useEffect(() => {
@@ -92,6 +96,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     model: getProviderInfo(provider).model,
     selectedTemplateId,
     setSelectedTemplateId,
+    templatePreviewDocument,
+    setTemplatePreviewDocument,
     toggles,
     setToggle,
   };

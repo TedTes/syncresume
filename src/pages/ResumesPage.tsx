@@ -11,7 +11,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ResumeTemplatePreview } from "../components/ResumeTemplatePreview";
 import { useAppData } from "../context/AppDataContext";
@@ -20,7 +20,6 @@ import { useSettings } from "../context/SettingsContext";
 import {
   downloadResumeDocumentDocx,
   downloadResumeDocumentPdf,
-  downloadTextPdf,
 } from "../lib/exportResume";
 import { extractResumeText } from "../lib/fileExtract";
 import {
@@ -32,7 +31,7 @@ import {
 } from "../lib/resumeDocument";
 import {
   normalizeResumeTemplateId,
-} from "../lib/resumeTemplates";
+} from "../templates/registry";
 import type { ResumeFileType, ResumeRecord } from "../lib/storage";
 
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
@@ -99,14 +98,13 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const {
     resumes,
     addResume,
-    getResumeFile,
     setActiveResume,
     updateResumeText,
     updateResumeTemplate,
     deleteResume,
   } = useAppData();
   const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
-  const { selectedTemplateId, setSelectedTemplateId } = useSettings();
+  const { selectedTemplateId, setSelectedTemplateId, setTemplatePreviewDocument } = useSettings();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
@@ -137,6 +135,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const requiresSignIn = hasBackend && !user;
   const uploadsDisabled = isUploading || isAuthLoading || requiresSignIn;
   const previewResume = resumes.find((resume) => resume.id === previewId) ?? null;
+  const previewResumeDocument = useMemo(
+    () => (previewResume ? parseResumeDocument(previewResume.text, previewResume.name) : null),
+    [previewResume],
+  );
+  const previewTemplateId = selectedTemplateId;
   const editingResume = resumes.find((resume) => resume.id === editingResumeId) ?? null;
   const isFullPagePreview = Boolean(previewId || previewLoadingId || filePreview || previewError);
   const currentEditedResumeText = editedResumeDocument
@@ -198,6 +201,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isEditorExportMenuOpen]);
+
+  useEffect(() => {
+    setTemplatePreviewDocument(editedResumeDocument ?? previewResumeDocument);
+    return () => setTemplatePreviewDocument(null);
+  }, [editedResumeDocument, previewResumeDocument, setTemplatePreviewDocument]);
 
   function closePreview() {
     setPreviewId("");
@@ -308,6 +316,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           fileType,
           text: extracted.text,
           characterCount: extracted.characterCount,
+          templateId: selectedTemplateId,
           file,
         });
         updateUploadItem(itemId, { status: "done", message: "Uploaded" });
@@ -401,7 +410,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     }
   }
 
-  async function handlePreview(resumeId: string, fileType: ResumeFileType, name: string) {
+  function handlePreview(resumeId: string) {
     if (previewId === resumeId) {
       closePreview();
       return;
@@ -410,25 +419,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     setPreviewId(resumeId);
     setPreviewError("");
     setFilePreview(null);
-
-    if (fileType !== "pdf") return;
-
-    setPreviewLoadingId(resumeId);
-    try {
-      const blob = await getResumeFile(resumeId);
-      const pdfBlob = blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" });
-      setFilePreview({
-        resumeId,
-        name,
-        url: URL.createObjectURL(pdfBlob),
-      });
-    } catch (error) {
-      setPreviewError(
-        error instanceof Error ? error.message : "Could not open the original PDF preview.",
-      );
-    } finally {
-      setPreviewLoadingId("");
-    }
+    setPreviewLoadingId("");
   }
 
   async function handleSaveTextResume() {
@@ -451,6 +442,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
         fileType: "text",
         text: normalizedText,
         characterCount: normalizedText.length,
+        templateId: selectedTemplateId,
       });
       setTextResumeName("");
       setTextResumeValue("");
@@ -474,7 +466,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           className="resume-row-open"
           aria-label={`Open ${resume.name}`}
           disabled={previewLoadingId === resume.id}
-          onClick={() => void handlePreview(resume.id, resume.fileType, resume.name)}
+          onClick={() => handlePreview(resume.id)}
         >
           <span className="resume-row-icon" aria-hidden="true">
             {previewLoadingId === resume.id ? <Loader2 className="spin" /> : <FileText />}
@@ -703,7 +695,14 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
-                    onClick={() => downloadTextPdf(previewResume.text, previewResume.name)}
+                    onClick={() => {
+                      if (!previewResumeDocument) return;
+                      void downloadResumeDocumentPdf(
+                        previewResumeDocument,
+                        previewTemplateId,
+                        previewResume.name,
+                      );
+                    }}
                   >
                     <Download aria-hidden="true" />
                     Export
@@ -720,7 +719,14 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           ) : previewError ? (
             <div className="extracted-preview-shell">
               <div className="inline-error">{previewError}</div>
-              {previewResume && <pre className="resume-preview extracted-preview">{previewResume.text}</pre>}
+              {previewResumeDocument && (
+                <div className="template-fullpage-preview-shell">
+                  <ResumeTemplatePreview
+                    document={previewResumeDocument}
+                    templateId={previewTemplateId}
+                  />
+                </div>
+              )}
             </div>
           ) : filePreview ? (
             <iframe
@@ -728,9 +734,12 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
               src={`${filePreview.url}#toolbar=0&navpanes=0&scrollbar=1`}
               title={`${filePreview.name} PDF preview`}
             />
-          ) : previewResume ? (
-            <div className="extracted-preview-shell">
-              <pre className="resume-preview extracted-preview">{previewResume.text}</pre>
+          ) : previewResumeDocument ? (
+            <div className="extracted-preview-shell template-fullpage-preview-shell">
+              <ResumeTemplatePreview
+                document={previewResumeDocument}
+                templateId={previewTemplateId}
+              />
             </div>
           ) : null}
         </main>
