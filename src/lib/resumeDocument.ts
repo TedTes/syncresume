@@ -124,6 +124,40 @@ export function updateResumeDocumentSection(
   };
 }
 
+export function withFallbackContactSection(
+  document: ResumeDocument,
+  fallbackDocument?: ResumeDocument | null,
+): ResumeDocument {
+  const hasContactContent = document.sections.some(
+    (section) => section.type === "contact" && section.content.trim(),
+  );
+  if (hasContactContent || !fallbackDocument) return document;
+
+  const fallbackContact = fallbackDocument.sections.find(
+    (section) => section.type === "contact" && section.content.trim(),
+  );
+  if (!fallbackContact) return document;
+
+  const sectionsWithoutEmptyContact = document.sections.filter(
+    (section) => section.type !== "contact" || section.content.trim(),
+  );
+
+  return {
+    ...document,
+    sections: [
+      {
+        ...fallbackContact,
+        id: "contact-0",
+        order: -1,
+      },
+      ...sectionsWithoutEmptyContact.map((section) => ({
+        ...section,
+        order: section.order + 1,
+      })),
+    ],
+  };
+}
+
 export function structuredResumeToDocument(
   resume: StructuredResume,
   title = "Optimized resume",
@@ -237,11 +271,14 @@ function parseResumeSections(text: string): ResumeSection[] {
     const headingEnd = headingStart + match[0].length;
     const nextHeadingStart = matches.find((candidate) => (candidate.index ?? 0) > headingStart)?.index ?? text.length;
     const metadata = KNOWN_RESUME_HEADINGS.find((item) => item.heading === heading);
+    const content = formatSectionContent(text.slice(headingEnd, nextHeadingStart));
+    if (!content) return;
+
     sections.push({
       id: `${heading.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${sections.length}`,
       type: metadata?.type ?? "custom",
       title: headingLabel(heading),
-      content: formatSectionContent(text.slice(headingEnd, nextHeadingStart)),
+      content,
       order: sections.length,
     });
   });

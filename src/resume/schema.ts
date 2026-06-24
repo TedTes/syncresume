@@ -10,4 +10,5 @@ export {
   serializeResumeDocument,
   structuredResumeToDocument,
   updateResumeDocumentSection,
+  withFallbackContactSection,
 } from "../lib/resumeDocument";

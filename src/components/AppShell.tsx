@@ -5,7 +5,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
-import { parseResumeDocument } from "../resume/schema";
+import { parseResumeDocument, withFallbackContactSection } from "../resume/schema";
 import { AuthGate } from "./AuthGate";
 import { ResumeTemplatePanel, ResumeTemplateSelector } from "./ResumeTemplateSelector";
 
@@ -20,7 +20,7 @@ const SECONDARY_NAV_ITEMS = [
 
 export function AppShell() {
   const { user } = useAuth();
-  const { activeResume } = useAppData();
+  const { activeResume, resumes } = useAppData();
   const {
     selectedTemplateId,
     setSelectedTemplateId,
@@ -30,8 +30,20 @@ export function AppShell() {
   const location = useLocation();
   const initials = user?.email?.slice(0, 2).toUpperCase() || "SR";
   const activeResumeDocument = useMemo(
-    () => (activeResume ? parseResumeDocument(activeResume.text, activeResume.name) : null),
-    [activeResume],
+    () => {
+      if (!activeResume) return null;
+
+      const document = parseResumeDocument(activeResume.text, activeResume.name);
+      const sourceResume = activeResume.sourceResumeId
+        ? resumes.find((resume) => resume.id === activeResume.sourceResumeId)
+        : null;
+      const sourceDocument = sourceResume
+        ? parseResumeDocument(sourceResume.text, sourceResume.name)
+        : null;
+
+      return withFallbackContactSection(document, sourceDocument);
+    },
+    [activeResume, resumes],
   );
   const templatePanelDocument = templatePreviewDocument ?? activeResumeDocument;
 

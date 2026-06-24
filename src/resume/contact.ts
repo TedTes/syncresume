@@ -16,8 +16,7 @@ export function parseResumeContact(
   content: string,
   fallbackTitle = "",
 ): ParsedResumeContact {
-  const chunks = content
-    .split(/\n|\s*\|\s*/)
+  const chunks = splitContactContent(content)
     .map((line) => line.trim())
     .filter(Boolean)
     .filter((line) => !GENERIC_CONTACT_LABELS.has(line.toLowerCase()));
@@ -51,6 +50,32 @@ export function parseResumeContact(
     name: cleanFallbackName(fallbackTitle),
     details: chunks,
   };
+}
+
+function splitContactContent(content: string): string[] {
+  return content
+    .replace(/\b(?:email|e-mail|phone|mobile|tel|website|portfolio|github|linkedin)\s*:/gi, (label) => `\n${label}`)
+    .split(/\n|\s*\|\s*/)
+    .flatMap(splitCombinedContactDetails)
+    .map(cleanContactDetail)
+    .filter(Boolean);
+}
+
+function splitCombinedContactDetails(value: string): string[] {
+  const emailMatch = value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  if (!emailMatch?.index && emailMatch?.index !== 0) return [value];
+
+  const beforeEmail = value.slice(0, emailMatch.index).trim();
+  const email = emailMatch[0].trim();
+  const afterEmail = value.slice(emailMatch.index + email.length).trim();
+  return [beforeEmail, email, afterEmail].filter(Boolean);
+}
+
+function cleanContactDetail(value: string): string {
+  return value
+    .replace(/^(?:email|e-mail|phone|mobile|tel|website|portfolio|github|linkedin)\s*:\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractNameFromContactChunk(value: string): string {

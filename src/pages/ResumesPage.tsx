@@ -27,6 +27,7 @@ import {
   sectionTextareaRows,
   serializeResumeDocument,
   updateResumeDocumentSection,
+  withFallbackContactSection,
   type ResumeDocument,
 } from "../lib/resumeDocument";
 import {
@@ -136,8 +137,8 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const uploadsDisabled = isUploading || isAuthLoading || requiresSignIn;
   const previewResume = resumes.find((resume) => resume.id === previewId) ?? null;
   const previewResumeDocument = useMemo(
-    () => (previewResume ? parseResumeDocument(previewResume.text, previewResume.name) : null),
-    [previewResume],
+    () => (previewResume ? parseResumeWithSourceContact(previewResume) : null),
+    [previewResume, resumes],
   );
   const previewTemplateId = selectedTemplateId;
   const editingResume = resumes.find((resume) => resume.id === editingResumeId) ?? null;
@@ -175,6 +176,18 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     return [...(derivedBySource.get(sourceResumeId) ?? [])].sort(
       (left, right) => Number(right.isActive) - Number(left.isActive),
     );
+  }
+
+  function parseResumeWithSourceContact(resume: ResumeRecord): ResumeDocument {
+    const document = parseResumeDocument(resume.text, resume.name);
+    const sourceResume = resume.sourceResumeId
+      ? resumes.find((candidate) => candidate.id === resume.sourceResumeId)
+      : null;
+    const sourceDocument = sourceResume
+      ? parseResumeDocument(sourceResume.text, sourceResume.name)
+      : null;
+
+    return withFallbackContactSection(document, sourceDocument);
   }
 
   function updateUploadItem(id: string, patch: Partial<UploadQueueItem>) {
@@ -217,7 +230,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   function openExtractedEditor(resume: ResumeRecord) {
     closePreview();
     setEditingResumeId(resume.id);
-    setEditedResumeDocument(parseResumeDocument(resume.text, resume.name));
+    setEditedResumeDocument(parseResumeWithSourceContact(resume));
     setSelectedTemplateId(normalizeResumeTemplateId(resume.templateId));
     setEditError("");
     setEditStatus("");
@@ -656,6 +669,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                       <span>Live preview</span>
                     </div>
                     <ResumeTemplatePreview
+                      key={selectedTemplateId}
                       document={editedResumeDocument}
                       templateId={selectedTemplateId}
                     />
@@ -722,6 +736,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
               {previewResumeDocument && (
                 <div className="template-fullpage-preview-shell">
                   <ResumeTemplatePreview
+                    key={previewTemplateId}
                     document={previewResumeDocument}
                     templateId={previewTemplateId}
                   />
@@ -737,6 +752,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           ) : previewResumeDocument ? (
             <div className="extracted-preview-shell template-fullpage-preview-shell">
               <ResumeTemplatePreview
+                key={previewTemplateId}
                 document={previewResumeDocument}
                 templateId={previewTemplateId}
               />
