@@ -125,6 +125,19 @@ export class CloudflareStorageAdapter implements StorageAdapter {
     return data.run;
   }
 
+  async updateRunTitle(id: string, title: string): Promise<RunRecord> {
+    const data = await cloudflareRequest<{ run?: RunRecord }>(
+      `/api/runs/${encodeURIComponent(id)}/title`,
+      {
+        method: "PATCH",
+        body: { title },
+      },
+    );
+
+    if (!data.run) throw new Error("The backend did not return the renamed run.");
+    return data.run;
+  }
+
   async updateRunReview(id: string, input: RunReviewUpdateInput): Promise<RunRecord> {
     const data = await cloudflareRequest<{ run?: RunRecord }>(
       `/api/runs/${encodeURIComponent(id)}/review`,

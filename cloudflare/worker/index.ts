@@ -59,6 +59,8 @@ type RunRow = {
   missing_keywords?: string | null;
   selected_template_id?: string | null;
   tailored_resume_id?: string | null;
+  cover_letter_text?: string | null;
+  has_cover_letter?: number | null;
   has_review?: number | null;
   score: number;
   status: "draft" | "exported";
@@ -162,6 +164,25 @@ const JOB_TITLE_SKIP_PREFIXES = [
   "the role",
   "what you",
   "who you",
+];
+const JOB_TITLE_RESPONSIBILITY_PREFIXES = [
+  "build ",
+  "champion ",
+  "collaborate ",
+  "create ",
+  "deliver ",
+  "design ",
+  "develop ",
+  "drive ",
+  "ensure ",
+  "implement ",
+  "improve ",
+  "own ",
+  "partner ",
+  "provide ",
+  "refactor ",
+  "support ",
+  "work ",
 ];
 const LOW_QUALITY_JOB_TITLE_PATTERNS = [
   /^\d+\+?\s*(years?|yrs?)\b/i,
@@ -275,6 +296,11 @@ export default {
         return await handleUpdateRunReview(request, env, corsHeaders, runReviewMatch[1]);
       }
 
+      const runTitleMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/title$/);
+      if (runTitleMatch && request.method === "PATCH") {
+        return await handleUpdateRunTitle(request, env, corsHeaders, runTitleMatch[1]);
+      }
+
       const runDetailMatch = url.pathname.match(/^\/api\/runs\/([^/]+)$/);
       if (runDetailMatch && request.method === "GET") {
         return await handleGetRun(request, env, corsHeaders, runDetailMatch[1]);
@@ -386,7 +412,8 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
         [
           "returning id, title, resume_id, resume_name, job_description, original_resume_text,",
           "optimized_resume, optimized_resume_text, before_score, score, matched_keywords,",
-          "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, status, created_at",
+          "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, cover_letter_text,",
+          "status, created_at",
         ].join(" "),
       ].join(" "),
     )
@@ -472,6 +499,7 @@ async function handleGenerateCoverLetter(
   const directResumeText = asNonEmptyString(body.resumeText);
   const resumeText = directResumeText || resumeToPlainText(normalizeStructuredResume(body.resume));
   const jobTitle = asNonEmptyString(body.jobTitle);
+  const runId = asNonEmptyString(body.runId);
 
   if (jobDescription.length < 20) {
     return json(
@@ -494,6 +522,18 @@ async function handleGenerateCoverLetter(
     resumeText,
     jobTitle,
   });
+
+  if (runId) {
+    await env.DB.prepare(
+      [
+        "update optimization_runs",
+        "set cover_letter_text = ?, updated_at = current_timestamp",
+        "where user_id = ? and id = ?",
+      ].join(" "),
+    )
+      .bind(coverLetter, user.id, runId)
+      .run();
+  }
 
   await recordAiUsage(env, user, "cover_letter", {
     provider,
@@ -901,6 +941,7 @@ async function handleListRuns(request: Request, env: Env, headers: Headers): Pro
     [
       "select id, title, resume_id, resume_name, job_description, score,",
       "case when optimized_resume is not null then 1 else 0 end as has_review,",
+      "case when cover_letter_text is not null and length(trim(cover_letter_text)) > 0 then 1 else 0 end as has_cover_letter,",
       "status, created_at",
       "from optimization_runs",
       "where user_id = ?",
@@ -924,7 +965,8 @@ async function handleGetRun(
     [
       "select id, title, resume_id, resume_name, job_description, original_resume_text,",
       "optimized_resume, optimized_resume_text, before_score, score, matched_keywords,",
-      "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, status, created_at",
+      "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, cover_letter_text,",
+      "status, created_at",
       "from optimization_runs",
       "where user_id = ? and id = ?",
     ].join(" "),
@@ -968,6 +1010,55 @@ async function handleCreateRun(request: Request, env: Env, headers: Headers): Pr
     .first<RunRow>();
 
   if (!row) throw new Error("Could not save run.");
+  return json({ run: mapRun(row) }, { headers });
+}
+
+async function handleUpdateRunTitle(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  runId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const title = normalizeManualRunTitle(body.title);
+
+  if (!title) {
+    return json({ error: "Role name is required." }, { status: 400, headers });
+  }
+
+  const row = await env.DB.prepare(
+    [
+      "update optimization_runs",
+      "set title = ?, updated_at = current_timestamp",
+      "where user_id = ? and id = ?",
+      [
+        "returning id, title, resume_id, resume_name, job_description, original_resume_text,",
+        "optimized_resume, optimized_resume_text, before_score, score, matched_keywords,",
+        "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, cover_letter_text,",
+        "status, created_at",
+      ].join(" "),
+    ].join(" "),
+  )
+    .bind(title, user.id, runId)
+    .first<RunRow>();
+
+  if (!row) {
+    return json({ error: "Run not found." }, { status: 404, headers });
+  }
+
+  if (row.tailored_resume_id) {
+    await env.DB.prepare(
+      [
+        "update resumes",
+        "set name = ?, tailored_for = ?, updated_at = current_timestamp",
+        "where user_id = ? and id = ? and version_type = 'tailored'",
+      ].join(" "),
+    )
+      .bind(formatTailoredResumeVersionName(title, row.created_at), title, user.id, row.tailored_resume_id)
+      .run();
+  }
+
   return json({ run: mapRun(row) }, { headers });
 }
 
@@ -1025,7 +1116,8 @@ async function handleUpdateRunReview(
       [
         "returning id, title, resume_id, resume_name, job_description, original_resume_text,",
         "optimized_resume, optimized_resume_text, before_score, score, matched_keywords,",
-        "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, status, created_at",
+        "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, cover_letter_text,",
+        "status, created_at",
       ].join(" "),
     ].join(" "),
   )
@@ -1653,6 +1745,7 @@ function mapRun(row: RunRow): JsonRecord {
     status: row.status,
     createdAt: row.created_at,
     hasReview: row.has_review === 1 || Boolean(row.optimized_resume),
+    hasCoverLetter: row.has_cover_letter === 1 || Boolean(row.cover_letter_text),
   };
 
   if (row.original_resume_text !== undefined) {
@@ -1681,6 +1774,10 @@ function mapRun(row: RunRow): JsonRecord {
   }
   if (row.tailored_resume_id !== undefined) {
     run.tailoredResumeId = row.tailored_resume_id;
+  }
+  if (row.cover_letter_text !== undefined) {
+    run.coverLetterText = row.cover_letter_text ?? "";
+    run.hasCoverLetter = Boolean(row.cover_letter_text?.trim());
   }
 
   return run;
@@ -1759,12 +1856,16 @@ function deriveRunTitle(jobDescription: string): string {
     const prefixed = line.match(/^(job\s*title|title|position|role)\s*[:\-]\s*(.+)$/i);
     const title = cleanRunTitle(prefixed?.[2] ?? "");
     if (title) return title;
+
+    const headerTitle = extractHeaderRunTitle(line);
+    if (headerTitle) return headerTitle;
   }
 
   const candidate = lines.slice(0, 12).find((line) => {
     const normalized = line.toLowerCase();
     if (line.length > 86 || /[.!?]$/.test(line)) return false;
     if (JOB_TITLE_SKIP_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return false;
+    if (JOB_TITLE_RESPONSIBILITY_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return false;
     if (LOW_QUALITY_JOB_TITLE_PATTERNS.some((pattern) => pattern.test(line))) return false;
     return JOB_TITLE_WORDS.some((word) => normalized.includes(word));
   });
@@ -1775,9 +1876,37 @@ function deriveRunTitle(jobDescription: string): string {
 function cleanRunTitle(value: string): string {
   const cleaned = value.replace(/^\W+|\W+$/g, "").replace(/\s+/g, " ").trim();
   if (!cleaned || cleaned.length < 3) return "";
+  if (cleaned.toLowerCase() === "untitled role") return "";
   if (JOB_TITLE_SKIP_PREFIXES.some((prefix) => cleaned.toLowerCase().startsWith(prefix))) return "";
   if (LOW_QUALITY_JOB_TITLE_PATTERNS.some((pattern) => pattern.test(cleaned))) return "";
   return cleaned.length > 70 ? `${cleaned.slice(0, 67)}...` : cleaned;
+}
+
+function extractHeaderRunTitle(line: string): string {
+  const normalized = line.toLowerCase();
+  if (line.length > 110 || /[.!?]$/.test(line)) return "";
+  if (JOB_TITLE_SKIP_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return "";
+  if (JOB_TITLE_RESPONSIBILITY_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return "";
+  if (LOW_QUALITY_JOB_TITLE_PATTERNS.some((pattern) => pattern.test(line))) return "";
+  if (!JOB_TITLE_WORDS.some((word) => normalized.includes(word))) return "";
+
+  const firstSegment = line.split(/\s+(?:[-–—|]|at)\s+/i)[0] ?? "";
+  return cleanRunTitle(firstSegment) || cleanRunTitle(line);
+}
+
+function normalizeManualRunTitle(value: unknown): string {
+  const cleaned = asNonEmptyString(value).replace(/^\W+|\W+$/g, "").replace(/\s+/g, " ").trim();
+  if (!cleaned || cleaned.length < 3) return "";
+  return cleaned.length > 90 ? `${cleaned.slice(0, 87)}...` : cleaned;
+}
+
+function formatTailoredResumeVersionName(title: string, isoDate: string): string {
+  const date = new Date(isoDate);
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][
+    date.getUTCMonth()
+  ] ?? "Date";
+  const day = Number.isFinite(date.getUTCDate()) ? date.getUTCDate() : "";
+  return `Resume - ${title} - ${month}${day ? ` ${day}` : ""}`;
 }
 
 function isFileLike(value: unknown): value is File {

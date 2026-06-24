@@ -211,6 +211,7 @@ export default function OptimizerPage({
     setOptimizeError("");
 
     try {
+      const requestedTitle = extractJobTitle(jobDescription);
       const result = await optimizeResumeWithProvider({
         provider,
         jobDescription,
@@ -218,11 +219,11 @@ export default function OptimizerPage({
         resumeId: activeResume.id,
         resumeName: activeResume.name,
         saveRunHistory: toggles.saveRunHistory,
-        title: extractJobTitle(jobDescription),
+        title: requestedTitle,
       });
       setOptimizedResume(result.resume);
       setReviewOriginalResumeText(activeResume.text);
-      setReviewTitle(extractJobTitle(jobDescription));
+      setReviewTitle(result.run?.title ?? requestedTitle);
       setReviewSourceResumeId(activeResume.id);
       setReviewTemplateId((result.run?.templateId as ResumeTemplateId | undefined) ?? (activeResume.templateId as ResumeTemplateId | undefined) ?? "ats-simple");
       setIsJobPanelCollapsed(true);
@@ -236,7 +237,7 @@ export default function OptimizerPage({
       await incrementResumeUsage(activeResume.id);
       if (toggles.saveRunHistory) {
         const run = await addRun({
-          title: extractJobTitle(jobDescription),
+          title: requestedTitle,
           resumeId: activeResume.id,
           resumeName: activeResume.name,
           jobDescription,
@@ -244,6 +245,7 @@ export default function OptimizerPage({
           status: "draft",
         });
         setCurrentRunId(run.id);
+        setReviewTitle(run.title);
       }
     } catch (error) {
       setOptimizeError(openAIErrorMessage(error));
@@ -266,9 +268,13 @@ export default function OptimizerPage({
         jobDescription,
         resumeText,
         jobTitle: extractJobTitle(jobDescription),
+        runId: currentRunId ?? undefined,
       });
       setCoverLetter(generated);
       setCoverLetterStatus("Cover letter generated.");
+      if (currentRunId) {
+        await refresh({ force: true });
+      }
     } catch (error) {
       setCoverLetterError(openAIErrorMessage(error));
     } finally {

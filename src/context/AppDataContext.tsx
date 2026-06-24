@@ -34,6 +34,7 @@ type AppDataContextValue = {
   incrementResumeUsage: (id: string) => Promise<void>;
   getRun: (id: string) => Promise<RunRecord>;
   addRun: (input: NewRunInput) => Promise<RunRecord>;
+  updateRunTitle: (id: string, title: string) => Promise<RunRecord>;
   updateRunReview: (id: string, input: RunReviewUpdateInput) => Promise<RunRecord>;
   updateRunStatus: (id: string, status: RunStatus) => Promise<void>;
   recordExport: (runId: string, exportType: ExportType) => Promise<void>;
@@ -165,6 +166,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return record;
   }
 
+  async function updateRunTitle(id: string, title: string) {
+    requireBackendUser();
+    const record = await storage.updateRunTitle(id, title);
+    await refresh({ force: true });
+    return record;
+  }
+
   async function updateRunReview(id: string, input: RunReviewUpdateInput) {
     requireBackendUser();
     const record = await storage.updateRunReview(id, input);
@@ -209,6 +217,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     incrementResumeUsage,
     getRun,
     addRun,
+    updateRunTitle,
     updateRunReview,
     updateRunStatus,
     recordExport,

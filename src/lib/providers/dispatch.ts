@@ -131,6 +131,7 @@ type CoverLetterArgs = {
   jobDescription: string;
   resumeText: string;
   jobTitle?: string;
+  runId?: string;
 };
 
 export async function generateCoverLetterWithProvider({
@@ -138,6 +139,7 @@ export async function generateCoverLetterWithProvider({
   jobDescription,
   resumeText,
   jobTitle,
+  runId,
 }: CoverLetterArgs): Promise<string> {
   if (provider !== "openai") {
     notImplemented(provider);
@@ -154,6 +156,7 @@ export async function generateCoverLetterWithProvider({
       jobDescription,
       resumeText,
       jobTitle,
+      runId,
     },
   });
 

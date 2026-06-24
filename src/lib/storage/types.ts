@@ -42,6 +42,8 @@ export type RunRecord = {
   missingKeywords?: string[];
   templateId?: string;
   tailoredResumeId?: string | null;
+  hasCoverLetter?: boolean;
+  coverLetterText?: string | null;
 };
 
 export type NewResumeInput = Omit<ResumeRecord, "id" | "uploadedAt" | "usageCount" | "isActive" | "templateId" | "versionType"> & {
@@ -76,6 +78,7 @@ export interface StorageAdapter {
   listRuns(): Promise<RunRecord[]>;
   getRun(id: string): Promise<RunRecord>;
   saveRun(input: NewRunInput): Promise<RunRecord>;
+  updateRunTitle(id: string, title: string): Promise<RunRecord>;
   updateRunReview(id: string, input: RunReviewUpdateInput): Promise<RunRecord>;
   updateRunStatus(id: string, status: RunStatus): Promise<void>;
   recordExport(runId: string, exportType: ExportType): Promise<void>;
