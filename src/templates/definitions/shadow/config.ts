@@ -1,0 +1,18 @@
+import type { ResumeTemplateConfig } from "../../shared/types";
+
+export const config = {
+  id: "shadow",
+  name: "Shadow",
+  description: "Elevated contact card with a drop shadow — clean body, subtle depth.",
+  isAtsSafe: true,
+  density: "comfortable",
+  className: "template-shadow",
+  thumbnailClassName: "thumbnail-shadow",
+  renderer: "single-column",
+  sectionOrder: [
+    "contact", "summary", "experience", "projects", "skills",
+    "education", "languages", "certifications", "awards",
+    "publications", "volunteering", "custom",
+  ],
+  pdf: { margin: 46, fontSize: 9.5, lineHeight: 13.5, headingSize: 10.5, sectionGap: 10, accent: [100, 116, 139] },
+} satisfies ResumeTemplateConfig;
