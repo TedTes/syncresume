@@ -21,7 +21,7 @@ import { useSettings } from "../context/SettingsContext";
 import { openAIErrorMessage } from "../lib/openai";
 import { reviseResumeSectionWithProvider } from "../lib/providers/dispatch";
 import type { LLMProvider } from "../lib/providers/types";
-import { structuredResumeToDocument } from "../lib/resumeDocument";
+import { parseResumeDocument, structuredResumeToDocument } from "../lib/resumeDocument";
 import type { ResumeDocument, ResumeSection, ResumeSectionType } from "../resume/schema";
 import {
   type ResumeTemplateId,
@@ -49,6 +49,7 @@ type ResumeReviewProps = {
     templateId: ResumeTemplateId,
   ) => Promise<void>;
   onExported?: (exportType: ExportType) => void | Promise<void>;
+  onBack?: () => void;
 };
 
 type SectionConfig = {
@@ -80,6 +81,7 @@ export function ResumeReview({
   initialTemplateId,
   onSaveReview,
   onExported,
+  onBack,
 }: ResumeReviewProps) {
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [assistantSectionId, setAssistantSectionId] = useState("summary");
@@ -105,7 +107,14 @@ export function ResumeReview({
     }
   }, [initialTemplateId, setSelectedTemplateId]);
 
-  const resumeDocument = useMemo(() => structuredResumeToDocument(resume), [resume]);
+  const originalContactSection = useMemo(
+    () => parseResumeDocument(originalResumeText, "Original resume").sections.find((section) => section.type === "contact"),
+    [originalResumeText],
+  );
+  const resumeDocument = useMemo(
+    () => withContactSection(structuredResumeToDocument(resume), originalContactSection),
+    [originalContactSection, resume],
+  );
   const sectionComparisons = useMemo(
     () => buildSectionComparisons(originalResumeText, resume),
     [originalResumeText, resume],
@@ -233,6 +242,7 @@ export function ResumeReview({
         canSaveReview={Boolean(onSaveReview)}
         isSavingReview={isSavingReview}
         onSaveReview={handleSaveReview}
+        onBack={onBack}
       />
 
       <div className="tab-content">
@@ -279,6 +289,7 @@ function ReviewTopbar({
   canSaveReview,
   isSavingReview,
   onSaveReview,
+  onBack,
 }: {
   selectedExportTypes: ExportType[];
   isExporting: boolean;
@@ -287,6 +298,7 @@ function ReviewTopbar({
   canSaveReview: boolean;
   isSavingReview: boolean;
   onSaveReview: () => Promise<void>;
+  onBack?: () => void;
 }) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const exportGroupRef = useRef<HTMLDivElement | null>(null);
@@ -306,10 +318,21 @@ function ReviewTopbar({
 
   return (
     <div className="review-topbar">
-      <Link className="btn btn-secondary btn-sm review-back-button" to="/workspace/optimize">
-        <ArrowLeft aria-hidden="true" />
-        Back
-      </Link>
+      {onBack ? (
+        <button
+          className="btn btn-secondary btn-sm review-back-button"
+          type="button"
+          onClick={onBack}
+        >
+          <ArrowLeft aria-hidden="true" />
+          Back
+        </button>
+      ) : (
+        <Link className="btn btn-secondary btn-sm review-back-button" to="/workspace/optimize">
+          <ArrowLeft aria-hidden="true" />
+          Back
+        </Link>
+      )}
       <div className="review-topbar-actions">
         <div className="review-export-group" ref={exportGroupRef}>
           <button
@@ -555,7 +578,18 @@ function StatusMessages({ exportError }: { exportError: string }) {
 
 function buildSectionComparisons(originalResumeText: string, resume: StructuredResume): SectionComparison[] {
   const originalSections = extractOriginalResumeSections(originalResumeText);
-  const optimizedSections = [
+  const optimizedSections: Array<Omit<SectionComparison, "tokens">> = [
+    ...(originalSections.contact
+      ? [
+          {
+            id: "contact",
+            label: "Contact",
+            type: "contact" as const,
+            before: originalSections.contact,
+            after: originalSections.contact,
+          },
+        ]
+      : []),
     {
       id: "summary",
       label: "Summary",
@@ -667,10 +701,37 @@ function renderDiffSectionContent(
   );
 }
 
-function extractOriginalResumeSections(text: string): Record<"summary" | "experience" | "skills" | "education", string> {
+function withContactSection(
+  document: ResumeDocument,
+  contactSection?: ResumeSection,
+): ResumeDocument {
+  if (!contactSection || document.sections.some((section) => section.type === "contact")) {
+    return document;
+  }
+
+  return {
+    ...document,
+    sections: [
+      {
+        ...contactSection,
+        id: "contact-0",
+        order: -1,
+      },
+      ...document.sections.map((section) => ({
+        ...section,
+        order: section.order + 1,
+      })),
+    ],
+  };
+}
+
+function extractOriginalResumeSections(text: string): Record<"contact" | "summary" | "experience" | "skills" | "education", string> {
+  const originalDocument = parseResumeDocument(text, "Original resume");
+  const contact = originalDocument.sections.find((section) => section.type === "contact")?.content.trim() ?? "";
   const normalizedText = text.replace(/\r\n?/g, "\n");
   const headings = findResumeHeadings(normalizedText);
   const sections = {
+    contact,
     summary: "",
     experience: "",
     skills: "",

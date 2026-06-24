@@ -13,7 +13,7 @@ import {
   Upload,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
 import { fetchJobPageText } from "../lib/fetchJobPage";
@@ -57,6 +57,7 @@ export default function OptimizerPage({
     refresh,
   } = useAppData();
   const { provider, toggles } = useSettings();
+  const navigate = useNavigate();
 
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const [jobAddMode, setJobAddMode] = useState<JobAddMode>("paste");
@@ -120,6 +121,11 @@ export default function OptimizerPage({
     setCoverLetterError("");
     setCurrentRunId("");
     setIsJobPanelCollapsed(false);
+  }
+
+  function handleReviewBack() {
+    resetResult();
+    navigate("/workspace/optimize", { replace: Boolean(reviewRunId) });
   }
 
   useEffect(() => {
@@ -644,6 +650,7 @@ export default function OptimizerPage({
               provider={provider}
               onResumeChange={setOptimizedResume}
               initialTemplateId={reviewTemplateId}
+              onBack={handleReviewBack}
               onSaveReview={
                 currentRunId
                   ? async (resume, templateId) => {
