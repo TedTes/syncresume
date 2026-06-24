@@ -34,7 +34,7 @@
 
   --sidebar-width: 82px;
   --template-panel-width: 500px;
-  --template-thumbnail-scale: 0.25;
+  --template-thumbnail-scale: 0.265;
 }
 
 *,
@@ -726,10 +726,10 @@ a {
 .template-drawer-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 282px;
+  grid-auto-rows: 326px;
   align-content: start;
   min-height: 0;
-  gap: 10px;
+  gap: 12px;
   padding-top: 12px;
   overflow: auto;
 }
@@ -743,7 +743,7 @@ a {
   align-items: stretch;
   justify-content: stretch;
   gap: 0;
-  padding: 4px;
+  padding: 8px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-raised);
@@ -886,8 +886,8 @@ a {
   width: 100%;
   height: 100%;
   flex: 1 1 auto;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 9px;
   background: #f7f7f4;
   background-repeat: no-repeat;
   background-position: center;
@@ -898,26 +898,30 @@ a {
 
 .template-thumbnail-normalized {
   position: relative;
-  background: linear-gradient(180deg, #f9faf7 0%, #f1f2ef 100%);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 36%),
+    linear-gradient(180deg, #ecefec 0%, #dfe4df 100%);
 }
 
 .template-thumbnail-page {
   position: absolute;
-  top: 6px;
+  top: 10px;
   left: 50%;
   display: block;
-  width: 816px;
+  width: 760px;
   height: 1056px;
-  transform: translateX(-50%) scale(var(--template-thumbnail-scale, 0.25));
+  transform: translateX(-50%) scale(var(--template-thumbnail-scale, 0.265));
   transform-origin: top center;
+  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 92%);
+  mask-image: linear-gradient(to bottom, black 55%, transparent 92%);
 }
 
 .template-thumbnail-normalized .resume-template-preview {
-  width: 816px;
+  width: 760px;
   min-height: 1056px;
   height: auto;
   border: 0;
-  border-radius: 10px;
+  border-radius: 0;
   box-shadow: none;
   overflow: hidden;
 }
@@ -1811,130 +1815,68 @@ a {
   background: rgba(225, 29, 72, 0.07);
 }
 
-.template-thumbnail-normalized {
-  background-image: none;
-}
-
-.template-thumbnail-normalized .resume-template-preview {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  padding: 11px 12px;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  overflow: hidden;
-}
-
+/* Compact vertical spacing in thumbnails */
 .template-thumbnail-normalized .template-contact {
-  margin-bottom: 7px;
-}
-
-.template-thumbnail-normalized .template-contact h1 {
-  font-size: 0.46rem;
-  line-height: 1.1;
-}
-
-.template-thumbnail-normalized .template-contact p {
-  margin-top: 3px;
-  font-size: 0.24rem;
-  line-height: 1.35;
+  margin-bottom: 10px;
 }
 
 .template-thumbnail-normalized .template-section {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .template-thumbnail-normalized .template-section h2 {
-  margin-bottom: 3px;
-  padding-bottom: 2px;
-  font-size: 0.3rem;
+  margin-bottom: 4px;
+  padding-bottom: 3px;
   line-height: 1.1;
 }
 
 .template-thumbnail-normalized .template-section-body {
-  gap: 2px;
-}
-
-.template-thumbnail-normalized .template-section-body p,
-.template-thumbnail-normalized .template-section-body li {
-  font-size: 0.27rem;
-  line-height: 1.28;
+  gap: 3px;
 }
 
 .template-thumbnail-normalized .template-section-body ul {
-  gap: 1px;
-  padding-left: 7px;
+  gap: 2px;
+  padding-left: 10px;
 }
 
+/* Sidebar layout adjustments */
 .template-thumbnail-normalized .template-sidebar {
-  grid-template-columns: minmax(42px, 0.36fr) minmax(0, 0.64fr);
+  grid-template-columns: 0.38fr 0.62fr;
   padding: 0;
 }
 
 .template-thumbnail-normalized .template-sidebar-rail {
-  padding: 12px 6px;
+  padding: 18px 10px;
 }
 
 .template-thumbnail-normalized .template-sidebar-main {
-  padding: 12px 8px;
+  padding: 18px 14px;
 }
 
-.template-thumbnail-normalized .template-compact {
-  padding: 10px 11px;
-}
-
-.template-thumbnail-normalized .template-executive .template-contact {
-  padding-bottom: 5px;
-}
-
-.template-thumbnail-normalized .template-technical .template-technical-grid {
-  gap: 4px;
-}
-
-.template-thumbnail-normalized .template-technical .template-section-skills {
-  padding: 5px;
-  border-radius: 5px;
-}
-
-.template-thumbnail-normalized .template-minimal {
-  padding: 13px 14px;
-}
-
-.template-thumbnail-normalized .template-leadership .template-contact {
-  margin: -11px -12px 7px;
-  padding: 10px 12px;
-}
-
+/* Template-specific structural fixes (borders/widths only, no tiny padding) */
 .template-thumbnail-normalized .template-startup {
-  padding: 10px 11px;
   border-top-width: 3px;
 }
 
 .template-thumbnail-normalized .template-editorial .template-contact {
-  padding: 5px 0 6px;
   border-top-width: 2px;
 }
 
-.template-thumbnail-normalized .template-editorial .template-section-summary,
-.template-thumbnail-normalized .template-product .template-section-summary,
-.template-thumbnail-normalized .template-product .template-section-skills,
-.template-thumbnail-normalized .template-startup .template-section-projects {
-  padding: 4px;
-  border-radius: 4px;
+.template-thumbnail-normalized .template-technical .template-technical-grid {
+  gap: 6px;
 }
 
 .template-thumbnail-normalized .template-portfolio {
-  grid-template-columns: minmax(42px, 0.36fr) minmax(0, 0.64fr);
+  grid-template-columns: 0.38fr 0.62fr;
   padding: 0;
 }
 
 .template-thumbnail-normalized .template-portfolio .template-sidebar-rail {
-  padding: 12px 6px;
+  padding: 18px 10px;
 }
 
 .template-thumbnail-normalized .template-portfolio .template-sidebar-main {
-  padding: 12px 8px;
+  padding: 18px 14px;
 }
 
 .export-template-preview {
@@ -5083,7 +5025,7 @@ a {
 @media (max-width: 860px) {
   :root {
     --template-panel-width: min(430px, calc(100vw - var(--sidebar-width) - 10px));
-    --template-thumbnail-scale: 0.235;
+    --template-thumbnail-scale: 0.245;
   }
 
   .app-shell.template-panel-open {
@@ -5143,11 +5085,11 @@ a {
   }
 
   .template-drawer-option {
-    padding: 4px;
+    padding: 7px;
   }
 
   .template-drawer-list {
-    grid-auto-rows: 258px;
+    grid-auto-rows: 272px;
     gap: 10px;
   }
 
@@ -5431,7 +5373,7 @@ a {
   :root {
     --sidebar-width: 64px;
     --template-panel-width: min(320px, calc(100vw - 72px));
-    --template-thumbnail-scale: 0.32;
+    --template-thumbnail-scale: 0.335;
   }
 
   .app-shell.template-panel-open {
@@ -5483,12 +5425,12 @@ a {
   }
 
   .template-drawer-option {
-    padding: 4px;
+    padding: 8px;
   }
 
   .template-drawer-list {
     grid-template-columns: 1fr;
-    grid-auto-rows: 356px;
+    grid-auto-rows: 376px;
   }
 
   .template-review-backdrop {
@@ -5807,16 +5749,12 @@ a {
   color: #2563eb;
 }
 
-.template-thumbnail-normalized .template-split .template-contact {
-  padding: 10px 11px 8px;
-}
-
 .template-thumbnail-normalized .template-split .split-left {
-  padding: 8px 6px 10px 11px;
+  padding: 18px 14px 22px 26px;
 }
 
 .template-thumbnail-normalized .template-split .split-right {
-  padding: 8px 11px 10px 6px;
+  padding: 18px 26px 22px 14px;
 }
 
 /* ========================================================
@@ -5913,11 +5851,11 @@ a {
 }
 
 .template-thumbnail-normalized .template-gradient .gradient-head {
-  padding: 10px 12px 8px;
+  padding: 24px 28px 20px;
 }
 
 .template-thumbnail-normalized .template-gradient .gradient-body {
-  padding: 8px 12px;
+  padding: 20px 28px;
 }
 
 /* ========================================================
@@ -6015,21 +5953,9 @@ a {
   color: #2a2a2a;
 }
 
-.template-thumbnail-normalized .template-zen {
-  padding: 14px 16px;
-}
-
-.template-thumbnail-normalized .template-zen .template-contact {
-  margin-bottom: 8px;
-}
-
-.template-thumbnail-normalized .template-zen .template-section {
-  margin-top: 6px;
-}
-
 .template-thumbnail-normalized .template-zen .template-section h2::before {
-  width: 2px;
-  height: 2px;
+  width: 4px;
+  height: 4px;
 }
 
 /* ========================================================
@@ -6104,9 +6030,7 @@ a {
   letter-spacing: 0.03em;
 }
 
-.template-thumbnail-normalized .template-impact .template-contact h1 {
-  font-size: 0.65rem;
-}
+/* impact h1 handled by the global h1 !important override above */
 
 /* ========================================================
    STRIPE — Thick indigo left bookmark stripe
@@ -6146,11 +6070,11 @@ a {
 }
 
 .template-thumbnail-normalized .template-stripe {
-  padding-left: 18px;
+  padding-left: 36px;
 }
 
 .template-thumbnail-normalized .template-stripe::before {
-  width: 4px;
+  width: 8px;
 }
 
 /* ========================================================
@@ -6187,8 +6111,8 @@ a {
 }
 
 .template-thumbnail-normalized .template-frost .template-contact {
-  padding: 7px 9px;
-  border-radius: 3px;
+  padding: 16px 20px;
+  border-radius: 5px;
 }
 
 /* ========================================================
@@ -6243,44 +6167,59 @@ a {
 }
 
 .template-thumbnail-normalized .template-terra {
-  grid-template-columns: minmax(42px, 0.36fr) minmax(0, 0.64fr);
+  grid-template-columns: 0.38fr 0.62fr;
   padding: 0;
 }
 
 .template-thumbnail-normalized .template-terra .template-sidebar-rail {
-  padding: 12px 6px;
+  padding: 18px 10px;
 }
 
 .template-thumbnail-normalized .template-terra .template-sidebar-main {
-  padding: 12px 8px;
+  padding: 18px 14px;
 }
 
-/* Thumbnail readability pass: keep the same page scale, but enlarge text only in drawer previews. */
+/* Thumbnail readability — render at 760px, scale 0.265 → visible px shown in comments */
 .template-thumbnail-normalized .template-contact h1 {
-  font-size: 1.68rem !important;
-  line-height: 1.08 !important;
+  font-size: 2.5rem !important;   /* 40px → ~10.6px visible */
+  line-height: 1.06 !important;
 }
 
 .template-thumbnail-normalized .template-impact .template-contact h1 {
-  font-size: 2.2rem !important;
+  font-size: 3rem !important;
+}
+
+.template-thumbnail-normalized .template-herald .template-contact h1 {
+  font-size: 3rem !important;
 }
 
 .template-thumbnail-normalized .template-contact p,
 .template-thumbnail-normalized .contact-detail-item {
-  font-size: 1.02rem !important;
-  line-height: 1.35 !important;
+  font-size: 0.88rem !important;  /* 14px → ~3.7px — fine as detail texture */
+  line-height: 1.3 !important;
+}
+
+.template-thumbnail-normalized .contact-detail-list {
+  flex-wrap: nowrap;
+  gap: 4px;
 }
 
 .template-thumbnail-normalized .template-section h2 {
-  font-size: 1.05rem !important;
-  line-height: 1.16 !important;
+  font-size: 1.55rem !important;  /* 24.8px → ~6.6px visible — legible heading */
+  line-height: 1.1 !important;
+  letter-spacing: 0.06em;
 }
 
 .template-thumbnail-normalized .template-section-body p,
 .template-thumbnail-normalized .template-section-body li,
 .template-thumbnail-normalized .template-labeled-line {
-  font-size: 1.02rem !important;
-  line-height: 1.36 !important;
+  font-size: 0.9rem !important;   /* 14.4px → ~3.8px — body text as texture */
+  line-height: 1.3 !important;
+}
+
+/* Slightly bolder body entries (job titles / headings within sections) */
+.template-thumbnail-normalized .template-section-body strong {
+  font-size: 1.0rem !important;
 }
 
 
@@ -6323,14 +6262,14 @@ a {
 }
 
 .template-thumbnail-normalized .template-card .template-contact {
-  padding: 7px 8px;
-  border-radius: 4px;
+  padding: 14px 16px;
+  border-radius: 6px;
 }
 
 .template-thumbnail-normalized .template-card .template-section {
-  margin-top: 4px;
-  padding: 4px 6px;
-  border-radius: 3px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 5px;
 }
 
 /* ========================================================
@@ -6528,13 +6467,8 @@ a {
   color: #2d1f10;
 }
 
-.template-thumbnail-normalized .template-retro .template-contact {
-  padding: 9px 11px 8px;
-  margin-bottom: 8px;
-}
-
 .template-thumbnail-normalized .template-retro .template-section {
-  margin: 0 11px 4px;
+  margin-bottom: 8px;
 }
 
 /* ========================================================
@@ -6573,8 +6507,8 @@ a {
 }
 
 .template-thumbnail-normalized .template-block .template-section h2 {
-  padding: 2px 5px;
-  margin: 0 -12px 3px;
+  padding: 5px 12px;
+  margin: 0 -38px 6px;
 }
 
 /* ========================================================
@@ -6614,18 +6548,13 @@ a {
   border-bottom: 1px solid #999;
 }
 
-.template-thumbnail-normalized .template-outline {
-  padding: 10px 11px;
-}
-
 .template-thumbnail-normalized .template-outline .template-contact {
-  padding: 5px 6px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .template-thumbnail-normalized .template-outline .template-section {
-  padding: 3px 5px;
-  margin-top: 3px;
+  padding: 8px 12px;
+  margin-top: 6px;
 }
 
 /* ========================================================
@@ -6673,11 +6602,11 @@ a {
 }
 
 .template-thumbnail-normalized .template-navy .navy-head {
-  padding: 10px 12px 8px;
+  padding: 24px 28px 20px;
 }
 
 .template-thumbnail-normalized .template-navy .navy-body {
-  padding: 8px 12px;
+  padding: 20px 28px;
 }
 
 /* ========================================================
@@ -6722,8 +6651,8 @@ a {
 }
 
 .template-thumbnail-normalized .template-layer .layer-summary-card {
-  padding: 4px 6px;
-  margin-bottom: 2px;
+  padding: 12px 16px;
+  margin-bottom: 6px;
 }
 
 /* ========================================================
@@ -6911,13 +6840,9 @@ a {
 .template-smoke .template-section h2 {
   color: #2d2d2d;
 }
-.template-thumbnail-normalized .template-smoke .template-contact {
-  padding: 9px 12px 8px;
-  margin-bottom: 8px;
-}
 .template-thumbnail-normalized .template-smoke .template-section {
-  margin-left: 12px;
-  margin-right: 12px;
+  margin-left: 26px;
+  margin-right: 26px;
 }
 
 /* ── SLATE: blue-gray, dash underline on section h2 ── */
@@ -7211,10 +7136,10 @@ a {
   border-bottom: 1px solid #e2e8f0;
 }
 .template-thumbnail-normalized .template-shadow .template-contact {
-  padding: 7px 9px;
-  border-radius: 4px;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
-  margin-bottom: 4px;
+  padding: 16px 20px;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 8px;
 }
 
 /* ── DASH: dashed bottom border between sections ── */
