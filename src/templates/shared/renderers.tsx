@@ -113,6 +113,22 @@ export function SectionContent({ section }: { section: ResumeSection }) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+
+  if (section.type === "projects") {
+    const projectEntries = lines.flatMap(splitProjectEntries).filter(Boolean);
+    if (projectEntries.length > 1) {
+      return (
+        <div className="template-section-body">
+          <ul className="template-project-list">
+            {projectEntries.map((entry) => (
+              <li key={entry}>{entry}</li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+  }
+
   const groups: ReactNode[] = [];
   let bulletGroup: string[] = [];
 
@@ -135,11 +151,42 @@ export function SectionContent({ section }: { section: ResumeSection }) {
       return;
     }
     flushBullets();
-    groups.push(<p key={`line-${groups.length}`}>{line}</p>);
+    groups.push(renderTemplateLine(line, groups.length));
   });
 
   flushBullets();
   return <div className="template-section-body">{groups}</div>;
+}
+
+function renderTemplateLine(line: string, index: number): ReactNode {
+  const labeledLine = line.match(/^([^:]{2,42}):\s+(.+)$/);
+  if (labeledLine?.[1] && labeledLine[2]) {
+    return (
+      <p className="template-labeled-line" key={`line-${index}`}>
+        <strong>{labeledLine[1]}:</strong>
+        <span>{labeledLine[2]}</span>
+      </p>
+    );
+  }
+
+  return <p key={`line-${index}`}>{line}</p>;
+}
+
+function splitProjectEntries(line: string): string[] {
+  const withBreaks = line
+    .replace(
+      /\s+([A-Z][A-Za-z0-9][A-Za-z0-9 .&'()/-]{1,44}\s+[—-]\s+(?:https?:\/\/|www\.))/g,
+      "\n$1",
+    )
+    .replace(
+      /([.!?])\s+([A-Z][A-Za-z0-9][A-Za-z0-9 .&'()/-]{1,44}\s+[—-]\s+)/g,
+      "$1\n$2",
+    );
+
+  return withBreaks
+    .split("\n")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 // ─── Shared Layout Renderers ─────────────────────────────────────────────────

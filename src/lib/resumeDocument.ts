@@ -260,7 +260,7 @@ function parseResumeSections(text: string): ResumeSection[] {
       id: "contact-0",
       type: "contact",
       title: "Contact",
-      content: formatSectionContent(contactText),
+      content: formatSectionContent(contactText, "contact"),
       order: sections.length,
     });
   }
@@ -271,7 +271,7 @@ function parseResumeSections(text: string): ResumeSection[] {
     const headingEnd = headingStart + match[0].length;
     const nextHeadingStart = matches.find((candidate) => (candidate.index ?? 0) > headingStart)?.index ?? text.length;
     const metadata = KNOWN_RESUME_HEADINGS.find((item) => item.heading === heading);
-    const content = formatSectionContent(text.slice(headingEnd, nextHeadingStart));
+    const content = formatSectionContent(text.slice(headingEnd, nextHeadingStart), metadata?.type);
     if (!content) return;
 
     sections.push({
@@ -315,11 +315,68 @@ function isCompositeSkillLabel(heading: string, afterHeading: string): boolean {
   );
 }
 
-function formatSectionContent(value: string): string {
-  return value
+function formatSectionContent(value: string, sectionType?: ResumeSectionType): string {
+  const normalized = value
     .replace(/\r/g, "")
     .replace(/[ \t]+/g, " ")
     .replace(/\s*•\s*/g, "\n• ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  if (sectionType === "projects") {
+    return splitInlineProjectEntries(normalized);
+  }
+
+  if (sectionType === "skills" || sectionType === "languages" || sectionType === "certifications") {
+    return splitInlineLabeledGroups(normalized);
+  }
+
+  return normalized;
+}
+
+const INLINE_GROUP_LABELS = [
+  "AI & LLM Integration",
+  "AI and LLM Integration",
+  "Architecture & APIs",
+  "Architecture and APIs",
+  "Cloud & Infrastructure",
+  "Cloud and Infrastructure",
+  "Data & Persistence",
+  "Data and Persistence",
+  "DevOps & Tools",
+  "DevOps and Tools",
+  "Languages & Frameworks",
+  "Languages and Frameworks",
+  "Tools & Platforms",
+  "Tools and Platforms",
+].sort((a, b) => b.length - a.length);
+
+function splitInlineLabeledGroups(value: string): string {
+  if (!value) return value;
+
+  const labelsPattern = new RegExp(
+    `\\s+(${INLINE_GROUP_LABELS.map(escapeRegExp).join("|")}):\\s*`,
+    "gi",
+  );
+
+  return value
+    .replace(labelsPattern, "\n$1: ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function splitInlineProjectEntries(value: string): string {
+  if (!value) return value;
+
+  return value
+    .replace(
+      /\s+([A-Z][A-Za-z0-9][A-Za-z0-9 .&'()/-]{1,44}\s+[—-]\s+(?:https?:\/\/|www\.))/g,
+      "\n$1",
+    )
+    .replace(
+      /([.!?])\s+([A-Z][A-Za-z0-9][A-Za-z0-9 .&'()/-]{1,44}\s+[—-]\s+)/g,
+      "$1\n$2",
+    )
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }

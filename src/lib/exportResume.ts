@@ -8,6 +8,7 @@ import { getTemplateDocxBlocks } from "../render/renderDocx";
 import { parseResumeContact } from "../resume/contact";
 
 const FILE_BASENAME = "syncresume-optimized-resume";
+const PDF_CONTINUATION_TOP_MARGIN = 34;
 
 export async function downloadDocx(resume: StructuredResume) {
   const { Document, Packer } = await import("docx");
@@ -186,12 +187,15 @@ export async function downloadResumeDocumentPdf(
     const pdf = new jsPDF({ unit: "pt", format: "letter", orientation: "portrait" });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const sliceHeight = Math.floor((pageHeight / pageWidth) * canvas.width);
+    const safeCutPositions = getSafePdfCutPositions(previewElement, canvas.width / previewElement.scrollWidth);
     let sourceY = 0;
     let pageIndex = 0;
 
     while (sourceY < canvas.height) {
-      const height = Math.min(sliceHeight, canvas.height - sourceY);
+      const pageTopMargin = pageIndex === 0 ? 0 : PDF_CONTINUATION_TOP_MARGIN;
+      const pageDrawHeight = pageHeight - pageTopMargin;
+      const sliceHeight = Math.floor((pageDrawHeight / pageWidth) * canvas.width);
+      const height = choosePdfSliceHeight(sourceY, sliceHeight, canvas.height, safeCutPositions);
       const pageCanvas = document.createElement("canvas");
       pageCanvas.width = canvas.width;
       pageCanvas.height = height;
@@ -204,7 +208,7 @@ export async function downloadResumeDocumentPdf(
         pageCanvas.toDataURL("image/png"),
         "PNG",
         0,
-        0,
+        pageTopMargin,
         pageWidth,
         (height * pageWidth) / canvas.width,
       );
@@ -217,6 +221,44 @@ export async function downloadResumeDocumentPdf(
     root.unmount();
     host.remove();
   }
+}
+
+function getSafePdfCutPositions(previewElement: HTMLElement, scale: number): number[] {
+  const rootTop = previewElement.getBoundingClientRect().top;
+  const selectors = [
+    ".template-contact",
+    ".template-section",
+    ".template-section h2",
+    ".template-section-body > p",
+    ".template-section-body > ul",
+    ".template-section-body li",
+    ".template-timeline-entry",
+    ".template-project-list li",
+  ].join(",");
+  const cutPositions = Array.from(previewElement.querySelectorAll<HTMLElement>(selectors))
+    .map((element) => Math.ceil((element.getBoundingClientRect().bottom - rootTop + 4) * scale))
+    .filter((position) => Number.isFinite(position) && position > 0 && position < previewElement.scrollHeight * scale);
+
+  return [...new Set(cutPositions)].sort((left, right) => left - right);
+}
+
+function choosePdfSliceHeight(
+  sourceY: number,
+  idealSliceHeight: number,
+  totalHeight: number,
+  safeCutPositions: number[],
+): number {
+  const remainingHeight = totalHeight - sourceY;
+  if (remainingHeight <= idealSliceHeight) return remainingHeight;
+
+  const idealCut = sourceY + idealSliceHeight;
+  const minimumCut = sourceY + idealSliceHeight * 0.68;
+  const guardedCut = idealCut - 12;
+  const safeCut = safeCutPositions
+    .filter((position) => position > minimumCut && position < guardedCut)
+    .at(-1);
+
+  return Math.max(1, Math.floor((safeCut ?? idealCut) - sourceY));
 }
 
 export async function downloadResumeDocumentDocx(
