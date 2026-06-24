@@ -220,10 +220,7 @@ export function ResumeTemplatePanel({
                   type="button"
                   className="template-drawer-review"
                   aria-label={`Preview ${template.name} template`}
-                  onClick={() => {
-                    handleSelectTemplate(template.id);
-                    setReviewTemplateId(template.id);
-                  }}
+                  onClick={() => setReviewTemplateId(template.id)}
                 >
                   <Eye aria-hidden="true" />
                   Preview

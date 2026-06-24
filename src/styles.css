@@ -33,7 +33,8 @@
   --warning-border: rgba(251, 191, 36, 0.32);
 
   --sidebar-width: 82px;
-  --template-panel-width: 380px;
+  --template-panel-width: 500px;
+  --template-thumbnail-scale: 0.25;
 }
 
 *,
@@ -649,9 +650,9 @@ a {
 .template-drawer {
   display: flex;
   flex-direction: column;
-  width: min(420px, 100%);
+  width: min(500px, 100%);
   height: 100%;
-  padding: 16px;
+  padding: 12px;
   border-right: 1px solid var(--border);
   background: var(--surface);
   box-shadow: 24px 0 80px rgba(0, 0, 0, 0.42);
@@ -666,7 +667,7 @@ a {
   max-width: 0;
   height: 100vh;
   flex: 0 0 0;
-  padding: 16px 0;
+  padding: 12px 0;
   border-right-width: 0;
   box-shadow: none;
   opacity: 0;
@@ -686,7 +687,7 @@ a {
   width: var(--template-panel-width);
   max-width: var(--template-panel-width);
   flex-basis: var(--template-panel-width);
-  padding: 16px;
+  padding: 12px;
   border-right-width: 1px;
   opacity: 1;
   pointer-events: auto;
@@ -725,11 +726,11 @@ a {
 .template-drawer-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 238px;
+  grid-auto-rows: 282px;
   align-content: start;
   min-height: 0;
-  gap: 12px;
-  padding-top: 14px;
+  gap: 10px;
+  padding-top: 12px;
   overflow: auto;
 }
 
@@ -742,7 +743,7 @@ a {
   align-items: stretch;
   justify-content: stretch;
   gap: 0;
-  padding: 6px;
+  padding: 4px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-raised);
@@ -892,6 +893,32 @@ a {
   background-position: center;
   background-size: 100% 100%;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.template-thumbnail-normalized {
+  position: relative;
+  background: linear-gradient(180deg, #f9faf7 0%, #f1f2ef 100%);
+}
+
+.template-thumbnail-page {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  display: block;
+  width: 816px;
+  height: 1056px;
+  transform: translateX(-50%) scale(var(--template-thumbnail-scale, 0.25));
+  transform-origin: top center;
+}
+
+.template-thumbnail-normalized .resume-template-preview {
+  width: 816px;
+  min-height: 1056px;
+  height: auto;
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -1784,11 +1811,11 @@ a {
   background: rgba(225, 29, 72, 0.07);
 }
 
-.template-thumbnail-live {
+.template-thumbnail-normalized {
   background-image: none;
 }
 
-.template-thumbnail-live .resume-template-preview {
+.template-thumbnail-normalized .resume-template-preview {
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -1799,114 +1826,114 @@ a {
   overflow: hidden;
 }
 
-.template-thumbnail-live .template-contact {
+.template-thumbnail-normalized .template-contact {
   margin-bottom: 7px;
 }
 
-.template-thumbnail-live .template-contact h1 {
+.template-thumbnail-normalized .template-contact h1 {
   font-size: 0.46rem;
   line-height: 1.1;
 }
 
-.template-thumbnail-live .template-contact p {
+.template-thumbnail-normalized .template-contact p {
   margin-top: 3px;
   font-size: 0.24rem;
   line-height: 1.35;
 }
 
-.template-thumbnail-live .template-section {
+.template-thumbnail-normalized .template-section {
   margin-top: 6px;
 }
 
-.template-thumbnail-live .template-section h2 {
+.template-thumbnail-normalized .template-section h2 {
   margin-bottom: 3px;
   padding-bottom: 2px;
   font-size: 0.3rem;
   line-height: 1.1;
 }
 
-.template-thumbnail-live .template-section-body {
+.template-thumbnail-normalized .template-section-body {
   gap: 2px;
 }
 
-.template-thumbnail-live .template-section-body p,
-.template-thumbnail-live .template-section-body li {
+.template-thumbnail-normalized .template-section-body p,
+.template-thumbnail-normalized .template-section-body li {
   font-size: 0.27rem;
   line-height: 1.28;
 }
 
-.template-thumbnail-live .template-section-body ul {
+.template-thumbnail-normalized .template-section-body ul {
   gap: 1px;
   padding-left: 7px;
 }
 
-.template-thumbnail-live .template-sidebar {
+.template-thumbnail-normalized .template-sidebar {
   grid-template-columns: minmax(42px, 0.36fr) minmax(0, 0.64fr);
   padding: 0;
 }
 
-.template-thumbnail-live .template-sidebar-rail {
+.template-thumbnail-normalized .template-sidebar-rail {
   padding: 12px 6px;
 }
 
-.template-thumbnail-live .template-sidebar-main {
+.template-thumbnail-normalized .template-sidebar-main {
   padding: 12px 8px;
 }
 
-.template-thumbnail-live .template-compact {
+.template-thumbnail-normalized .template-compact {
   padding: 10px 11px;
 }
 
-.template-thumbnail-live .template-executive .template-contact {
+.template-thumbnail-normalized .template-executive .template-contact {
   padding-bottom: 5px;
 }
 
-.template-thumbnail-live .template-technical .template-technical-grid {
+.template-thumbnail-normalized .template-technical .template-technical-grid {
   gap: 4px;
 }
 
-.template-thumbnail-live .template-technical .template-section-skills {
+.template-thumbnail-normalized .template-technical .template-section-skills {
   padding: 5px;
   border-radius: 5px;
 }
 
-.template-thumbnail-live .template-minimal {
+.template-thumbnail-normalized .template-minimal {
   padding: 13px 14px;
 }
 
-.template-thumbnail-live .template-leadership .template-contact {
+.template-thumbnail-normalized .template-leadership .template-contact {
   margin: -11px -12px 7px;
   padding: 10px 12px;
 }
 
-.template-thumbnail-live .template-startup {
+.template-thumbnail-normalized .template-startup {
   padding: 10px 11px;
   border-top-width: 3px;
 }
 
-.template-thumbnail-live .template-editorial .template-contact {
+.template-thumbnail-normalized .template-editorial .template-contact {
   padding: 5px 0 6px;
   border-top-width: 2px;
 }
 
-.template-thumbnail-live .template-editorial .template-section-summary,
-.template-thumbnail-live .template-product .template-section-summary,
-.template-thumbnail-live .template-product .template-section-skills,
-.template-thumbnail-live .template-startup .template-section-projects {
+.template-thumbnail-normalized .template-editorial .template-section-summary,
+.template-thumbnail-normalized .template-product .template-section-summary,
+.template-thumbnail-normalized .template-product .template-section-skills,
+.template-thumbnail-normalized .template-startup .template-section-projects {
   padding: 4px;
   border-radius: 4px;
 }
 
-.template-thumbnail-live .template-portfolio {
+.template-thumbnail-normalized .template-portfolio {
   grid-template-columns: minmax(42px, 0.36fr) minmax(0, 0.64fr);
   padding: 0;
 }
 
-.template-thumbnail-live .template-portfolio .template-sidebar-rail {
+.template-thumbnail-normalized .template-portfolio .template-sidebar-rail {
   padding: 12px 6px;
 }
 
-.template-thumbnail-live .template-portfolio .template-sidebar-main {
+.template-thumbnail-normalized .template-portfolio .template-sidebar-main {
   padding: 12px 8px;
 }
 
@@ -5055,7 +5082,8 @@ a {
 /* ============ Responsive ============ */
 @media (max-width: 860px) {
   :root {
-    --template-panel-width: min(340px, calc(100vw - var(--sidebar-width) - 10px));
+    --template-panel-width: min(430px, calc(100vw - var(--sidebar-width) - 10px));
+    --template-thumbnail-scale: 0.235;
   }
 
   .app-shell.template-panel-open {
@@ -5089,7 +5117,7 @@ a {
     max-width: 0;
     height: 100dvh;
     flex: 0 0 0;
-    padding: 16px 0;
+    padding: 12px 0;
     box-shadow: 24px 0 80px rgba(0, 0, 0, 0.42);
     transform: translateX(-10px);
     transition:
@@ -5104,7 +5132,7 @@ a {
     width: var(--template-panel-width);
     max-width: var(--template-panel-width);
     flex-basis: auto;
-    padding: 16px;
+    padding: 12px;
     transform: translateX(0);
     transition:
       width 210ms ease,
@@ -5115,11 +5143,11 @@ a {
   }
 
   .template-drawer-option {
-    padding: 6px;
+    padding: 4px;
   }
 
   .template-drawer-list {
-    grid-auto-rows: 210px;
+    grid-auto-rows: 258px;
     gap: 10px;
   }
 
@@ -5402,7 +5430,8 @@ a {
 @media (max-width: 640px) {
   :root {
     --sidebar-width: 64px;
-    --template-panel-width: min(240px, calc(100vw - 72px));
+    --template-panel-width: min(320px, calc(100vw - 72px));
+    --template-thumbnail-scale: 0.32;
   }
 
   .app-shell.template-panel-open {
@@ -5454,11 +5483,12 @@ a {
   }
 
   .template-drawer-option {
-    padding: 6px;
+    padding: 4px;
   }
 
   .template-drawer-list {
-    grid-auto-rows: 190px;
+    grid-template-columns: 1fr;
+    grid-auto-rows: 356px;
   }
 
   .template-review-backdrop {
@@ -5701,16 +5731,16 @@ a {
 }
 
 /* In thumbnails shrink margins & hide icons (too small to see) */
-.template-thumbnail-live .contact-detail-list {
+.template-thumbnail-normalized .contact-detail-list {
   margin-top: 2px;
 }
 
-.template-thumbnail-live .contact-detail-item {
+.template-thumbnail-normalized .contact-detail-item {
   margin-right: 4px;
   gap: 1px;
 }
 
-.template-thumbnail-live .contact-detail-item svg {
+.template-thumbnail-normalized .contact-detail-item svg {
   display: none;
 }
 
@@ -5777,15 +5807,15 @@ a {
   color: #2563eb;
 }
 
-.template-thumbnail-live .template-split .template-contact {
+.template-thumbnail-normalized .template-split .template-contact {
   padding: 10px 11px 8px;
 }
 
-.template-thumbnail-live .template-split .split-left {
+.template-thumbnail-normalized .template-split .split-left {
   padding: 8px 6px 10px 11px;
 }
 
-.template-thumbnail-live .template-split .split-right {
+.template-thumbnail-normalized .template-split .split-right {
   padding: 8px 11px 10px 6px;
 }
 
@@ -5882,11 +5912,11 @@ a {
   color: #0f5132;
 }
 
-.template-thumbnail-live .template-gradient .gradient-head {
+.template-thumbnail-normalized .template-gradient .gradient-head {
   padding: 10px 12px 8px;
 }
 
-.template-thumbnail-live .template-gradient .gradient-body {
+.template-thumbnail-normalized .template-gradient .gradient-body {
   padding: 8px 12px;
 }
 
@@ -5985,19 +6015,19 @@ a {
   color: #2a2a2a;
 }
 
-.template-thumbnail-live .template-zen {
+.template-thumbnail-normalized .template-zen {
   padding: 14px 16px;
 }
 
-.template-thumbnail-live .template-zen .template-contact {
+.template-thumbnail-normalized .template-zen .template-contact {
   margin-bottom: 8px;
 }
 
-.template-thumbnail-live .template-zen .template-section {
+.template-thumbnail-normalized .template-zen .template-section {
   margin-top: 6px;
 }
 
-.template-thumbnail-live .template-zen .template-section h2::before {
+.template-thumbnail-normalized .template-zen .template-section h2::before {
   width: 2px;
   height: 2px;
 }
@@ -6074,7 +6104,7 @@ a {
   letter-spacing: 0.03em;
 }
 
-.template-thumbnail-live .template-impact .template-contact h1 {
+.template-thumbnail-normalized .template-impact .template-contact h1 {
   font-size: 0.65rem;
 }
 
@@ -6115,11 +6145,11 @@ a {
   color: #4f46e5;
 }
 
-.template-thumbnail-live .template-stripe {
+.template-thumbnail-normalized .template-stripe {
   padding-left: 18px;
 }
 
-.template-thumbnail-live .template-stripe::before {
+.template-thumbnail-normalized .template-stripe::before {
   width: 4px;
 }
 
@@ -6156,7 +6186,7 @@ a {
   color: #334155;
 }
 
-.template-thumbnail-live .template-frost .template-contact {
+.template-thumbnail-normalized .template-frost .template-contact {
   padding: 7px 9px;
   border-radius: 3px;
 }
@@ -6212,15 +6242,1987 @@ a {
   color: #92400e;
 }
 
-.template-thumbnail-live .template-terra {
+.template-thumbnail-normalized .template-terra {
   grid-template-columns: minmax(42px, 0.36fr) minmax(0, 0.64fr);
   padding: 0;
 }
 
-.template-thumbnail-live .template-terra .template-sidebar-rail {
+.template-thumbnail-normalized .template-terra .template-sidebar-rail {
   padding: 12px 6px;
 }
 
-.template-thumbnail-live .template-terra .template-sidebar-main {
+.template-thumbnail-normalized .template-terra .template-sidebar-main {
   padding: 12px 8px;
+}
+
+/* Thumbnail readability pass: keep the same page scale, but enlarge text only in drawer previews. */
+.template-thumbnail-normalized .template-contact h1 {
+  font-size: 1.68rem !important;
+  line-height: 1.08 !important;
+}
+
+.template-thumbnail-normalized .template-impact .template-contact h1 {
+  font-size: 2.2rem !important;
+}
+
+.template-thumbnail-normalized .template-contact p,
+.template-thumbnail-normalized .contact-detail-item {
+  font-size: 1.02rem !important;
+  line-height: 1.35 !important;
+}
+
+.template-thumbnail-normalized .template-section h2 {
+  font-size: 1.05rem !important;
+  line-height: 1.16 !important;
+}
+
+.template-thumbnail-normalized .template-section-body p,
+.template-thumbnail-normalized .template-section-body li,
+.template-thumbnail-normalized .template-labeled-line {
+  font-size: 1.02rem !important;
+  line-height: 1.36 !important;
+}
+
+
+/* ========================================================
+   CARD — Sections as bordered shadow cards
+   ======================================================== */
+
+.template-card {
+  background: #f4f6fa;
+}
+
+.template-card .template-contact {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 18px 22px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  margin-bottom: 4px;
+}
+
+.template-card .template-contact h1 {
+  font-size: 1.15rem;
+  color: #1e293b;
+}
+
+.template-card .template-section {
+  margin-top: 10px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.template-card .template-section h2 {
+  color: #2563eb;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.template-thumbnail-normalized .template-card .template-contact {
+  padding: 7px 8px;
+  border-radius: 4px;
+}
+
+.template-thumbnail-normalized .template-card .template-section {
+  margin-top: 4px;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+
+/* ========================================================
+   SERIF — Georgia serif typography throughout
+   ======================================================== */
+
+.template-serif {
+  font-family: Georgia, "Times New Roman", serif;
+  background: #fffef9;
+}
+
+.template-serif .template-contact {
+  text-align: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #c9a96e;
+  margin-bottom: 4px;
+}
+
+.template-serif .template-contact h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1a1208;
+}
+
+.template-serif .template-section h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 700;
+  color: #78350f;
+  border-bottom: 1px solid #c9a96e;
+  padding-bottom: 4px;
+}
+
+.template-serif .template-section-body p,
+.template-serif .template-section-body li {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.77rem;
+  line-height: 1.55;
+  color: #1c1208;
+}
+
+.template-serif .contact-detail-item {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+/* ========================================================
+   RULED — Extending horizontal rules from section titles
+   ======================================================== */
+
+.template-ruled {
+  background: #fafafa;
+}
+
+.template-ruled .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+
+.template-ruled .template-contact h1 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.template-ruled .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #334155;
+  font-size: 0.73rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.template-ruled .template-section h2::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #cbd5e1;
+}
+
+.template-ruled .template-section {
+  margin-top: 14px;
+  padding-bottom: 12px;
+}
+
+/* ========================================================
+   PILLAR — Large faded section counter numbers
+   ======================================================== */
+
+.template-pillar {
+  background: #fafbff;
+  counter-reset: pillar-section;
+}
+
+.template-pillar .template-contact {
+  text-align: left;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #6366f1;
+  margin-bottom: 4px;
+}
+
+.template-pillar .template-contact h1 {
+  font-size: 1.24rem;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+
+.template-pillar .template-section {
+  counter-increment: pillar-section;
+  position: relative;
+  padding-left: 44px;
+  margin-top: 14px;
+  min-height: 30px;
+}
+
+.template-pillar .template-section::before {
+  content: counter(pillar-section, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: -2px;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: rgba(99, 102, 241, 0.14);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.template-pillar .template-section h2 {
+  color: #4338ca;
+  font-size: 0.73rem;
+  letter-spacing: 0.04em;
+}
+
+.template-thumbnail-normalized .template-pillar .template-section {
+  padding-left: 14px;
+}
+
+.template-thumbnail-normalized .template-pillar .template-section::before {
+  font-size: 0.42rem;
+  top: -1px;
+}
+
+/* ========================================================
+   RETRO — Warm vintage, inverted header, serif accents
+   ======================================================== */
+
+.template-retro {
+  background: #f5f0e4;
+  padding: 0;
+  overflow: hidden;
+}
+
+.template-retro .template-contact {
+  background: #6b3a1f;
+  padding: 24px 32px 20px;
+  text-align: center;
+  margin: 0 0 24px;
+}
+
+.template-retro .template-contact h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  color: #fdf6e3;
+  font-size: 1.3rem;
+  letter-spacing: 0.04em;
+}
+
+.template-retro .template-contact .contact-detail-item {
+  color: rgba(253, 246, 227, 0.85);
+}
+
+.template-retro .template-contact .contact-detail-item svg {
+  opacity: 0.7;
+}
+
+.template-retro .template-section {
+  margin: 0 32px 14px;
+}
+
+.template-retro .template-section h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  color: #6b3a1f;
+  border-bottom: 1px solid #c4956a;
+  padding-bottom: 4px;
+  letter-spacing: 0.02em;
+}
+
+.template-retro .template-section-body p,
+.template-retro .template-section-body li {
+  font-size: 0.77rem;
+  color: #2d1f10;
+}
+
+.template-thumbnail-normalized .template-retro .template-contact {
+  padding: 9px 11px 8px;
+  margin-bottom: 8px;
+}
+
+.template-thumbnail-normalized .template-retro .template-section {
+  margin: 0 11px 4px;
+}
+
+/* ========================================================
+   BLOCK — Solid filled bars as section headers
+   ======================================================== */
+
+.template-block {
+  background: #f8f9fb;
+}
+
+.template-block .template-contact {
+  text-align: left;
+  padding-bottom: 12px;
+  border-bottom: 3px solid #1e293b;
+  margin-bottom: 4px;
+}
+
+.template-block .template-contact h1 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.template-block .template-section {
+  margin-top: 10px;
+}
+
+.template-block .template-section h2 {
+  background: #1e293b;
+  color: #f8fafc;
+  padding: 4px 10px;
+  margin: 0 -38px 8px;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.template-thumbnail-normalized .template-block .template-section h2 {
+  padding: 2px 5px;
+  margin: 0 -12px 3px;
+}
+
+/* ========================================================
+   OUTLINE — Border-only deconstructed layout
+   ======================================================== */
+
+.template-outline {
+  padding: 28px 32px;
+  background: #fff;
+}
+
+.template-outline .template-contact {
+  border: 1.5px solid #111;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.template-outline .template-contact h1 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.template-outline .template-section {
+  border: 1.5px solid #333;
+  padding: 10px 14px;
+  margin-top: 8px;
+}
+
+.template-outline .template-section h2 {
+  color: #111;
+  font-size: 0.73rem;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #999;
+}
+
+.template-thumbnail-normalized .template-outline {
+  padding: 10px 11px;
+}
+
+.template-thumbnail-normalized .template-outline .template-contact {
+  padding: 5px 6px;
+  margin-bottom: 4px;
+}
+
+.template-thumbnail-normalized .template-outline .template-section {
+  padding: 3px 5px;
+  margin-top: 3px;
+}
+
+/* ========================================================
+   NAVY — Dark navy header block with white contact text
+   ======================================================== */
+
+.template-navy {
+  padding: 0;
+  overflow: hidden;
+}
+
+.template-navy .navy-head {
+  padding: 28px 36px 24px;
+  background: #0f172a;
+}
+
+.template-navy .navy-head h1 {
+  color: #f8fafc;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.template-navy .navy-head .contact-detail-list {
+  margin-top: 7px;
+}
+
+.template-navy .navy-head .contact-detail-item {
+  color: rgba(248, 250, 252, 0.82);
+}
+
+.template-navy .navy-head .contact-detail-item svg {
+  opacity: 0.6;
+}
+
+.template-navy .navy-body {
+  padding: 24px 36px;
+  background: #fff;
+}
+
+.template-navy .template-section h2 {
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 5px;
+}
+
+.template-thumbnail-normalized .template-navy .navy-head {
+  padding: 10px 12px 8px;
+}
+
+.template-thumbnail-normalized .template-navy .navy-body {
+  padding: 8px 12px;
+}
+
+/* ========================================================
+   LAYER — Prominent highlighted summary card
+   ======================================================== */
+
+.template-layer {
+  background: #f8faf8;
+}
+
+.template-layer .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #059669;
+  margin-bottom: 14px;
+}
+
+.template-layer .template-contact h1 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #064e3b;
+}
+
+.template-layer .layer-summary-card {
+  background: rgba(5, 150, 105, 0.08);
+  border: 1px solid rgba(5, 150, 105, 0.22);
+  border-left: 4px solid #059669;
+  border-radius: 0 6px 6px 0;
+  padding: 12px 16px;
+  margin-bottom: 4px;
+}
+
+.template-layer .layer-summary-card p,
+.template-layer .layer-summary-card li {
+  color: #065f46;
+  font-size: 0.78rem;
+  line-height: 1.52;
+}
+
+.template-layer .template-section h2 {
+  color: #059669;
+}
+
+.template-thumbnail-normalized .template-layer .layer-summary-card {
+  padding: 4px 6px;
+  margin-bottom: 2px;
+}
+
+/* ========================================================
+   ARC — Curved arch bottom on the contact header
+   ======================================================== */
+
+.template-arc {
+  padding: 0;
+  overflow: hidden;
+  background: #faf8ff;
+}
+
+.template-arc .template-contact {
+  background: #7c3aed;
+  padding: 26px 36px 42px;
+  border-radius: 0 0 50% 50% / 0 0 36px 36px;
+  text-align: center;
+  margin: 0 0 6px;
+}
+
+.template-arc .template-contact h1 {
+  color: #fff;
+  font-size: 1.28rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.template-arc .template-contact .contact-detail-list {
+  margin-top: 7px;
+}
+
+.template-arc .template-contact .contact-detail-item {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.template-arc .template-contact .contact-detail-item svg {
+  opacity: 0.75;
+}
+
+.template-arc .template-section {
+  margin: 10px 36px 0;
+}
+
+.template-arc .template-section h2 {
+  color: #7c3aed;
+  border-bottom: 1px solid #ede9fe;
+  padding-bottom: 5px;
+}
+
+.template-thumbnail-normalized .template-arc .template-contact {
+  padding: 10px 12px 16px;
+  border-radius: 0 0 50% 50% / 0 0 12px 12px;
+}
+
+.template-thumbnail-normalized .template-arc .template-section {
+  margin: 3px 12px 0;
+}
+
+
+/* ========================================================
+   BATCH 2 — 20 ATS-SAFE TEMPLATES
+   ======================================================== */
+
+/* ── CLEAN: pure black/white, zero decoration ── */
+.template-clean {
+  background: #fff;
+}
+.template-clean .template-contact {
+  text-align: left;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #111;
+  margin-bottom: 6px;
+}
+.template-clean .template-contact h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #000;
+}
+.template-clean .template-section h2 {
+  color: #000;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #555;
+}
+.template-clean .template-section-body p,
+.template-clean .template-section-body li {
+  color: #111;
+}
+
+/* ── SPARK: green triangle arrow before section titles ── */
+.template-spark {
+  background: #fafdf9;
+}
+.template-spark .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+.template-spark .template-contact h1 {
+  font-size: 1.18rem;
+  color: #14532d;
+}
+.template-spark .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #166534;
+}
+.template-spark .template-section h2::before {
+  content: "▸";
+  color: #16a34a;
+  font-size: 0.9em;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+/* ── SHORE: ocean-blue, bottom borders on sections ── */
+.template-shore {
+  background: #f7f9fd;
+}
+.template-shore .template-contact {
+  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #3b82f6;
+  margin-bottom: 6px;
+}
+.template-shore .template-contact h1 {
+  font-size: 1.22rem;
+  color: #1e3a8a;
+}
+.template-shore .template-section {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #bfdbfe;
+}
+.template-shore .template-section:last-child {
+  border-bottom: none;
+}
+.template-shore .template-section h2 {
+  color: #1d4ed8;
+}
+
+/* ── GROVE: olive-green left-border on section titles ── */
+.template-grove {
+  background: #f9faf5;
+}
+.template-grove .template-contact {
+  text-align: center;
+  margin-bottom: 6px;
+}
+.template-grove .template-contact h1 {
+  font-size: 1.2rem;
+  color: #1a3a1a;
+}
+.template-grove .template-section h2 {
+  padding-left: 10px;
+  border-left: 3px solid #4d7c0f;
+  color: #365314;
+}
+
+/* ── SMOKE: charcoal banner header, light gray body ── */
+.template-smoke {
+  background: #f4f4f4;
+  padding: 0;
+  overflow: hidden;
+}
+.template-smoke .template-contact {
+  background: #2d2d2d;
+  margin: 0 0 24px;
+  padding: 22px 38px 18px;
+  text-align: left;
+}
+.template-smoke .template-contact h1 {
+  color: #fff;
+  font-size: 1.22rem;
+}
+.template-smoke .template-contact .contact-detail-item {
+  color: rgba(255, 255, 255, 0.82);
+}
+.template-smoke .template-contact .contact-detail-item svg {
+  opacity: 0.6;
+}
+.template-smoke .template-section {
+  margin-left: 38px;
+  margin-right: 38px;
+}
+.template-smoke .template-section h2 {
+  color: #2d2d2d;
+}
+.template-thumbnail-normalized .template-smoke .template-contact {
+  padding: 9px 12px 8px;
+  margin-bottom: 8px;
+}
+.template-thumbnail-normalized .template-smoke .template-section {
+  margin-left: 12px;
+  margin-right: 12px;
+}
+
+/* ── SLATE: blue-gray, dash underline on section h2 ── */
+.template-slate {
+  background: #f8f9fb;
+}
+.template-slate .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #94a3b8;
+}
+.template-slate .template-contact h1 {
+  font-size: 1.18rem;
+  color: #1e293b;
+}
+.template-slate .template-section h2 {
+  color: #475569;
+  padding-bottom: 4px;
+  border-bottom: 2px dashed #94a3b8;
+}
+
+/* ── EMBER: warm orange-amber, bold name ── */
+.template-ember {
+  background: #fffaf5;
+}
+.template-ember .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #ea580c;
+  margin-bottom: 4px;
+}
+.template-ember .template-contact h1 {
+  font-size: 1.32rem;
+  font-weight: 800;
+  color: #431407;
+  letter-spacing: -0.01em;
+}
+.template-ember .template-section h2 {
+  color: #c2410c;
+}
+
+/* ── SAGE: muted sage, italic section titles, top border ── */
+.template-sage {
+  background: #f6f8f4;
+}
+.template-sage .template-contact {
+  text-align: center;
+  margin-bottom: 6px;
+}
+.template-sage .template-contact h1 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #2d3b2d;
+  letter-spacing: 0.01em;
+}
+.template-sage .template-section {
+  padding-top: 12px;
+  border-top: 1px solid #c1d1be;
+  margin-top: 12px;
+}
+.template-sage .template-section:first-of-type {
+  margin-top: 4px;
+}
+.template-sage .template-section h2 {
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #4a6e47;
+  margin-bottom: 6px;
+}
+.template-sage .template-section h2::after {
+  content: none;
+}
+
+/* ── ROSE: dusty rose, centered, double underline name ── */
+.template-rose {
+  background: #fdf8f8;
+}
+.template-rose .template-contact {
+  text-align: center;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: double 3px #c07a90;
+}
+.template-rose .template-contact h1 {
+  font-size: 1.22rem;
+  color: #7b2d3e;
+  letter-spacing: 0.02em;
+}
+.template-rose .template-section h2 {
+  color: #9d5f72;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #f0c4cf;
+}
+
+/* ── STEEL: dark steel, heavy name, strong rules ── */
+.template-steel {
+  background: #f5f6f8;
+}
+.template-steel .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+.template-steel .template-contact h1 {
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #0c1820;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.template-steel .template-section {
+  margin-top: 12px;
+}
+.template-steel .template-section h2 {
+  color: #1c2837;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #1c2837;
+}
+.template-thumbnail-normalized .template-steel .template-contact h1 {
+  font-size: 0.55rem;
+}
+
+/* ── TEAK: warm brown, name left / contact right split ── */
+.template-teak {
+  background: #fdf9f4;
+}
+.template-teak .template-contact {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #c4a882;
+  margin-bottom: 6px;
+}
+.template-teak .template-contact h1 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #3b1f0a;
+  flex-shrink: 0;
+}
+.template-teak .template-contact .contact-detail-list {
+  margin-top: 0;
+  text-align: right;
+}
+.template-teak .template-section h2 {
+  color: #7c4a1e;
+}
+
+/* ── INK: charcoal, top border accent on each section ── */
+.template-ink {
+  background: #fafafa;
+}
+.template-ink .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+.template-ink .template-contact h1 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #1a1a20;
+}
+.template-ink .template-section {
+  border-top: 2px solid #1e1e23;
+  padding-top: 10px;
+  margin-top: 12px;
+}
+.template-ink .template-section h2 {
+  color: #1e1e23;
+  letter-spacing: 0.04em;
+}
+
+/* ── PEARL: ivory bg, centered, thin gold separator ── */
+.template-pearl {
+  background: #fffef6;
+}
+.template-pearl .template-contact {
+  text-align: center;
+  padding-bottom: 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #b4916a;
+}
+.template-pearl .template-contact h1 {
+  font-size: 1.28rem;
+  font-weight: 600;
+  color: #2c1a08;
+  letter-spacing: 0.03em;
+}
+.template-pearl .template-section h2 {
+  color: #7a5230;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e6d2b8;
+}
+
+/* ── COBALT: bold blue, thick left border + tint on h2 ── */
+.template-cobalt {
+  background: #f8faff;
+}
+.template-cobalt .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #2563eb;
+  margin-bottom: 4px;
+}
+.template-cobalt .template-contact h1 {
+  font-size: 1.22rem;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+.template-cobalt .template-section h2 {
+  color: #1d4ed8;
+  padding: 4px 8px;
+  margin-left: -8px;
+  background: rgba(37, 99, 235, 0.06);
+  border-left: 3px solid #2563eb;
+}
+
+/* ── MINT: teal-mint, filled square before section h2 ── */
+.template-mint {
+  background: #f6fdfe;
+}
+.template-mint .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #0891b2;
+  margin-bottom: 4px;
+}
+.template-mint .template-contact h1 {
+  font-size: 1.18rem;
+  color: #164e63;
+}
+.template-mint .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #0e7490;
+}
+.template-mint .template-section h2::before {
+  content: "■";
+  font-size: 0.5em;
+  color: #0891b2;
+  flex-shrink: 0;
+}
+
+/* ── BRONZE: copper tones, em-dash before section h2 ── */
+.template-bronze {
+  background: #fdf8f2;
+}
+.template-bronze .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #b45c1e;
+  margin-bottom: 4px;
+}
+.template-bronze .template-contact h1 {
+  font-size: 1.2rem;
+  color: #4a2010;
+}
+.template-bronze .template-section h2 {
+  color: #b45c1e;
+}
+.template-bronze .template-section h2::before {
+  content: "— ";
+  font-weight: 400;
+  color: #c97a3a;
+}
+
+/* ── SHADOW: drop shadow on contact card, clean body ── */
+.template-shadow {
+  background: #f3f5f8;
+}
+.template-shadow .template-contact {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.1);
+  padding: 18px 22px;
+  margin-bottom: 10px;
+  text-align: left;
+}
+.template-shadow .template-contact h1 {
+  font-size: 1.18rem;
+  color: #1e293b;
+}
+.template-shadow .template-section h2 {
+  color: #475569;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.template-thumbnail-normalized .template-shadow .template-contact {
+  padding: 7px 9px;
+  border-radius: 4px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+  margin-bottom: 4px;
+}
+
+/* ── DASH: dashed bottom border between sections ── */
+.template-dash {
+  background: #fafbfc;
+}
+.template-dash .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #64748b;
+  margin-bottom: 6px;
+}
+.template-dash .template-contact h1 {
+  font-size: 1.18rem;
+  color: #0f172a;
+}
+.template-dash .template-section {
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #94a3b8;
+  margin-top: 12px;
+}
+.template-dash .template-section:last-child {
+  border-bottom: none;
+}
+.template-dash .template-section h2 {
+  color: #334155;
+}
+
+/* ── FLOW: cyan left-bar runs full height of each section ── */
+.template-flow {
+  background: #f8fdff;
+}
+.template-flow .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #0891b2;
+  margin-bottom: 4px;
+}
+.template-flow .template-contact h1 {
+  font-size: 1.18rem;
+  color: #0c4a6e;
+}
+.template-flow .template-section {
+  border-left: 4px solid #06b6d4;
+  padding-left: 12px;
+  margin-top: 14px;
+}
+.template-flow .template-section h2 {
+  color: #0369a1;
+}
+
+/* ── ANCHOR: centered h2 with extending flanking lines ── */
+.template-anchor {
+  background: #fafbff;
+}
+.template-anchor .template-contact {
+  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #c7d2fe;
+  margin-bottom: 6px;
+}
+.template-anchor .template-contact h1 {
+  font-size: 1.22rem;
+  color: #1e1b4b;
+}
+.template-anchor .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4338ca;
+  font-size: 0.73rem;
+  letter-spacing: 0.05em;
+  text-align: center;
+  justify-content: center;
+}
+.template-anchor .template-section h2::before,
+.template-anchor .template-section h2::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #c7d2fe;
+}
+
+
+/* ========================================================
+   PLUM — Rich purple palette, centered contact
+   ======================================================== */
+
+.template-plum {
+  background: #fff;
+  color: #1e0a3c;
+}
+
+.template-plum .template-contact {
+  text-align: center;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #7e22ce;
+  margin-bottom: 16px;
+}
+
+.template-plum .template-contact h1 {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #4c1d95;
+  letter-spacing: 0.01em;
+}
+
+.template-plum .template-contact p {
+  color: #6b21a8;
+  font-size: 0.78rem;
+}
+
+.template-plum .contact-detail-list {
+  justify-content: center;
+}
+
+.template-plum .template-section h2 {
+  color: #7e22ce;
+  border-bottom: 1px solid #e9d5ff;
+  padding-bottom: 3px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.template-plum .template-section-body {
+  color: #1e0a3c;
+}
+
+.template-thumbnail-normalized .template-plum .template-contact {
+  padding-bottom: 20px;
+}
+
+/* ========================================================
+   OCEAN — Deep ocean teal, left-aligned, teal border
+   ======================================================== */
+
+.template-ocean {
+  background: #fff;
+  color: #0c1a20;
+}
+
+.template-ocean .template-contact {
+  border-left: 4px solid #0e7490;
+  padding-left: 14px;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+}
+
+.template-ocean .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0c4a6e;
+  letter-spacing: 0.01em;
+}
+
+.template-ocean .template-contact p {
+  color: #0e7490;
+  font-size: 0.77rem;
+}
+
+.template-ocean .template-section h2 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #0e7490;
+  border-bottom: 1.5px solid #cffafe;
+  padding-bottom: 3px;
+  font-weight: 700;
+}
+
+/* ========================================================
+   FOREST — Dark emerald green, bold contact
+   ======================================================== */
+
+.template-forest {
+  background: #fff;
+  color: #0a160c;
+}
+
+.template-forest .template-contact {
+  background: #f0fdf4;
+  padding: 14px 18px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  border-left: 4px solid #14532d;
+}
+
+.template-forest .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #14532d;
+}
+
+.template-forest .template-contact p {
+  color: #166534;
+  font-size: 0.77rem;
+}
+
+.template-forest .template-section h2 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #15803d;
+  border-bottom: 1.5px solid #bbf7d0;
+  padding-bottom: 3px;
+  font-weight: 700;
+}
+
+/* ========================================================
+   SAND — Warm sandy palette, soft amber
+   ======================================================== */
+
+.template-sand {
+  background: #fdf8ef;
+  color: #1c0f04;
+}
+
+.template-sand .resume-template-preview {
+  background: #fdf8ef;
+}
+
+.template-sand .template-contact {
+  text-align: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d4a96a;
+  margin-bottom: 14px;
+}
+
+.template-sand .template-contact h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #78350f;
+  letter-spacing: 0.02em;
+}
+
+.template-sand .template-contact p {
+  color: #92400e;
+  font-size: 0.77rem;
+}
+
+.template-sand .contact-detail-list {
+  justify-content: center;
+}
+
+.template-sand .template-section h2 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #92400e;
+  border-bottom: 1px solid #fcd34d;
+  padding-bottom: 3px;
+  font-weight: 700;
+}
+
+.template-sand .template-section-body {
+  color: #1c1109;
+}
+
+.template-thumbnail-normalized .template-sand .resume-template-preview {
+  background: #fdf8ef;
+}
+
+/* ========================================================
+   COPPER — Vivid copper-orange, bold left section border
+   ======================================================== */
+
+.template-copper {
+  background: #fff;
+  color: #1a0800;
+}
+
+.template-copper .template-contact {
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 3px solid #c2410c;
+}
+
+.template-copper .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #7c2d12;
+  letter-spacing: 0.01em;
+}
+
+.template-copper .template-contact p {
+  color: #c2410c;
+  font-size: 0.77rem;
+}
+
+.template-copper .template-section {
+  border-left: 3px solid #fed7aa;
+  padding-left: 12px;
+  margin-left: -12px;
+}
+
+.template-copper .template-section h2 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #c2410c;
+  padding-bottom: 2px;
+  font-weight: 700;
+}
+
+/* ========================================================
+   SIGNAL — High contrast black, vivid red dots
+   ======================================================== */
+
+.template-signal {
+  background: #fff;
+  color: #0a0a0a;
+}
+
+.template-signal .template-contact {
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+}
+
+.template-signal .template-contact h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #000;
+  letter-spacing: -0.01em;
+}
+
+.template-signal .template-contact p {
+  color: #3f3f46;
+  font-size: 0.77rem;
+}
+
+.template-signal .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #000;
+  border-bottom: 1.5px solid #e4e4e7;
+  padding-bottom: 4px;
+}
+
+.template-signal .template-section h2::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+}
+
+/* ========================================================
+   VERSO — Right-aligned contact header
+   ======================================================== */
+
+.template-verso {
+  background: #fff;
+  color: #1e1b4b;
+}
+
+.template-verso .template-contact {
+  text-align: right;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #4338ca;
+  margin-bottom: 16px;
+}
+
+.template-verso .template-contact h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+
+.template-verso .template-contact p {
+  color: #4338ca;
+  font-size: 0.77rem;
+}
+
+.template-verso .contact-detail-list {
+  justify-content: flex-end;
+}
+
+.template-verso .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #4338ca;
+  border-bottom: 1.5px solid #e0e7ff;
+  padding-bottom: 3px;
+}
+
+/* ========================================================
+   CHAPTER — Roman numeral section markers
+   ======================================================== */
+
+.template-chapter {
+  background: #fff;
+  color: #1a0a2e;
+  counter-reset: chapter-counter;
+}
+
+.template-chapter .template-contact {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #ede9fe;
+}
+
+.template-chapter .template-contact h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1a0a2e;
+}
+
+.template-chapter .template-contact p {
+  color: #6d28d9;
+  font-size: 0.77rem;
+}
+
+.template-chapter .template-section {
+  counter-increment: chapter-counter;
+}
+
+.template-chapter .template-section h2 {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #1a0a2e;
+  border-bottom: 1px solid #ddd6fe;
+  padding-bottom: 3px;
+}
+
+.template-chapter .template-section h2::before {
+  content: counter(chapter-counter, upper-roman) " · ";
+  color: #7c3aed;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* ========================================================
+   LINEN — Warm linen background, soft brown
+   ======================================================== */
+
+.template-linen {
+  background: #f5f0e4;
+  color: #2c1e0a;
+}
+
+.template-linen .resume-template-preview {
+  background: #f5f0e4;
+}
+
+.template-linen .template-contact {
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #c9a96e;
+}
+
+.template-linen .template-contact h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #431407;
+  letter-spacing: 0.01em;
+}
+
+.template-linen .template-contact p {
+  color: #78350f;
+  font-size: 0.77rem;
+}
+
+.template-linen .template-section h2 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #78350f;
+  border-bottom: 1px solid #c9a96e;
+  padding-bottom: 3px;
+}
+
+.template-thumbnail-normalized .template-linen .resume-template-preview {
+  background: #f5f0e4;
+}
+
+/* ========================================================
+   HERALD — Extra-large bold name, thick bottom rule
+   ======================================================== */
+
+.template-herald {
+  background: #fff;
+  color: #0f172a;
+}
+
+.template-herald .template-contact {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 4px solid #0f172a;
+}
+
+.template-herald .template-contact h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.template-herald .template-contact p {
+  color: #475569;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.template-herald .template-section h2 {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #0f172a;
+  border-bottom: 1.5px solid #e2e8f0;
+  padding-bottom: 3px;
+}
+
+.template-thumbnail-normalized .template-herald .template-contact h1 {
+  font-size: 2.2rem !important;
+}
+
+/* ========================================================
+   CHALK — Dark charcoal section headers, white text
+   ======================================================== */
+
+.template-chalk {
+  background: #fffef5;
+  color: #1a1a1a;
+}
+
+.template-chalk .resume-template-preview {
+  background: #fffef5;
+}
+
+.template-chalk .template-contact {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #d4d4aa;
+}
+
+.template-chalk .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1c2537;
+}
+
+.template-chalk .template-contact p {
+  color: #4a5568;
+  font-size: 0.77rem;
+}
+
+.template-chalk .template-section h2 {
+  background: #1c2537;
+  color: #f8f8f0;
+  padding: 4px 10px;
+  font-size: 0.67rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 3px;
+  margin-bottom: 6px;
+}
+
+.template-thumbnail-normalized .template-chalk .resume-template-preview {
+  background: #fffef5;
+}
+
+/* ========================================================
+   PEAK — Teal chevron › before section titles
+   ======================================================== */
+
+.template-peak {
+  background: #fff;
+  color: #0c1a20;
+}
+
+.template-peak .template-contact {
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1.5px solid #cffafe;
+}
+
+.template-peak .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0c4a6e;
+}
+
+.template-peak .template-contact p {
+  color: #0891b2;
+  font-size: 0.77rem;
+}
+
+.template-peak .template-section h2 {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #0c4a6e;
+  border-bottom: 1px solid #e0f2fe;
+  padding-bottom: 3px;
+}
+
+.template-peak .template-section h2::before {
+  content: "› ";
+  color: #0891b2;
+  font-weight: 700;
+  font-size: 1em;
+}
+
+/* ========================================================
+   RIVER — Gradient vertical line per section
+   ======================================================== */
+
+.template-river {
+  background: #fff;
+  color: #0c1a24;
+}
+
+.template-river .template-contact {
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid #0284c7;
+}
+
+.template-river .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0c4a6e;
+}
+
+.template-river .template-contact p {
+  color: #0284c7;
+  font-size: 0.77rem;
+}
+
+.template-river .template-section {
+  position: relative;
+  padding-left: 14px;
+  margin-left: -2px;
+}
+
+.template-river .template-section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #0284c7, rgba(2, 132, 199, 0.08));
+  border-radius: 1px;
+}
+
+.template-river .template-section h2 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #0284c7;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #e0f2fe;
+}
+
+/* ========================================================
+   ALTO — Gold luxury accent, thin elegant lines
+   ======================================================== */
+
+.template-alto {
+  background: #fff;
+  color: #1a1200;
+}
+
+.template-alto .template-contact {
+  text-align: center;
+  padding: 14px 0;
+  border-top: 1px solid #ca8a04;
+  border-bottom: 1px solid #ca8a04;
+  margin-bottom: 16px;
+}
+
+.template-alto .template-contact h1 {
+  font-size: 1.7rem;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  color: #1a1200;
+  text-transform: uppercase;
+}
+
+.template-alto .template-contact p {
+  color: #92400e;
+  font-size: 0.77rem;
+  letter-spacing: 0.04em;
+}
+
+.template-alto .contact-detail-list {
+  justify-content: center;
+}
+
+.template-alto .template-section h2 {
+  font-size: 0.66rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #ca8a04;
+  border-bottom: 1px solid #fde68a;
+  padding-bottom: 3px;
+}
+
+/* ========================================================
+   SCOUT — Filled circle markers before section titles
+   ======================================================== */
+
+.template-scout {
+  background: #fff;
+  color: #0f0505;
+}
+
+.template-scout .template-contact {
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid #dc2626;
+}
+
+.template-scout .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f0505;
+}
+
+.template-scout .template-contact p {
+  color: #dc2626;
+  font-size: 0.77rem;
+}
+
+.template-scout .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #0f0505;
+  border-bottom: 1px solid #fee2e2;
+  padding-bottom: 3px;
+}
+
+.template-scout .template-section h2::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #dc2626;
+  flex-shrink: 0;
+}
+
+/* ========================================================
+   CREST — Centered all-caps name between twin gold rules
+   ======================================================== */
+
+.template-crest {
+  background: #fff;
+  color: #1a1200;
+}
+
+.template-crest .template-contact {
+  text-align: center;
+  padding: 12px 0;
+  border-top: 2px solid #a16207;
+  border-bottom: 2px solid #a16207;
+  margin-bottom: 16px;
+}
+
+.template-crest .template-contact h1 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #1a1200;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.template-crest .template-contact p {
+  color: #a16207;
+  font-size: 0.76rem;
+  letter-spacing: 0.03em;
+}
+
+.template-crest .contact-detail-list {
+  justify-content: center;
+}
+
+.template-crest .template-section h2 {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #92400e;
+  border-bottom: 1px solid #fde68a;
+  padding-bottom: 3px;
+}
+
+/* ========================================================
+   FLUX — Alternating section background bands
+   ======================================================== */
+
+.template-flux {
+  background: #fff;
+  color: #0f0a2e;
+}
+
+.template-flux .template-contact {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #6366f1;
+}
+
+.template-flux .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+
+.template-flux .template-contact p {
+  color: #6366f1;
+  font-size: 0.77rem;
+}
+
+.template-flux .template-section {
+  margin-left: -38px;
+  margin-right: -38px;
+  padding-left: 38px;
+  padding-right: 38px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.template-flux .template-section:nth-child(odd) {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.template-flux .template-section h2 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #4f46e5;
+  border-bottom: 1px solid #e0e7ff;
+  padding-bottom: 3px;
+}
+
+.template-thumbnail-normalized .template-flux .template-section {
+  margin-left: -38px;
+  margin-right: -38px;
+  padding-left: 38px;
+  padding-right: 38px;
+}
+
+/* ========================================================
+   MOSS — Deep olive-moss green
+   ======================================================== */
+
+.template-moss {
+  background: #fff;
+  color: #0e1a08;
+}
+
+.template-moss .template-contact {
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid #365314;
+}
+
+.template-moss .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a2e0a;
+}
+
+.template-moss .template-contact p {
+  color: #365314;
+  font-size: 0.77rem;
+}
+
+.template-moss .template-section h2 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #3f6212;
+  border-bottom: 1.5px solid #d9f99d;
+  padding-bottom: 3px;
+}
+
+.template-moss .template-section-body {
+  color: #0e1a08;
+}
+
+/* ========================================================
+   VAPOR — Ultra-light 300-weight type, maximum whitespace
+   ======================================================== */
+
+.template-vapor {
+  background: #fff;
+  color: #1e293b;
+}
+
+.template-vapor .template-contact {
+  text-align: center;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.template-vapor .template-contact h1 {
+  font-size: 1.7rem;
+  font-weight: 300;
+  color: #0f172a;
+  letter-spacing: 0.05em;
+}
+
+.template-vapor .template-contact p {
+  color: #64748b;
+  font-size: 0.77rem;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+
+.template-vapor .contact-detail-list {
+  justify-content: center;
+}
+
+.template-vapor .template-section {
+  margin-top: 16px;
+}
+
+.template-vapor .template-section h2 {
+  font-size: 0.68rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #94a3b8;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 4px;
+}
+
+.template-vapor .template-section-body {
+  font-weight: 300;
+}
+
+/* ========================================================
+   GRAIN — Warm gray, neutral versatile
+   ======================================================== */
+
+.template-grain {
+  background: #fafaf9;
+  color: #1c1917;
+}
+
+.template-grain .resume-template-preview {
+  background: #fafaf9;
+}
+
+.template-grain .template-contact {
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid #475569;
+}
+
+.template-grain .template-contact h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1c1917;
+}
+
+.template-grain .template-contact p {
+  color: #475569;
+  font-size: 0.77rem;
+}
+
+.template-grain .template-section h2 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #334155;
+  border-bottom: 1.5px solid #e2e8f0;
+  padding-bottom: 3px;
+}
+
+.template-grain .template-section-body {
+  color: #292524;
+}
+
+.template-thumbnail-normalized .template-grain .resume-template-preview {
+  background: #fafaf9;
 }
