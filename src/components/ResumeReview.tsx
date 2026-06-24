@@ -428,6 +428,7 @@ function ResultsTab({
       <div className="template-comparison-grid">
         <div className="template-comparison-pane template-comparison-before">
           <ResumeTemplatePreview
+            key={`before-${templateId}`}
             document={originalDocument}
             templateId={templateId}
             renderSectionContent={(section) =>
@@ -437,6 +438,7 @@ function ResultsTab({
         </div>
         <div className="template-comparison-pane template-comparison-after">
           <ResumeTemplatePreview
+            key={`after-${templateId}`}
             document={optimizedDocument}
             templateId={templateId}
             renderSectionContent={(section) =>

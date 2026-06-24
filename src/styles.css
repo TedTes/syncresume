@@ -31,6 +31,9 @@
   --warning: #fbbf24;
   --warning-bg: rgba(251, 191, 36, 0.12);
   --warning-border: rgba(251, 191, 36, 0.32);
+
+  --sidebar-width: 82px;
+  --template-panel-width: 380px;
 }
 
 *,
@@ -59,8 +62,6 @@ a {
 
 /* ============ App shell: sidebar + main area ============ */
 .app-shell {
-  --sidebar-width: 82px;
-  --template-panel-width: 380px;
   --template-rail-width: 0px;
   display: flex;
   min-height: 100vh;
@@ -908,7 +909,7 @@ a {
 
 .template-review-backdrop {
   position: fixed;
-  inset: 0;
+  inset: 0 0 0 calc(var(--sidebar-width) + var(--template-panel-width));
   z-index: 140;
   display: block;
   padding: 0;
@@ -918,7 +919,7 @@ a {
 
 .template-review-modal {
   display: flex;
-  width: 100vw;
+  width: 100%;
   height: 100dvh;
   max-height: none;
   flex-direction: column;
@@ -4748,6 +4749,10 @@ a {
 
 /* ============ Responsive ============ */
 @media (max-width: 860px) {
+  :root {
+    --template-panel-width: min(340px, calc(100vw - var(--sidebar-width) - 10px));
+  }
+
   .app-shell.template-panel-open {
     --template-rail-width: 0px;
   }
@@ -4791,8 +4796,8 @@ a {
   }
 
   .template-drawer-push.is-open {
-    width: min(340px, calc(100vw - var(--sidebar-width) - 10px));
-    max-width: min(340px, calc(100vw - var(--sidebar-width) - 10px));
+    width: var(--template-panel-width);
+    max-width: var(--template-panel-width);
     flex-basis: auto;
     padding: 16px;
     transform: translateX(0);
@@ -5058,8 +5063,9 @@ a {
 }
 
 @media (max-width: 640px) {
-  .app-shell {
+  :root {
     --sidebar-width: 64px;
+    --template-panel-width: min(240px, calc(100vw - 72px));
   }
 
   .app-shell.template-panel-open {
@@ -5105,8 +5111,8 @@ a {
   }
 
   .template-drawer-push.is-open {
-    width: min(300px, calc(100vw - var(--sidebar-width) - 8px));
-    max-width: min(300px, calc(100vw - var(--sidebar-width) - 8px));
+    width: var(--template-panel-width);
+    max-width: var(--template-panel-width);
     flex-basis: auto;
   }
 

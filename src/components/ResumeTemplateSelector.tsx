@@ -98,6 +98,13 @@ export function ResumeTemplatePanel({
   const reviewTemplate = RESUME_TEMPLATES.find((template) => template.id === reviewTemplateId);
   const reviewDocument = previewDocument ?? DEFAULT_TEMPLATE_PREVIEW_DOCUMENT;
 
+  function handleSelectTemplate(templateId: ResumeTemplateId) {
+    onSelect(templateId);
+    if (reviewTemplateId) {
+      setReviewTemplateId(templateId);
+    }
+  }
+
   useEffect(() => {
     if (!reviewTemplateId) return;
 
@@ -149,7 +156,11 @@ export function ResumeTemplatePanel({
               </button>
             </header>
             <div className="template-review-canvas">
-              <ResumeTemplatePreview document={reviewDocument} templateId={reviewTemplate.id} />
+              <ResumeTemplatePreview
+                key={reviewTemplate.id}
+                document={reviewDocument}
+                templateId={reviewTemplate.id}
+              />
             </div>
           </section>
         </div>,
@@ -193,7 +204,7 @@ export function ResumeTemplatePanel({
                   type="button"
                   className="template-drawer-select-hitbox"
                   aria-label={`Select ${template.name} template`}
-                  onClick={() => onSelect(template.id)}
+                  onClick={() => handleSelectTemplate(template.id)}
                 >
                   <ResumeTemplateThumbnail templateId={template.id} document={previewDocument} />
                   <span className="template-drawer-option-main">
@@ -209,7 +220,10 @@ export function ResumeTemplatePanel({
                   type="button"
                   className="template-drawer-review"
                   aria-label={`Preview ${template.name} template`}
-                  onClick={() => setReviewTemplateId(template.id)}
+                  onClick={() => {
+                    handleSelectTemplate(template.id);
+                    setReviewTemplateId(template.id);
+                  }}
                 >
                   <Eye aria-hidden="true" />
                   Preview
