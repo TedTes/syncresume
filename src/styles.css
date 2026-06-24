@@ -35,6 +35,13 @@
   --sidebar-width: 82px;
   --template-panel-width: 500px;
   --template-thumbnail-scale: 0.265;
+
+  /* Motion tokens */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-fast: 140ms;
+  --motion-med: 220ms;
+  --motion-slow: 300ms;
 }
 
 *,
@@ -676,11 +683,11 @@ a {
   visibility: hidden;
   animation: none;
   transition:
-    width 220ms ease,
-    max-width 220ms ease,
-    flex-basis 220ms ease,
-    opacity 140ms ease,
-    visibility 0s linear 220ms;
+    width var(--motion-med) var(--ease-out),
+    max-width var(--motion-med) var(--ease-out),
+    flex-basis var(--motion-med) var(--ease-out),
+    opacity var(--motion-fast) ease,
+    visibility 0s linear var(--motion-med);
 }
 
 .template-drawer-push.is-open {
@@ -693,10 +700,10 @@ a {
   pointer-events: auto;
   visibility: visible;
   transition:
-    width 220ms ease,
-    max-width 220ms ease,
-    flex-basis 220ms ease,
-    opacity 140ms ease 60ms,
+    width var(--motion-med) var(--ease-out),
+    max-width var(--motion-med) var(--ease-out),
+    flex-basis var(--motion-med) var(--ease-out),
+    opacity var(--motion-fast) ease 60ms,
     visibility 0s;
 }
 
@@ -750,7 +757,10 @@ a {
   color: var(--ink);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
   overflow: hidden;
 }
 
@@ -2775,8 +2785,8 @@ a {
   grid-template-rows: 1fr;
   opacity: 1;
   transition:
-    grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 200ms ease;
+    grid-template-rows var(--motion-slow) var(--ease-out),
+    opacity var(--motion-med) ease;
 }
 
 .workspace-job-section .job-reference-body.is-collapsed .job-editor-section {
@@ -2795,8 +2805,8 @@ a {
   opacity: 0;
   pointer-events: none;
   transition:
-    grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 200ms ease 60ms;
+    grid-template-rows var(--motion-slow) var(--ease-out),
+    opacity var(--motion-med) ease 60ms;
 }
 
 .workspace-job-section .job-reference-body.is-collapsed .job-collapsed-summary-wrapper {
@@ -2910,12 +2920,24 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .workspace-job-section .job-editor-section,
-  .workspace-job-section .job-collapsed-summary-wrapper,
-  .workspace-job-section .job-entry-header h2,
-  .workspace-job-section .job-editor-card {
+  /* Kill all non-essential transitions and animations */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  /* Collapse/expand wrappers: skip animation, jump to final state */
+  .application-card-body-collapse {
     transition: none;
-    animation: none;
+  }
+
+  .workspace-job-section .job-editor-section,
+  .workspace-job-section .job-collapsed-summary-wrapper {
+    transition: none;
   }
 
   .template-drawer,
@@ -2923,6 +2945,20 @@ a {
   .template-drawer-push {
     transition: none;
     animation: none;
+  }
+
+  /* Keep visibility toggle instant */
+  .template-drawer-push {
+    transition: visibility 0s !important;
+  }
+  .template-drawer-push.is-open {
+    transition: visibility 0s !important;
+  }
+
+  /* Page-level mask fade on thumbnails */
+  .template-thumbnail-page {
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 }
 
@@ -2994,8 +3030,8 @@ a {
   border: 1px solid var(--border);
   border-radius: 10px;
   transition:
-    border-color 160ms ease,
-    background 160ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .application-card:hover {
@@ -3037,6 +3073,29 @@ a {
   transform: rotate(180deg);
 }
 
+/* Collapsible body wrapper — always rendered, animated via grid rows */
+.application-card-body-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--motion-med) var(--ease-out),
+    opacity var(--motion-fast) ease;
+}
+
+.application-card.is-open .application-card-body-collapse {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--motion-med) var(--ease-out),
+    opacity var(--motion-med) ease 40ms;
+}
+
+.application-card-body-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .application-card-body {
   border-top: 1px solid var(--border);
   padding: 14px;
@@ -3064,8 +3123,13 @@ a {
   padding: 10px;
   text-align: left;
   transition:
-    border-color 160ms ease,
-    background 160ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.application-artifact-item:active {
+  transform: scale(0.99);
 }
 
 .application-artifact-item:hover,

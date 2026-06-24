@@ -417,41 +417,48 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {isExpanded ? (
-                    <div className="application-card-body" id={`application-bundle-${run.id}`}>
-                      {detailError ? <div className="inline-error">{detailError}</div> : null}
-                      <div className="application-artifact-list" aria-label="Application files">
-                        {applicationArtifacts.map((artifact) => {
-                          const Icon = artifact.icon;
+                  <div
+                    className="application-card-body-collapse"
+                    id={`application-bundle-${run.id}`}
+                    aria-hidden={!isExpanded}
+                  >
+                    <div className="application-card-body-inner">
+                      <div className="application-card-body">
+                        {detailError ? <div className="inline-error">{detailError}</div> : null}
+                        <div className="application-artifact-list" aria-label="Application files">
+                          {applicationArtifacts.map((artifact) => {
+                            const Icon = artifact.icon;
 
-                          return (
-                            <button
-                              className="application-artifact-item"
-                              key={artifact.id}
-                              type="button"
-                              onClick={() => void openArtifact(run, artifact.id, displayTitle)}
-                            >
-                              <span className="application-artifact-item-icon">
-                                <Icon aria-hidden="true" />
-                              </span>
-                              <span className="application-artifact-item-copy">
-                                <span>{artifact.title}</span>
-                                <small>{artifact.meta}</small>
-                              </span>
-                              <span
-                                className={`application-artifact-state ${
-                                  artifact.isAvailable ? "is-ready" : ""
-                                }`}
+                            return (
+                              <button
+                                className="application-artifact-item"
+                                key={artifact.id}
+                                type="button"
+                                tabIndex={isExpanded ? 0 : -1}
+                                onClick={() => void openArtifact(run, artifact.id, displayTitle)}
                               >
-                                {artifact.action}
-                              </span>
-                              <ChevronRight className="application-artifact-chevron" aria-hidden="true" />
-                            </button>
-                          );
-                        })}
+                                <span className="application-artifact-item-icon">
+                                  <Icon aria-hidden="true" />
+                                </span>
+                                <span className="application-artifact-item-copy">
+                                  <span>{artifact.title}</span>
+                                  <small>{artifact.meta}</small>
+                                </span>
+                                <span
+                                  className={`application-artifact-state ${
+                                    artifact.isAvailable ? "is-ready" : ""
+                                  }`}
+                                >
+                                  {artifact.action}
+                                </span>
+                                <ChevronRight className="application-artifact-chevron" aria-hidden="true" />
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  ) : null}
+                  </div>
                 </article>
               );
             })}
