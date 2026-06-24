@@ -1,14 +1,19 @@
 import { template as academic } from "./definitions/academic";
+import { template as alto } from "./definitions/alto";
 import { template as anchor } from "./definitions/anchor";
 import { template as arc } from "./definitions/arc";
 import { template as bronze } from "./definitions/bronze";
 import { template as atsSimple } from "./definitions/ats-simple";
 import { template as block } from "./definitions/block";
 import { template as card } from "./definitions/card";
+import { template as chalk } from "./definitions/chalk";
+import { template as chapter } from "./definitions/chapter";
 import { template as classic } from "./definitions/classic";
 import { template as clean } from "./definitions/clean";
 import { template as cobalt } from "./definitions/cobalt";
 import { template as compact } from "./definitions/compact";
+import { template as copper } from "./definitions/copper";
+import { template as crest } from "./definitions/crest";
 import { template as crisp } from "./definitions/crisp";
 import { template as dash } from "./definitions/dash";
 import { template as deco } from "./definitions/deco";
@@ -16,32 +21,45 @@ import { template as editorial } from "./definitions/editorial";
 import { template as ember } from "./definitions/ember";
 import { template as executive } from "./definitions/executive";
 import { template as flow } from "./definitions/flow";
+import { template as flux } from "./definitions/flux";
+import { template as forest } from "./definitions/forest";
 import { template as frost } from "./definitions/frost";
 import { template as gradient } from "./definitions/gradient";
+import { template as grain } from "./definitions/grain";
 import { template as grove } from "./definitions/grove";
+import { template as herald } from "./definitions/herald";
 import { template as impact } from "./definitions/impact";
 import { template as ink } from "./definitions/ink";
 import { template as layer } from "./definitions/layer";
 import { template as leadership } from "./definitions/leadership";
+import { template as linen } from "./definitions/linen";
 import { template as metro } from "./definitions/metro";
 import { template as minimal } from "./definitions/minimal";
 import { template as mint } from "./definitions/mint";
 import { template as modern } from "./definitions/modern";
+import { template as moss } from "./definitions/moss";
 import { template as navy } from "./definitions/navy";
 import { template as nordic } from "./definitions/nordic";
+import { template as ocean } from "./definitions/ocean";
 import { template as outline } from "./definitions/outline";
+import { template as peak } from "./definitions/peak";
 import { template as pearl } from "./definitions/pearl";
+import { template as plum } from "./definitions/plum";
 import { template as pillar } from "./definitions/pillar";
 import { template as portfolio } from "./definitions/portfolio";
 import { template as product } from "./definitions/product";
 import { template as retro } from "./definitions/retro";
+import { template as river } from "./definitions/river";
 import { template as rose } from "./definitions/rose";
 import { template as ruled } from "./definitions/ruled";
 import { template as sage } from "./definitions/sage";
+import { template as sand } from "./definitions/sand";
+import { template as scout } from "./definitions/scout";
 import { template as serif } from "./definitions/serif";
 import { template as shadow } from "./definitions/shadow";
 import { template as shore } from "./definitions/shore";
 import { template as sidebar } from "./definitions/sidebar";
+import { template as signal } from "./definitions/signal";
 import { template as slate } from "./definitions/slate";
 import { template as smoke } from "./definitions/smoke";
 import { template as spark } from "./definitions/spark";
@@ -54,6 +72,8 @@ import { template as technical } from "./definitions/technical";
 import { template as terra } from "./definitions/terra";
 import { template as timeline } from "./definitions/timeline";
 import { template as typewriter } from "./definitions/typewriter";
+import { template as vapor } from "./definitions/vapor";
+import { template as verso } from "./definitions/verso";
 import { template as zen } from "./definitions/zen";
 import { orderSectionsForTemplate } from "./shared/orderSections";
 import type {
@@ -122,6 +142,26 @@ export const RESUME_TEMPLATE_DEFINITIONS = [
   dash,
   flow,
   anchor,
+  plum,
+  ocean,
+  forest,
+  sand,
+  copper,
+  signal,
+  verso,
+  chapter,
+  linen,
+  herald,
+  chalk,
+  peak,
+  river,
+  alto,
+  scout,
+  crest,
+  flux,
+  moss,
+  vapor,
+  grain,
 ] satisfies ResumeTemplateDefinition[];
 
 export const RESUME_TEMPLATES = RESUME_TEMPLATE_DEFINITIONS.map(toTemplateConfig);

@@ -58,7 +58,27 @@ export type ResumeTemplateId =
   | "shadow"
   | "dash"
   | "flow"
-  | "anchor";
+  | "anchor"
+  | "plum"
+  | "ocean"
+  | "forest"
+  | "sand"
+  | "copper"
+  | "signal"
+  | "verso"
+  | "chapter"
+  | "linen"
+  | "herald"
+  | "chalk"
+  | "peak"
+  | "river"
+  | "alto"
+  | "scout"
+  | "crest"
+  | "flux"
+  | "moss"
+  | "vapor"
+  | "grain";
 
 export type ResumeTemplateRenderer = "single-column" | "sidebar" | "timeline" | "technical" | "split" | "gradient";
 export type ResumeTemplateDensity = "comfortable" | "balanced" | "compact";
