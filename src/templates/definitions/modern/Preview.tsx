@@ -1,5 +1,5 @@
 import { parseResumeContact } from "../../../resume/contact";
-import { TemplateSection } from "../../shared/renderers";
+import { ContactDetailList, TemplateSection } from "../../shared/renderers";
 import type { TemplatePreviewProps } from "../../shared/types";
 
 export function Preview({
@@ -25,9 +25,7 @@ export function Preview({
         </div>
         {details.length > 0 && (
           <div className="modern-split-contact">
-            {details.map((d, i) => (
-              <span key={i}>{d}</span>
-            ))}
+            <ContactDetailList details={details} />
           </div>
         )}
       </header>

@@ -9,27 +9,22 @@ export function Preview({
   bodySections,
   renderSectionContent,
 }: TemplatePreviewProps) {
-  const { name, details } = parseResumeContact(
-    contactSection?.content ?? "",
-    document.title,
-  );
+  const { name, details } = parseResumeContact(contactSection?.content ?? "", document.title);
 
   return (
     <article
       className={`resume-template-preview ${template.className}`}
       aria-label={`${template.name} preview`}
     >
-      <header className="compact-header">
+      <div className="gradient-head">
         {name && <h1>{name}</h1>}
         <ContactDetailList details={details} />
-      </header>
-      {bodySections.map((section) => (
-        <TemplateSection
-          section={section}
-          key={section.id}
-          renderSectionContent={renderSectionContent}
-        />
-      ))}
+      </div>
+      <div className="gradient-body">
+        {bodySections.map((s) => (
+          <TemplateSection section={s} key={s.id} renderSectionContent={renderSectionContent} />
+        ))}
+      </div>
     </article>
   );
 }

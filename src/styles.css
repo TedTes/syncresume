@@ -5332,3 +5332,552 @@ a {
     flex-direction: column;
   }
 }
+
+
+/* ========================================================
+   CONTACT DETAIL LIST (icon + label chips)
+   Used by all templates via TemplateContact / ContactDetailList
+   ======================================================== */
+
+.contact-detail-list {
+  margin-top: 5px;
+}
+
+.contact-detail-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 10px;
+  white-space: nowrap;
+  line-height: 1.45;
+}
+
+.contact-detail-item svg {
+  flex-shrink: 0;
+  opacity: 0.65;
+}
+
+/* In thumbnails shrink margins & hide icons (too small to see) */
+.template-thumbnail-live .contact-detail-list {
+  margin-top: 2px;
+}
+
+.template-thumbnail-live .contact-detail-item {
+  margin-right: 4px;
+  gap: 1px;
+}
+
+.template-thumbnail-live .contact-detail-item svg {
+  display: none;
+}
+
+/* ── Modern: right-align icon chips in the split header ── */
+.template-modern .modern-split-contact .contact-detail-list {
+  margin: 0;
+  text-align: right;
+}
+
+/* ── Compact: icon chips right-align inside flex header ── */
+.template-compact .compact-header .contact-detail-list {
+  margin-top: 0;
+  text-align: right;
+}
+
+/* ── Executive: icon chips supersede old dot-separator spans ── */
+.template-executive .executive-header-contact .contact-detail-list {
+  margin: 0;
+}
+
+.template-executive .executive-header-contact .contact-detail-item + .contact-detail-item::before {
+  content: none;
+  margin: 0;
+}
+
+/* ========================================================
+   NEW TEMPLATES — SPLIT
+   Two equal columns: skills/education left, content right
+   ======================================================== */
+
+.template-split {
+  padding: 0;
+  overflow: hidden;
+}
+
+.template-split .template-contact {
+  padding: 24px 30px 18px;
+  border-bottom: 2px solid #2563eb;
+  background: #f0f5ff;
+  text-align: left;
+}
+
+.template-split .template-contact h1 {
+  font-size: 1.22rem;
+  color: #1e3a8a;
+}
+
+.template-split .split-body {
+  display: grid;
+  grid-template-columns: 0.38fr 0.62fr;
+}
+
+.template-split .split-left {
+  padding: 20px 16px 24px 30px;
+  border-right: 1px solid #dbeafe;
+  background: #f5f8ff;
+}
+
+.template-split .split-right {
+  padding: 20px 30px 24px 16px;
+}
+
+.template-split .template-section h2 {
+  color: #2563eb;
+}
+
+.template-thumbnail-live .template-split .template-contact {
+  padding: 10px 11px 8px;
+}
+
+.template-thumbnail-live .template-split .split-left {
+  padding: 8px 6px 10px 11px;
+}
+
+.template-thumbnail-live .template-split .split-right {
+  padding: 8px 11px 10px 6px;
+}
+
+/* ========================================================
+   TYPEWRITER — Monospace / developer terminal aesthetic
+   ======================================================== */
+
+.template-typewriter {
+  font-family: "Courier New", Courier, monospace;
+  background: #faf9f7;
+}
+
+.template-typewriter .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #999;
+  margin-bottom: 4px;
+}
+
+.template-typewriter .template-contact h1 {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #111;
+}
+
+.template-typewriter .contact-detail-item {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.73rem;
+}
+
+.template-typewriter .template-section {
+  padding-left: 10px;
+  border-left: 2px solid #555;
+}
+
+.template-typewriter .template-section h2::before {
+  content: ">> ";
+  font-weight: 400;
+  color: #777;
+}
+
+.template-typewriter .template-section h2 {
+  color: #111;
+  letter-spacing: 0.04em;
+}
+
+.template-typewriter .template-section-body p,
+.template-typewriter .template-section-body li {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.73rem;
+  color: #222;
+}
+
+/* ========================================================
+   GRADIENT — Bold gradient header, clean body
+   ======================================================== */
+
+.template-gradient {
+  padding: 0;
+  overflow: hidden;
+}
+
+.template-gradient .gradient-head {
+  padding: 26px 34px 22px;
+  background: linear-gradient(135deg, #0f4c81 0%, #107858 100%);
+}
+
+.template-gradient .gradient-head h1 {
+  color: #fff;
+  font-size: 1.28rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.template-gradient .gradient-head .contact-detail-list {
+  margin-top: 7px;
+}
+
+.template-gradient .gradient-head .contact-detail-item {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.template-gradient .gradient-head .contact-detail-item svg {
+  opacity: 0.75;
+}
+
+.template-gradient .gradient-body {
+  padding: 24px 34px;
+}
+
+.template-gradient .template-section h2 {
+  color: #0f5132;
+}
+
+.template-thumbnail-live .template-gradient .gradient-head {
+  padding: 10px 12px 8px;
+}
+
+.template-thumbnail-live .template-gradient .gradient-body {
+  padding: 8px 12px;
+}
+
+/* ========================================================
+   NORDIC — Scandinavian blue, dot section markers
+   ======================================================== */
+
+.template-nordic {
+  background: #f8faff;
+}
+
+.template-nordic .template-contact {
+  text-align: left;
+  padding-bottom: 14px;
+  border-bottom: 3px solid #3b82f6;
+  margin-bottom: 4px;
+}
+
+.template-nordic .template-contact h1 {
+  font-size: 1.28rem;
+  font-weight: 700;
+  color: #1e3a8a;
+  letter-spacing: -0.01em;
+}
+
+.template-nordic .template-section {
+  margin-top: 14px;
+}
+
+.template-nordic .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #1e3a8a;
+  font-size: 0.73rem;
+  letter-spacing: 0.06em;
+}
+
+.template-nordic .template-section h2::before {
+  content: "●";
+  color: #3b82f6;
+  font-size: 0.55em;
+  flex-shrink: 0;
+}
+
+/* ========================================================
+   ZEN — Ultra-minimal, red accent dots
+   ======================================================== */
+
+.template-zen {
+  padding: 44px 50px;
+  background: #fefefe;
+}
+
+.template-zen .template-contact {
+  margin-bottom: 24px;
+}
+
+.template-zen .template-contact h1 {
+  font-size: 1.22rem;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  color: #111;
+}
+
+.template-zen .template-section {
+  margin-top: 20px;
+}
+
+.template-zen .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #333;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.template-zen .template-section h2::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dc2626;
+  flex-shrink: 0;
+}
+
+.template-zen .template-section-body p,
+.template-zen .template-section-body li {
+  font-size: 0.77rem;
+  line-height: 1.58;
+  color: #2a2a2a;
+}
+
+.template-thumbnail-live .template-zen {
+  padding: 14px 16px;
+}
+
+.template-thumbnail-live .template-zen .template-contact {
+  margin-bottom: 8px;
+}
+
+.template-thumbnail-live .template-zen .template-section {
+  margin-top: 6px;
+}
+
+.template-thumbnail-live .template-zen .template-section h2::before {
+  width: 2px;
+  height: 2px;
+}
+
+/* ========================================================
+   DECO — Art deco gold accents, diamond markers
+   ======================================================== */
+
+.template-deco {
+  background: #fffdf5;
+}
+
+.template-deco .template-contact {
+  text-align: center;
+  padding: 18px 0 14px;
+  border-top: 2px solid #b45309;
+  border-bottom: 2px solid #b45309;
+  margin-bottom: 4px;
+}
+
+.template-deco .template-contact h1 {
+  font-size: 1.26rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #1a1a1a;
+}
+
+.template-deco .template-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #b45309;
+  letter-spacing: 0.04em;
+}
+
+.template-deco .template-section h2::before {
+  content: "◆";
+  font-size: 0.55em;
+  color: #b45309;
+  flex-shrink: 0;
+}
+
+/* ========================================================
+   IMPACT — Oversized bold name, strong hierarchy
+   ======================================================== */
+
+.template-impact {
+  background: #fafafa;
+}
+
+.template-impact .template-contact {
+  text-align: left;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #9f1239;
+  margin-bottom: 4px;
+}
+
+.template-impact .template-contact h1 {
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: #111;
+}
+
+.template-impact .template-contact .contact-detail-list {
+  margin-top: 8px;
+}
+
+.template-impact .template-section h2 {
+  color: #9f1239;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.template-thumbnail-live .template-impact .template-contact h1 {
+  font-size: 0.65rem;
+}
+
+/* ========================================================
+   STRIPE — Thick indigo left bookmark stripe
+   ======================================================== */
+
+.template-stripe {
+  padding-left: 46px;
+  position: relative;
+  background: #fafaff;
+  overflow: hidden;
+}
+
+.template-stripe::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: #4f46e5;
+}
+
+.template-stripe .template-contact {
+  text-align: left;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0f0;
+  margin-bottom: 4px;
+}
+
+.template-stripe .template-contact h1 {
+  font-size: 1.2rem;
+  color: #1e1b4b;
+}
+
+.template-stripe .template-section h2 {
+  color: #4f46e5;
+}
+
+.template-thumbnail-live .template-stripe {
+  padding-left: 18px;
+}
+
+.template-thumbnail-live .template-stripe::before {
+  width: 4px;
+}
+
+/* ========================================================
+   FROST — Cool slate, frosted glass contact card
+   ======================================================== */
+
+.template-frost {
+  background: #f0f3f8;
+}
+
+.template-frost .template-contact {
+  background: #e2e9f4;
+  border: 1px solid #c9d4e8;
+  border-radius: 6px;
+  padding: 18px 22px;
+  margin-bottom: 4px;
+}
+
+.template-frost .template-contact h1 {
+  font-size: 1.18rem;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+.template-frost .template-section h2 {
+  color: #334155;
+  border-bottom: 1px solid #c9d4e8;
+  padding-bottom: 5px;
+}
+
+.template-frost .template-section-body p,
+.template-frost .template-section-body li {
+  color: #334155;
+}
+
+.template-thumbnail-live .template-frost .template-contact {
+  padding: 7px 9px;
+  border-radius: 3px;
+}
+
+/* ========================================================
+   TERRA — Warm earthy sidebar (amber / terracotta)
+   ======================================================== */
+
+.template-terra {
+  display: grid;
+  grid-template-columns: minmax(155px, 0.34fr) minmax(0, 0.66fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #fffbf5;
+}
+
+.template-terra .template-sidebar-rail {
+  padding: 30px 22px;
+  background: #78350f;
+  color: #fef3c7;
+}
+
+.template-terra .template-sidebar-main {
+  min-width: 0;
+  padding: 34px 36px;
+}
+
+.template-terra .template-contact {
+  text-align: left;
+}
+
+.template-terra .template-sidebar-rail .template-contact h1,
+.template-terra .template-sidebar-rail .template-contact p,
+.template-terra .template-sidebar-rail .template-section h2,
+.template-terra .template-sidebar-rail .template-section-body p,
+.template-terra .template-sidebar-rail .template-section-body li {
+  color: #fef3c7;
+}
+
+.template-terra .template-sidebar-rail .template-contact p,
+.template-terra .template-sidebar-rail .template-section-body p,
+.template-terra .template-sidebar-rail .template-section-body li {
+  opacity: 0.85;
+}
+
+.template-terra .template-sidebar-rail .template-section h2 {
+  padding-top: 10px;
+  border-top: 1px solid rgba(254, 243, 199, 0.25);
+}
+
+.template-terra .template-sidebar-main .template-section h2 {
+  color: #92400e;
+}
+
+.template-thumbnail-live .template-terra {
+  grid-template-columns: minmax(42px, 0.36fr) minmax(0, 0.64fr);
+  padding: 0;
+}
+
+.template-thumbnail-live .template-terra .template-sidebar-rail {
+  padding: 12px 6px;
+}
+
+.template-thumbnail-live .template-terra .template-sidebar-main {
+  padding: 12px 8px;
+}

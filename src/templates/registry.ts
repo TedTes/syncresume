@@ -3,18 +3,28 @@ import { template as atsSimple } from "./definitions/ats-simple";
 import { template as classic } from "./definitions/classic";
 import { template as compact } from "./definitions/compact";
 import { template as crisp } from "./definitions/crisp";
+import { template as deco } from "./definitions/deco";
 import { template as editorial } from "./definitions/editorial";
 import { template as executive } from "./definitions/executive";
+import { template as frost } from "./definitions/frost";
+import { template as gradient } from "./definitions/gradient";
+import { template as impact } from "./definitions/impact";
 import { template as leadership } from "./definitions/leadership";
 import { template as metro } from "./definitions/metro";
 import { template as minimal } from "./definitions/minimal";
 import { template as modern } from "./definitions/modern";
+import { template as nordic } from "./definitions/nordic";
 import { template as portfolio } from "./definitions/portfolio";
 import { template as product } from "./definitions/product";
 import { template as sidebar } from "./definitions/sidebar";
+import { template as split } from "./definitions/split";
 import { template as startup } from "./definitions/startup";
+import { template as stripe } from "./definitions/stripe";
 import { template as technical } from "./definitions/technical";
+import { template as terra } from "./definitions/terra";
 import { template as timeline } from "./definitions/timeline";
+import { template as typewriter } from "./definitions/typewriter";
+import { template as zen } from "./definitions/zen";
 import { orderSectionsForTemplate } from "./shared/orderSections";
 import type {
   ResumeTemplateConfig,
@@ -42,6 +52,16 @@ export const RESUME_TEMPLATE_DEFINITIONS = [
   technical,
   product,
   startup,
+  split,
+  typewriter,
+  gradient,
+  nordic,
+  zen,
+  deco,
+  impact,
+  stripe,
+  frost,
+  terra,
 ] satisfies ResumeTemplateDefinition[];
 
 export const RESUME_TEMPLATES = RESUME_TEMPLATE_DEFINITIONS.map(toTemplateConfig);

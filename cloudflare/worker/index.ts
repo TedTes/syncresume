@@ -113,6 +113,16 @@ const RESUME_TEMPLATE_IDS = new Set([
   "technical",
   "product",
   "startup",
+  "split",
+  "typewriter",
+  "gradient",
+  "nordic",
+  "zen",
+  "deco",
+  "impact",
+  "stripe",
+  "frost",
+  "terra",
 ]);
 const RESUME_VERSION_TYPES = new Set(["base", "tailored"]);
 const BILLING_PLAN_FREE = "Free";

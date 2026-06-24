@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { ResumeSection } from "../../../resume/schema";
 import { parseResumeContact } from "../../../resume/contact";
-import { SectionContent } from "../../shared/renderers";
+import { ContactDetailList, SectionContent } from "../../shared/renderers";
 import type { TemplatePreviewProps } from "../../shared/types";
 
 function MinimalSection({
@@ -42,7 +42,7 @@ export function Preview({
     >
       <header className="template-contact">
         {name && <h1>{name}</h1>}
-        {details.length > 0 && <p>{details.join("  ·  ")}</p>}
+        <ContactDetailList details={details} />
       </header>
       {bodySections.map((section) => (
         <MinimalSection

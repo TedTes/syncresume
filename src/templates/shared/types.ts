@@ -18,9 +18,19 @@ export type ResumeTemplateId =
   | "metro"
   | "technical"
   | "product"
-  | "startup";
+  | "startup"
+  | "split"
+  | "typewriter"
+  | "gradient"
+  | "nordic"
+  | "zen"
+  | "deco"
+  | "impact"
+  | "stripe"
+  | "frost"
+  | "terra";
 
-export type ResumeTemplateRenderer = "single-column" | "sidebar" | "timeline" | "technical";
+export type ResumeTemplateRenderer = "single-column" | "sidebar" | "timeline" | "technical" | "split" | "gradient";
 export type ResumeTemplateDensity = "comfortable" | "balanced" | "compact";
 
 export type ResumeTemplatePdfConfig = {
