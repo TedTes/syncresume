@@ -1,8 +1,30 @@
-import { Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  Briefcase,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Mail,
+  Pencil,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { extractJobTitle } from "../lib/jobTitle";
 import type { RunRecord } from "../lib/storage";
+
+type ApplicationArtifact = "resume" | "cover-letter" | "job-description";
+type DashboardArtifactViewer = {
+  runId: string;
+  type: Exclude<ApplicationArtifact, "resume">;
+  title: string;
+  subtitle: string;
+  content: string;
+  emptyText: string;
+};
 
 function scoreTierClass(score: number): string {
   if (score >= 70) return "score-high";
@@ -48,8 +70,17 @@ function displayRunTitle(run: RunRecord): string {
 }
 
 export default function DashboardPage() {
-  const { resumes, runs } = useAppData();
+  const { resumes, runs, getRun, updateRunTitle } = useAppData();
   const navigate = useNavigate();
+  const [editingRunId, setEditingRunId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [savingTitleId, setSavingTitleId] = useState<string | null>(null);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
+  const [loadingRunId, setLoadingRunId] = useState<string | null>(null);
+  const [runDetails, setRunDetails] = useState<Record<string, RunRecord>>({});
+  const [detailsError, setDetailsError] = useState<Record<string, string>>({});
+  const [artifactViewer, setArtifactViewer] = useState<DashboardArtifactViewer | null>(null);
 
   const runItems = runs.map((run) => ({
     run,
@@ -77,6 +108,150 @@ export default function DashboardPage() {
     return best;
   }, null);
   const bestScore = bestRun?.run.score ?? 0;
+
+  async function loadRunDetail(run: RunRecord): Promise<RunRecord> {
+    if (runDetails[run.id]) return runDetails[run.id];
+
+    setLoadingRunId(run.id);
+    setDetailsError((current) => {
+      const next = { ...current };
+      delete next[run.id];
+      return next;
+    });
+
+    try {
+      const detail = await getRun(run.id);
+      setRunDetails((current) => ({ ...current, [run.id]: detail }));
+      return detail;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not load this application.";
+      setDetailsError((current) => ({
+        ...current,
+        [run.id]: message,
+      }));
+      throw new Error(message);
+    } finally {
+      setLoadingRunId(null);
+    }
+  }
+
+  async function toggleApplicationBundle(run: RunRecord) {
+    if (editingRunId === run.id) return;
+
+    if (expandedRunId === run.id) {
+      setExpandedRunId(null);
+      return;
+    }
+
+    setExpandedRunId(run.id);
+    void loadRunDetail(run).catch(() => undefined);
+  }
+
+  async function openArtifact(run: RunRecord, type: ApplicationArtifact, title: string) {
+    if (type === "resume") {
+      if (run.hasReview) navigate(`/workspace/review/${run.id}`);
+      return;
+    }
+
+    let detail: RunRecord;
+    try {
+      detail =
+        type === "job-description" ? runDetails[run.id] ?? run : runDetails[run.id] ?? (await loadRunDetail(run));
+    } catch {
+      return;
+    }
+    const isJobDescription = type === "job-description";
+    const content = isJobDescription ? detail.jobDescription : (detail.coverLetterText ?? "");
+
+    setArtifactViewer({
+      runId: run.id,
+      type,
+      title: isJobDescription ? "Job description" : "Cover letter",
+      subtitle: title,
+      content: content.trim(),
+      emptyText: isJobDescription
+        ? "No job description saved for this application."
+        : "No cover letter saved for this application yet.",
+    });
+  }
+
+  function handleApplicationKeyDown(
+    event: KeyboardEvent<HTMLDivElement>,
+    run: RunRecord,
+  ) {
+    const target = event.target as HTMLElement;
+    if (target.closest("button,input,form")) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      void toggleApplicationBundle(run);
+    }
+  }
+
+  function startRename(run: RunRecord, title: string) {
+    setEditingRunId(run.id);
+    setDraftTitle(title);
+    setRenameError(null);
+  }
+
+  function cancelRename() {
+    setEditingRunId(null);
+    setDraftTitle("");
+    setRenameError(null);
+  }
+
+  async function submitRename(event: FormEvent<HTMLFormElement>, run: RunRecord) {
+    event.preventDefault();
+    const nextTitle = draftTitle.trim();
+    if (nextTitle.length < 3) {
+      setRenameError("Use at least 3 characters.");
+      return;
+    }
+
+    setSavingTitleId(run.id);
+    setRenameError(null);
+    try {
+      const renamed = await updateRunTitle(run.id, nextTitle);
+      setRunDetails((current) => {
+        if (!current[run.id]) return current;
+        return { ...current, [run.id]: { ...current[run.id], title: renamed.title } };
+      });
+      cancelRename();
+    } catch (error) {
+      setRenameError(error instanceof Error ? error.message : "Could not rename this run.");
+    } finally {
+      setSavingTitleId(null);
+    }
+  }
+
+  if (artifactViewer) {
+    return (
+      <>
+        <header className="page-topbar">
+          <button
+            className="btn btn-ghost"
+            type="button"
+            onClick={() => setArtifactViewer(null)}
+          >
+            <ArrowLeft aria-hidden="true" />
+            Back
+          </button>
+          <span className="page-topbar-title">{artifactViewer.title}</span>
+        </header>
+
+        <main className="page-content application-viewer-page">
+          <section className="application-viewer-card">
+            <div className="application-viewer-heading">
+              <p className="section-label">TAILORED APPLICATION</p>
+              <h1>{artifactViewer.subtitle}</h1>
+            </div>
+            <pre className={`application-viewer-content ${!artifactViewer.content ? "is-muted" : ""}`}>
+              {artifactViewer.content || artifactViewer.emptyText}
+            </pre>
+          </section>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
@@ -116,47 +291,168 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <p className="section-label">Tailored Resumes</p>
+        <p className="section-label">TAILORED APPLICATIONS</p>
         {runs.length === 0 ? (
           <div className="empty-state">
-            No runs yet. Tailor your first resume for a job to see match results here.
+            No tailored applications yet. Start with a job to save the resume, job description, and cover letter bundle here.
           </div>
         ) : (
           <div className="runs-list">
             {visibleRuns.map(({ run, displayTitle, duplicateCount, attemptNumber }) => {
               const canOpenReview = Boolean(run.hasReview);
               const isBestRun = bestRun?.run.id === run.id;
+              const isExpanded = expandedRunId === run.id;
+              const details = runDetails[run.id] ?? run;
+              const isLoadingDetails = loadingRunId === run.id;
+              const detailError = detailsError[run.id];
+              const coverLetterText = details.coverLetterText?.trim() ?? "";
+              const applicationArtifacts = [
+                {
+                  id: "resume" as const,
+                  icon: FileText,
+                  title: "Resume",
+                  meta: details.resumeName || run.resumeName,
+                  isAvailable: Boolean(run.hasReview),
+                  action: run.hasReview ? "Review" : "Empty",
+                },
+                {
+                  id: "cover-letter" as const,
+                  icon: Mail,
+                  title: "Cover letter",
+                  meta: isLoadingDetails
+                    ? "Loading..."
+                    : coverLetterText
+                      ? "Saved cover letter"
+                      : "Not generated yet",
+                  isAvailable: Boolean(coverLetterText || details.hasCoverLetter),
+                  action: coverLetterText || details.hasCoverLetter ? "View" : "Empty",
+                },
+                {
+                  id: "job-description" as const,
+                  icon: Briefcase,
+                  title: "Job description",
+                  meta: `${(details.jobDescription || run.jobDescription).length.toLocaleString()} chars`,
+                  isAvailable: true,
+                  action: "View",
+                },
+              ];
 
               return (
-                <button
-                  className="run-row"
-                  key={run.id}
-                  type="button"
-                  disabled={!canOpenReview}
-                  onClick={() => {
-                    if (canOpenReview) navigate(`/workspace/review/${run.id}`);
-                  }}
-                  title={canOpenReview ? "Open saved review" : "Review unavailable for this run"}
-                >
-                  <div className="run-row-main">
-                    <span className="run-title">
-                      <span>{displayTitle}</span>
-                      {duplicateCount > 1 && (
-                        <span className="run-inline-pill">Attempt {attemptNumber}</span>
-                      )}
-                      {isBestRun && <span className="run-inline-pill best">Best</span>}
-                    </span>
-                    <span className="run-meta">
-                      {formatDate(run.createdAt)}
-                      {duplicateCount > 1 ? `, ${formatTime(run.createdAt)}` : ""} · {run.resumeName}
-                      {!canOpenReview ? " · Review unavailable" : ""}
-                    </span>
+                <article className={`application-card ${isExpanded ? "is-open" : ""}`} key={run.id}>
+                  <div
+                    aria-controls={`application-bundle-${run.id}`}
+                    aria-expanded={isExpanded}
+                    className="application-card-header"
+                    role="button"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement;
+                      if (target.closest("button,input,form")) return;
+                      void toggleApplicationBundle(run);
+                    }}
+                    onKeyDown={(event) => handleApplicationKeyDown(event, run)}
+                    title={isExpanded ? "Collapse application bundle" : "Expand application bundle"}
+                  >
+                    <div className="run-row-main">
+                      <div className="run-title">
+                        {editingRunId === run.id ? (
+                          <form className="run-title-edit" onSubmit={(event) => submitRename(event, run)}>
+                            <input
+                              aria-label="Application name"
+                              className="run-title-input"
+                              disabled={savingTitleId === run.id}
+                              value={draftTitle}
+                              onChange={(event) => setDraftTitle(event.target.value)}
+                              autoFocus
+                            />
+                            <button
+                              aria-label="Save role name"
+                              className="run-title-edit-button"
+                              disabled={savingTitleId === run.id}
+                              type="submit"
+                            >
+                              <Check aria-hidden="true" />
+                            </button>
+                            <button
+                              aria-label="Cancel rename"
+                              className="run-title-edit-button cancel"
+                              disabled={savingTitleId === run.id}
+                              type="button"
+                              onClick={cancelRename}
+                            >
+                              <X aria-hidden="true" />
+                            </button>
+                          </form>
+                        ) : (
+                          <>
+                            <span className="run-title-label">{displayTitle}</span>
+                            <button
+                              aria-label={`Rename application ${displayTitle}`}
+                              className="run-title-action"
+                              title="Rename application"
+                              type="button"
+                              onClick={() => startRename(run, displayTitle)}
+                            >
+                              <Pencil aria-hidden="true" />
+                            </button>
+                          </>
+                        )}
+                        {duplicateCount > 1 && (
+                          <span className="run-inline-pill">Attempt {attemptNumber}</span>
+                        )}
+                        {isBestRun && <span className="run-inline-pill best">Best</span>}
+                      </div>
+                      {editingRunId === run.id && renameError ? (
+                        <span className="run-rename-error">{renameError}</span>
+                      ) : null}
+                      <span className="run-meta">
+                        {formatDate(run.createdAt)}
+                        {duplicateCount > 1 ? `, ${formatTime(run.createdAt)}` : ""} · {run.resumeName}
+                      </span>
+                    </div>
+                    <div className="run-row-end">
+                      <span className={`status-pill ${run.status}`}>{run.status}</span>
+                      <span className={`score-pill ${scoreTierClass(run.score)}`}>{run.score}%</span>
+                      <ChevronDown className="application-card-chevron" aria-hidden="true" />
+                    </div>
                   </div>
-                  <div className="run-row-end">
-                    <span className={`status-pill ${run.status}`}>{run.status}</span>
-                    <span className={`score-pill ${scoreTierClass(run.score)}`}>{run.score}%</span>
-                  </div>
-                </button>
+
+                  {isExpanded ? (
+                    <div className="application-card-body" id={`application-bundle-${run.id}`}>
+                      {detailError ? <div className="inline-error">{detailError}</div> : null}
+                      <div className="application-artifact-list" aria-label="Application files">
+                        {applicationArtifacts.map((artifact) => {
+                          const Icon = artifact.icon;
+
+                          return (
+                            <button
+                              className="application-artifact-item"
+                              key={artifact.id}
+                              type="button"
+                              onClick={() => void openArtifact(run, artifact.id, displayTitle)}
+                            >
+                              <span className="application-artifact-item-icon">
+                                <Icon aria-hidden="true" />
+                              </span>
+                              <span className="application-artifact-item-copy">
+                                <span>{artifact.title}</span>
+                                <small>{artifact.meta}</small>
+                              </span>
+                              <span
+                                className={`application-artifact-state ${
+                                  artifact.isAvailable ? "is-ready" : ""
+                                }`}
+                              >
+                                {artifact.action}
+                              </span>
+                              <ChevronRight className="application-artifact-chevron" aria-hidden="true" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </article>
               );
             })}
           </div>
