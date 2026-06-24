@@ -5,6 +5,7 @@ import {
   type ResumeTemplateId,
 } from "../templates/registry";
 import { getTemplateDocxBlocks } from "../render/renderDocx";
+import { parseResumeContact } from "../resume/contact";
 
 const FILE_BASENAME = "syncresume-optimized-resume";
 
@@ -247,7 +248,7 @@ export async function downloadResumeDocumentDocx(
 
   for (const block of blocks) {
     if (block.isContact) {
-      const { name, details } = splitContactContent(block.lines.join(" | "));
+      const { name, details } = parseResumeContact(block.lines.join(" | "), document.title);
       if (name) addText(name, { bold: true, center: true, size: 24 });
       if (details.length > 0) addText(details.join(" | "), { center: true, size: 19 });
       continue;
@@ -347,19 +348,4 @@ function waitForBrowserPaint(): Promise<void> {
 function sanitizeDownloadFileName(value: string): string {
   const normalized = value.trim().replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]+/g, "-");
   return `${normalized || "syncresume-extracted-resume"}.pdf`;
-}
-
-function splitContactContent(content: string): { name: string; details: string[] } {
-  const chunks = content
-    .split(/\n|\s*\|\s*/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const firstChunk = chunks[0] ?? "";
-  const nameMatch = firstChunk.match(/^([A-Z][A-Z.'-]+(?:\s+[A-Z][A-Z.'-]+){1,3})\b/);
-  const name = nameMatch?.[1] ?? firstChunk;
-  const leftover = firstChunk.slice(name.length).trim();
-  return {
-    name,
-    details: [leftover, ...chunks.slice(1)].filter(Boolean),
-  };
 }

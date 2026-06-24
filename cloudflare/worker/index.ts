@@ -97,12 +97,22 @@ const MAX_RESUME_BYTES = 25 * 1024 * 1024;
 const MIN_RESUME_TEXT_LENGTH = 20;
 const RESUME_TEMPLATE_IDS = new Set([
   "ats-simple",
+  "classic",
   "modern",
+  "crisp",
   "compact",
+  "minimal",
   "executive",
+  "leadership",
+  "editorial",
+  "academic",
   "sidebar",
+  "portfolio",
   "timeline",
+  "metro",
   "technical",
+  "product",
+  "startup",
 ]);
 const RESUME_VERSION_TYPES = new Set(["base", "tailored"]);
 const BILLING_PLAN_FREE = "Free";

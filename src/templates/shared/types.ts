@@ -3,12 +3,22 @@ import type { ResumeDocument, ResumeSection, ResumeSectionType } from "../../res
 
 export type ResumeTemplateId =
   | "ats-simple"
+  | "classic"
   | "modern"
+  | "crisp"
   | "compact"
+  | "minimal"
   | "executive"
+  | "leadership"
+  | "editorial"
+  | "academic"
   | "sidebar"
+  | "portfolio"
   | "timeline"
-  | "technical";
+  | "metro"
+  | "technical"
+  | "product"
+  | "startup";
 
 export type ResumeTemplateRenderer = "single-column" | "sidebar" | "timeline" | "technical";
 export type ResumeTemplateDensity = "comfortable" | "balanced" | "compact";

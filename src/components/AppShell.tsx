@@ -35,6 +35,10 @@ export function AppShell() {
   );
   const templatePanelDocument = templatePreviewDocument ?? activeResumeDocument;
 
+  function closePanel() {
+    setIsTemplatePanelOpen(false);
+  }
+
   useEffect(() => {
     setIsTemplatePanelOpen(false);
   }, [location.pathname]);
@@ -43,12 +47,15 @@ export function AppShell() {
     if (!isTemplatePanelOpen) return;
 
     function eventStartedInsideTemplateUi(target: EventTarget | null) {
-      return target instanceof Element && Boolean(target.closest(".template-drawer-push, .sidebar"));
+      return (
+        target instanceof Element &&
+        Boolean(target.closest(".template-drawer-push, .template-review-backdrop, .sidebar"))
+      );
     }
 
     function collapseOnPageMovement(event: Event) {
       if (eventStartedInsideTemplateUi(event.target)) return;
-      setIsTemplatePanelOpen(false);
+      closePanel();
     }
 
     function collapseOnViewportChange() {
@@ -140,15 +147,14 @@ export function AppShell() {
         </div>
       </nav>
 
-      {isTemplatePanelOpen && (
-        <ResumeTemplatePanel
-          selectedTemplateId={selectedTemplateId}
-          onSelect={setSelectedTemplateId}
-          previewDocument={templatePanelDocument}
-          onClose={() => setIsTemplatePanelOpen(false)}
-          className="template-drawer-push"
-        />
-      )}
+      <ResumeTemplatePanel
+        selectedTemplateId={selectedTemplateId}
+        onSelect={setSelectedTemplateId}
+        previewDocument={templatePanelDocument}
+        onClose={closePanel}
+        isOpen={isTemplatePanelOpen}
+        className={`template-drawer-push${isTemplatePanelOpen ? " is-open" : ""}`}
+      />
 
       <div className="main-area">
         <AuthGate>

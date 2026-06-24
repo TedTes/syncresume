@@ -1,10 +1,13 @@
-import { CheckCircle2, LayoutTemplate, X } from "lucide-react";
-import { useState } from "react";
+import { CheckCircle2, Eye, LayoutTemplate, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   RESUME_TEMPLATES,
   type ResumeTemplateId,
 } from "../templates/registry";
 import type { ResumeDocument } from "../resume/schema";
+import { DEFAULT_TEMPLATE_PREVIEW_DOCUMENT } from "../resume/sample";
+import { ResumeTemplatePreview } from "./ResumeTemplatePreview";
 import { ResumeTemplateThumbnail } from "./ResumeTemplateThumbnail";
 
 type ResumeTemplateSelectorProps = {
@@ -80,6 +83,7 @@ type ResumeTemplatePanelProps = {
   onClose: () => void;
   previewDocument?: ResumeDocument | null;
   className?: string;
+  isOpen?: boolean;
 };
 
 export function ResumeTemplatePanel({
@@ -88,53 +92,134 @@ export function ResumeTemplatePanel({
   onClose,
   previewDocument = null,
   className = "",
+  isOpen = true,
 }: ResumeTemplatePanelProps) {
-  return (
-    <aside
-      className={`template-drawer ${className}`.trim()}
-      role="dialog"
-      aria-modal="false"
-      aria-label="Choose resume template"
-    >
-      <div className="template-drawer-header">
-        <div>
-          <h2>Templates</h2>
-          <p>Choose the layout used for preview and export.</p>
-        </div>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm btn-icon-only"
-          aria-label="Close templates"
-          onClick={onClose}
+  const [reviewTemplateId, setReviewTemplateId] = useState<ResumeTemplateId | null>(null);
+  const reviewTemplate = RESUME_TEMPLATES.find((template) => template.id === reviewTemplateId);
+  const reviewDocument = previewDocument ?? DEFAULT_TEMPLATE_PREVIEW_DOCUMENT;
+
+  useEffect(() => {
+    if (!reviewTemplateId) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setReviewTemplateId(null);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [reviewTemplateId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setReviewTemplateId(null);
+    }
+  }, [isOpen]);
+
+  const reviewOverlay = reviewTemplate
+    ? createPortal(
+        <div
+          className="template-review-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setReviewTemplateId(null);
+            }
+          }}
         >
-          <X aria-hidden="true" />
-        </button>
-      </div>
+          <section
+            className="template-review-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${reviewTemplate.name} template preview`}
+          >
+            <header className="template-review-header">
+              <div>
+                <p>Template preview</p>
+                <h3>{reviewTemplate.name}</h3>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon-only"
+                aria-label="Close template preview"
+                onClick={() => setReviewTemplateId(null)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </header>
+            <div className="template-review-canvas">
+              <ResumeTemplatePreview document={reviewDocument} templateId={reviewTemplate.id} />
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )
+    : null;
 
-      <div className="template-drawer-list">
-        {RESUME_TEMPLATES.map((template) => {
-          const isSelected = selectedTemplateId === template.id;
+  return (
+    <>
+      <aside
+        className={`template-drawer${className ? ` ${className}` : ""}`.trim()}
+        role="dialog"
+        aria-modal="false"
+        aria-label="Choose resume template"
+      >
+        <div className="template-drawer-header">
+          <div>
+            <h2>Templates</h2>
+            <p>Choose the layout used for preview and export.</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm btn-icon-only"
+            aria-label="Close templates"
+            onClick={onClose}
+          >
+            <X aria-hidden="true" />
+          </button>
+        </div>
 
-          return (
-            <button
-              key={template.id}
-              type="button"
-              className={`template-drawer-option ${isSelected ? "selected" : ""}`}
-              onClick={() => onSelect(template.id)}
-            >
-              <ResumeTemplateThumbnail templateId={template.id} document={previewDocument} />
-              <span className="template-drawer-option-main">
-                <strong>{template.name}</strong>
-              </span>
-              {isSelected && (
-                <span className="template-drawer-selected" aria-hidden="true">
-                  <CheckCircle2 />
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </aside>
+        <div className="template-drawer-list">
+          {RESUME_TEMPLATES.map((template) => {
+            const isSelected = selectedTemplateId === template.id;
+
+            return (
+              <div
+                key={template.id}
+                className={`template-drawer-option ${isSelected ? "selected" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="template-drawer-select-hitbox"
+                  aria-label={`Select ${template.name} template`}
+                  onClick={() => onSelect(template.id)}
+                >
+                  <ResumeTemplateThumbnail templateId={template.id} document={previewDocument} />
+                  <span className="template-drawer-option-main">
+                    <strong>{template.name}</strong>
+                  </span>
+                  {isSelected && (
+                    <span className="template-drawer-selected" aria-hidden="true">
+                      <CheckCircle2 />
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="template-drawer-review"
+                  aria-label={`Preview ${template.name} template`}
+                  onClick={() => setReviewTemplateId(template.id)}
+                >
+                  <Eye aria-hidden="true" />
+                  Preview
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+      {reviewOverlay}
+    </>
   );
 }
