@@ -206,7 +206,7 @@ export function ResumeTemplatePanel({
                   aria-label={`Select ${template.name} template`}
                   onClick={() => handleSelectTemplate(template.id)}
                 >
-                  <ResumeTemplateThumbnail templateId={template.id} document={previewDocument} />
+                  <ResumeTemplateThumbnail templateId={template.id} />
                   <span className="template-drawer-option-main">
                     <strong>{template.name}</strong>
                   </span>
