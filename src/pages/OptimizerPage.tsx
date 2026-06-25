@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -12,8 +13,8 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
 import { fetchJobPageText } from "../lib/fetchJobPage";
@@ -31,18 +32,26 @@ const ResumeReview = lazy(() =>
 );
 
 type JobAddMode = "paste" | "link";
+type WorkspaceArtifact = "resume" | "cover-letter" | "job-description";
 
 type OptimizerPageProps = {
   embedded?: boolean;
   onOpenResumes?: () => void;
   onReviewOpenChange?: (isOpen: boolean) => void;
+  preferredArtifact?: WorkspaceArtifact;
   reviewRunId?: string;
 };
+
+type ReviewReturnState = {
+  returnTo?: string;
+  expandedRunId?: string;
+} | null;
 
 export default function OptimizerPage({
   embedded = false,
   onOpenResumes,
   onReviewOpenChange,
+  preferredArtifact = "resume",
   reviewRunId,
 }: OptimizerPageProps) {
   const {
@@ -52,12 +61,14 @@ export default function OptimizerPage({
     getRun,
     addRun,
     updateRunReview,
+    updateRunCoverLetter,
     incrementResumeUsage,
     recordExport,
     refresh,
   } = useAppData();
   const { provider, toggles } = useSettings();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const [jobAddMode, setJobAddMode] = useState<JobAddMode>("paste");
@@ -69,7 +80,10 @@ export default function OptimizerPage({
   const [coverLetter, setCoverLetter] = useState("");
   const [coverLetterStatus, setCoverLetterStatus] = useState("");
   const [coverLetterError, setCoverLetterError] = useState("");
+  const [isCoverLetterPanelOpen, setIsCoverLetterPanelOpen] = useState(false);
   const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false);
+  const [isSavingCoverLetter, setIsSavingCoverLetter] = useState(false);
+  const [activeArtifact, setActiveArtifact] = useState<WorkspaceArtifact>(preferredArtifact);
 
   const [optimizedResume, setOptimizedResume] = useState<StructuredResume | null>(null);
   const [reviewOriginalResumeText, setReviewOriginalResumeText] = useState("");
@@ -80,6 +94,9 @@ export default function OptimizerPage({
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isLoadingSavedReview, setIsLoadingSavedReview] = useState(Boolean(reviewRunId));
   const [currentRunId, setCurrentRunId] = useState("");
+  const jobPanelRef = useRef<HTMLDivElement | null>(null);
+  const coverLetterPanelRef = useRef<HTMLElement | null>(null);
+  const reviewPanelRef = useRef<HTMLDivElement | null>(null);
 
   const hasJD = jobDescription.trim().length > 0;
   const canOptimize = hasJD && Boolean(activeResume) && !isOptimizing;
@@ -88,6 +105,17 @@ export default function OptimizerPage({
   const isJobReferenceCollapsed = Boolean(optimizedResume && isJobPanelCollapsed);
   const shouldShowSavedReviewLoader = Boolean(
     reviewRunId && isLoadingSavedReview && currentRunId !== reviewRunId,
+  );
+  const shouldShowCoverLetterPanel = Boolean(
+    activeArtifact === "cover-letter" ||
+      isCoverLetterPanelOpen ||
+      isGeneratingCoverLetter ||
+      isSavingCoverLetter ||
+      coverLetterError ||
+      coverLetterStatus,
+  );
+  const shouldShowResumeReview = Boolean(
+    optimizedResume && activeArtifact === "resume",
   );
   const ContentTag = embedded ? "section" : "main";
 
@@ -119,12 +147,25 @@ export default function OptimizerPage({
     setCoverLetter("");
     setCoverLetterStatus("");
     setCoverLetterError("");
+    setIsCoverLetterPanelOpen(false);
+    setIsSavingCoverLetter(false);
+    setActiveArtifact("resume");
     setCurrentRunId("");
     setIsJobPanelCollapsed(false);
   }
 
   function handleReviewBack() {
     resetResult();
+    const state = location.state as ReviewReturnState;
+
+    if (reviewRunId && state?.returnTo) {
+      navigate(state.returnTo, {
+        replace: true,
+        state: state.expandedRunId ? { expandedRunId: state.expandedRunId } : undefined,
+      });
+      return;
+    }
+
     navigate("/workspace/optimize", { replace: Boolean(reviewRunId) });
   }
 
@@ -132,11 +173,25 @@ export default function OptimizerPage({
     setCoverLetter("");
     setCoverLetterStatus("");
     setCoverLetterError("");
-  }, [activeResume?.id]);
+    setIsCoverLetterPanelOpen(false);
+    setIsSavingCoverLetter(false);
+    if (!reviewRunId) {
+      setActiveArtifact("resume");
+    }
+  }, [activeResume?.id, reviewRunId]);
 
   useEffect(() => {
-    onReviewOpenChange?.(Boolean(optimizedResume || shouldShowSavedReviewLoader));
-  }, [onReviewOpenChange, optimizedResume, shouldShowSavedReviewLoader]);
+    onReviewOpenChange?.(Boolean(
+      shouldShowResumeReview ||
+      shouldShowSavedReviewLoader ||
+      shouldShowCoverLetterPanel,
+    ));
+  }, [
+    onReviewOpenChange,
+    shouldShowCoverLetterPanel,
+    shouldShowResumeReview,
+    shouldShowSavedReviewLoader,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -145,7 +200,17 @@ export default function OptimizerPage({
   }, [onReviewOpenChange]);
 
   useEffect(() => {
+    setActiveArtifact(preferredArtifact);
+    if (reviewRunId) {
+      setIsCoverLetterPanelOpen(preferredArtifact === "cover-letter");
+      setCoverLetterStatus("");
+      setCoverLetterError("");
+    }
+  }, [preferredArtifact, reviewRunId]);
+
+  useEffect(() => {
     if (!reviewRunId) {
+      if (currentRunId) resetResult();
       setIsLoadingSavedReview(false);
       return;
     }
@@ -173,6 +238,10 @@ export default function OptimizerPage({
         setReviewTitle(run.title);
         setReviewSourceResumeId(run.resumeId);
         setReviewTemplateId((run.templateId as ResumeTemplateId | undefined) ?? "ats-simple");
+        setCoverLetter(run.coverLetterText ?? "");
+        setIsCoverLetterPanelOpen(preferredArtifact === "cover-letter");
+        setCoverLetterStatus("");
+        setCoverLetterError("");
         setCurrentRunId(run.id);
         setIsJobPanelCollapsed(true);
       } catch (error) {
@@ -188,6 +257,24 @@ export default function OptimizerPage({
       isCurrent = false;
     };
   }, [reviewRunId]);
+
+  useEffect(() => {
+    if (!reviewRunId || shouldShowSavedReviewLoader) return;
+
+    if (preferredArtifact === "job-description") {
+      setIsJobPanelCollapsed(false);
+      requestAnimationFrame(() => {
+        jobPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      return;
+    }
+
+    const target =
+      preferredArtifact === "cover-letter" ? coverLetterPanelRef.current : reviewPanelRef.current;
+    requestAnimationFrame(() => {
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [preferredArtifact, reviewRunId, shouldShowSavedReviewLoader, shouldShowCoverLetterPanel]);
 
   async function handleFetchLink() {
     setIsFetchingJD(true);
@@ -226,6 +313,8 @@ export default function OptimizerPage({
       setReviewTitle(result.run?.title ?? requestedTitle);
       setReviewSourceResumeId(activeResume.id);
       setReviewTemplateId((result.run?.templateId as ResumeTemplateId | undefined) ?? (activeResume.templateId as ResumeTemplateId | undefined) ?? "ats-simple");
+      setActiveArtifact("resume");
+      setIsCoverLetterPanelOpen(false);
       setIsJobPanelCollapsed(true);
 
       if (result.persisted) {
@@ -259,6 +348,8 @@ export default function OptimizerPage({
 
     setCoverLetterStatus("");
     setCoverLetterError("");
+    setActiveArtifact("cover-letter");
+    setIsCoverLetterPanelOpen(true);
     setIsGeneratingCoverLetter(true);
 
     try {
@@ -279,6 +370,48 @@ export default function OptimizerPage({
       setCoverLetterError(openAIErrorMessage(error));
     } finally {
       setIsGeneratingCoverLetter(false);
+    }
+  }
+
+  async function ensureCoverLetterRun(): Promise<string> {
+    if (currentRunId) return currentRunId;
+    if (!activeResume) throw new Error("Select a resume before saving a cover letter.");
+    if (!jobDescription.trim()) throw new Error("Add a job description before saving a cover letter.");
+
+    const requestedTitle = extractJobTitle(jobDescription);
+    const run = await addRun({
+      title: requestedTitle,
+      resumeId: activeResume.id,
+      resumeName: activeResume.name,
+      jobDescription,
+      score: optimizedResume ? 0 : 0,
+      status: "draft",
+    });
+    setCurrentRunId(run.id);
+    setReviewTitle(run.title);
+    setReviewSourceResumeId(run.resumeId);
+    return run.id;
+  }
+
+  async function handleSaveCoverLetter() {
+    const normalizedCoverLetter = coverLetter.replace(/\r/g, "").trim();
+    if (!normalizedCoverLetter) {
+      setCoverLetterError("Write or generate a cover letter before saving.");
+      return;
+    }
+
+    setIsSavingCoverLetter(true);
+    setCoverLetterStatus("");
+    setCoverLetterError("");
+    try {
+      const runId = await ensureCoverLetterRun();
+      const run = await updateRunCoverLetter(runId, { coverLetterText: normalizedCoverLetter });
+      setCoverLetter(run.coverLetterText ?? normalizedCoverLetter);
+      setCoverLetterStatus("Cover letter saved.");
+    } catch (error) {
+      setCoverLetterError(error instanceof Error ? error.message : "Could not save the cover letter.");
+    } finally {
+      setIsSavingCoverLetter(false);
     }
   }
 
@@ -413,7 +546,10 @@ export default function OptimizerPage({
           )}
 
           {jobAddMode && (!optimizedResume || !isJobReferenceCollapsed) && (
-            <div className={`job-entry-panel${isJobReferenceCollapsed ? " is-collapsed" : ""}`}>
+            <div
+              className={`job-entry-panel${isJobReferenceCollapsed ? " is-collapsed" : ""}`}
+              ref={jobPanelRef}
+            >
               <div className="job-entry-header">
                 <div className="job-entry-title">
                   <div>
@@ -429,6 +565,16 @@ export default function OptimizerPage({
                   )}
                 </div>
                 <div className="job-entry-actions">
+                  {reviewRunId && activeArtifact === "job-description" && (
+                    <button
+                      type="button"
+                      className="mode-switch-button"
+                      onClick={handleReviewBack}
+                    >
+                      <ArrowLeft aria-hidden="true" />
+                      Back
+                    </button>
+                  )}
                   {optimizedResume && (
                     <button
                       type="button"
@@ -459,15 +605,19 @@ export default function OptimizerPage({
                   <button
                     type="button"
                     className="mode-switch-button"
-                    disabled={!canGenerateCoverLetter}
-                    onClick={handleGenerateCoverLetter}
+                    disabled={!hasJD || !activeResume || isOptimizing || isFetchingJD}
+                    onClick={() => {
+                      setActiveArtifact("cover-letter");
+                      setIsCoverLetterPanelOpen(true);
+                      setCoverLetterStatus("");
+                      setCoverLetterError("");
+                      requestAnimationFrame(() => {
+                        coverLetterPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      });
+                    }}
                   >
-                    {isGeneratingCoverLetter ? (
-                      <Loader2 className="spin" aria-hidden="true" />
-                    ) : (
-                      <Mail aria-hidden="true" />
-                    )}
-                    {coverLetter ? "Regenerate cover" : "Cover letter"}
+                    <Mail aria-hidden="true" />
+                    Cover letter
                   </button>
                   <button
                     className="btn btn-primary btn-optimize"
@@ -580,8 +730,8 @@ export default function OptimizerPage({
             </div>
           )}
 
-          {(coverLetter || isGeneratingCoverLetter || coverLetterError || coverLetterStatus) && (
-            <section className="job-cover-panel" aria-label="Cover letter">
+          {shouldShowCoverLetterPanel && (
+            <section className="job-cover-panel" aria-label="Cover letter" ref={coverLetterPanelRef}>
               <div className="cover-letter-header">
                 <div>
                   <p className="section-label">Cover letter</p>
@@ -592,6 +742,16 @@ export default function OptimizerPage({
                   </h3>
                 </div>
                 <div className="cover-letter-actions">
+                  {reviewRunId && activeArtifact === "cover-letter" && (
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      onClick={handleReviewBack}
+                    >
+                      <ArrowLeft aria-hidden="true" />
+                      Back
+                    </button>
+                  )}
                   <button
                     className="btn btn-primary"
                     type="button"
@@ -604,6 +764,15 @@ export default function OptimizerPage({
                       <Mail aria-hidden="true" />
                     )}
                     {coverLetter ? "Regenerate" : "Generate"}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    disabled={isSavingCoverLetter || !coverLetter.trim()}
+                    onClick={handleSaveCoverLetter}
+                  >
+                    {isSavingCoverLetter ? <Loader2 className="spin" aria-hidden="true" /> : <FileText aria-hidden="true" />}
+                    Save
                   </button>
                   <button
                     className="btn btn-secondary"
@@ -622,7 +791,7 @@ export default function OptimizerPage({
                 value={coverLetter}
                 disabled={isGeneratingCoverLetter}
                 onChange={(event) => setCoverLetter(event.target.value)}
-                placeholder="Your generated cover letter will appear here. You can edit it before copying."
+                placeholder="Write your cover letter here, or use Generate to draft one from the selected resume and job."
                 spellCheck
               />
 
@@ -640,7 +809,8 @@ export default function OptimizerPage({
           )}
             </section>
 
-            {optimizedResume && (
+            {shouldShowResumeReview && optimizedResume && (
+              <div ref={reviewPanelRef}>
           <Suspense
             fallback={
               <div className="review-loading">
@@ -685,6 +855,7 @@ export default function OptimizerPage({
               }}
             />
           </Suspense>
+              </div>
             )}
           </>
         )}

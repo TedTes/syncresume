@@ -5,16 +5,19 @@ import {
   orderSectionsForTemplate,
   type ResumeTemplateId,
 } from "../templates/registry";
+import { TemplateRenderProvider } from "../templates/shared/renderers";
 
 type ResumeTemplatePreviewProps = {
   document: ResumeDocument;
   templateId: ResumeTemplateId;
+  renderContactSectionContent?: (section: ResumeSection) => ReactNode;
   renderSectionContent?: (section: ResumeSection) => ReactNode;
 };
 
 export function ResumeTemplatePreview({
   document,
   templateId,
+  renderContactSectionContent,
   renderSectionContent,
 }: ResumeTemplatePreviewProps) {
   const template = getResumeTemplateDefinition(templateId);
@@ -24,13 +27,15 @@ export function ResumeTemplatePreview({
   const Preview = template.Preview;
 
   return (
-    <Preview
-      document={document}
-      template={template}
-      sections={sections}
-      contactSection={contactSection}
-      bodySections={bodySections}
-      renderSectionContent={renderSectionContent}
-    />
+    <TemplateRenderProvider renderContactSectionContent={renderContactSectionContent}>
+      <Preview
+        document={document}
+        template={template}
+        sections={sections}
+        contactSection={contactSection}
+        bodySections={bodySections}
+        renderSectionContent={renderSectionContent}
+      />
+    </TemplateRenderProvider>
   );
 }

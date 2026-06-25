@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import OptimizerPage from "./OptimizerPage";
 import ResumesPage from "./ResumesPage";
 
+type WorkspaceArtifact = "resume" | "cover-letter" | "job-description";
+
+function readWorkspaceArtifact(value: string | null): WorkspaceArtifact {
+  if (value === "cover-letter" || value === "job-description") return value;
+  return "resume";
+}
+
 export default function WorkspacePage() {
   const { section, runId } = useParams();
+  const [searchParams] = useSearchParams();
   const resumesSectionRef = useRef<HTMLDivElement>(null);
   const [isReviewOpen, setIsReviewOpen] = useState(Boolean(runId));
+  const preferredArtifact = readWorkspaceArtifact(searchParams.get("artifact"));
 
   const handleReviewOpenChange = useCallback((isOpen: boolean) => {
     setIsReviewOpen(isOpen);
@@ -35,9 +44,10 @@ export default function WorkspacePage() {
           embedded
           onOpenResumes={scrollToResumes}
           onReviewOpenChange={handleReviewOpenChange}
+          preferredArtifact={preferredArtifact}
           reviewRunId={runId}
         />
-        {!isReviewOpen && (
+        {!runId && !isReviewOpen && (
           <div ref={resumesSectionRef} className="workspace-resumes-anchor">
             <ResumesPage embedded />
           </div>

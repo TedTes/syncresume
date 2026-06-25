@@ -1,30 +1,25 @@
 import {
-  ArrowLeft,
   Briefcase,
   Check,
   ChevronDown,
   ChevronRight,
   FileText,
+  Loader2,
   Mail,
   Pencil,
   Sparkles,
   X,
 } from "lucide-react";
-import { useState, type FormEvent, type KeyboardEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { extractJobTitle } from "../lib/jobTitle";
 import type { RunRecord } from "../lib/storage";
 
 type ApplicationArtifact = "resume" | "cover-letter" | "job-description";
-type DashboardArtifactViewer = {
-  runId: string;
-  type: Exclude<ApplicationArtifact, "resume">;
-  title: string;
-  subtitle: string;
-  content: string;
-  emptyText: string;
-};
+type DashboardLocationState = {
+  expandedRunId?: string;
+} | null;
 
 function scoreTierClass(score: number): string {
   if (score >= 70) return "score-high";
@@ -70,17 +65,19 @@ function displayRunTitle(run: RunRecord): string {
 }
 
 export default function DashboardPage() {
-  const { resumes, runs, getRun, updateRunTitle } = useAppData();
+  const { resumes, runs, getRun, updateRunTitle, deleteRun } = useAppData();
   const navigate = useNavigate();
+  const location = useLocation();
   const [editingRunId, setEditingRunId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [savingTitleId, setSavingTitleId] = useState<string | null>(null);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [loadingRunId, setLoadingRunId] = useState<string | null>(null);
+  const [deletingRunId, setDeletingRunId] = useState<string | null>(null);
+  const [pendingDeleteRun, setPendingDeleteRun] = useState<RunRecord | null>(null);
   const [runDetails, setRunDetails] = useState<Record<string, RunRecord>>({});
   const [detailsError, setDetailsError] = useState<Record<string, string>>({});
-  const [artifactViewer, setArtifactViewer] = useState<DashboardArtifactViewer | null>(null);
 
   const runItems = runs.map((run) => ({
     run,
@@ -108,6 +105,17 @@ export default function DashboardPage() {
     return best;
   }, null);
   const bestScore = bestRun?.run.score ?? 0;
+
+  useEffect(() => {
+    const state = location.state as DashboardLocationState;
+    if (!state?.expandedRunId) return;
+
+    const run = runs.find((item) => item.id === state.expandedRunId);
+    if (!run) return;
+
+    setExpandedRunId(run.id);
+    void loadRunDetail(run).catch(() => undefined);
+  }, [location.state, runs]);
 
   async function loadRunDetail(run: RunRecord): Promise<RunRecord> {
     if (runDetails[run.id]) return runDetails[run.id];
@@ -147,31 +155,20 @@ export default function DashboardPage() {
     void loadRunDetail(run).catch(() => undefined);
   }
 
-  async function openArtifact(run: RunRecord, type: ApplicationArtifact, title: string) {
-    if (type === "resume") {
-      if (run.hasReview) navigate(`/workspace/review/${run.id}`);
+  async function openArtifact(run: RunRecord, type: ApplicationArtifact) {
+    if (!run.hasReview) {
+      setDetailsError((current) => ({
+        ...current,
+        [run.id]: "This application does not have a saved review yet.",
+      }));
       return;
     }
 
-    let detail: RunRecord;
-    try {
-      detail =
-        type === "job-description" ? runDetails[run.id] ?? run : runDetails[run.id] ?? (await loadRunDetail(run));
-    } catch {
-      return;
-    }
-    const isJobDescription = type === "job-description";
-    const content = isJobDescription ? detail.jobDescription : (detail.coverLetterText ?? "");
-
-    setArtifactViewer({
-      runId: run.id,
-      type,
-      title: isJobDescription ? "Job description" : "Cover letter",
-      subtitle: title,
-      content: content.trim(),
-      emptyText: isJobDescription
-        ? "No job description saved for this application."
-        : "No cover letter saved for this application yet.",
+    navigate(`/workspace/review/${run.id}?artifact=${type}`, {
+      state: {
+        returnTo: "/dashboard",
+        expandedRunId: run.id,
+      },
     });
   }
 
@@ -223,34 +220,31 @@ export default function DashboardPage() {
     }
   }
 
-  if (artifactViewer) {
-    return (
-      <>
-        <header className="page-topbar">
-          <button
-            className="btn btn-ghost"
-            type="button"
-            onClick={() => setArtifactViewer(null)}
-          >
-            <ArrowLeft aria-hidden="true" />
-            Back
-          </button>
-          <span className="page-topbar-title">{artifactViewer.title}</span>
-        </header>
+  async function handleDeleteApplication(run: RunRecord) {
+    setDeletingRunId(run.id);
+    setDetailsError((current) => {
+      const next = { ...current };
+      delete next[run.id];
+      return next;
+    });
 
-        <main className="page-content application-viewer-page">
-          <section className="application-viewer-card">
-            <div className="application-viewer-heading">
-              <p className="section-label">TAILORED APPLICATION</p>
-              <h1>{artifactViewer.subtitle}</h1>
-            </div>
-            <pre className={`application-viewer-content ${!artifactViewer.content ? "is-muted" : ""}`}>
-              {artifactViewer.content || artifactViewer.emptyText}
-            </pre>
-          </section>
-        </main>
-      </>
-    );
+    try {
+      await deleteRun(run.id);
+      setPendingDeleteRun(null);
+      setExpandedRunId((current) => (current === run.id ? null : current));
+      setRunDetails((current) => {
+        const next = { ...current };
+        delete next[run.id];
+        return next;
+      });
+    } catch (error) {
+      setDetailsError((current) => ({
+        ...current,
+        [run.id]: error instanceof Error ? error.message : "Could not delete this application.",
+      }));
+    } finally {
+      setDeletingRunId(null);
+    }
   }
 
   return (
@@ -299,7 +293,6 @@ export default function DashboardPage() {
         ) : (
           <div className="runs-list">
             {visibleRuns.map(({ run, displayTitle, duplicateCount, attemptNumber }) => {
-              const canOpenReview = Boolean(run.hasReview);
               const isBestRun = bestRun?.run.id === run.id;
               const isExpanded = expandedRunId === run.id;
               const details = runDetails[run.id] ?? run;
@@ -413,6 +406,23 @@ export default function DashboardPage() {
                     <div className="run-row-end">
                       <span className={`status-pill ${run.status}`}>{run.status}</span>
                       <span className={`score-pill ${scoreTierClass(run.score)}`}>{run.score}%</span>
+                      <button
+                        type="button"
+                        className="application-delete-button"
+                        aria-label={`Delete application ${displayTitle}`}
+                        title="Delete application"
+                        disabled={deletingRunId === run.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setPendingDeleteRun(run);
+                        }}
+                      >
+                        {deletingRunId === run.id ? (
+                          <Loader2 className="spin" aria-hidden="true" />
+                        ) : (
+                          <X aria-hidden="true" />
+                        )}
+                      </button>
                       <ChevronDown className="application-card-chevron" aria-hidden="true" />
                     </div>
                   </div>
@@ -435,7 +445,7 @@ export default function DashboardPage() {
                                 key={artifact.id}
                                 type="button"
                                 tabIndex={isExpanded ? 0 : -1}
-                                onClick={() => void openArtifact(run, artifact.id, displayTitle)}
+                                onClick={() => void openArtifact(run, artifact.id)}
                               >
                                 <span className="application-artifact-item-icon">
                                   <Icon aria-hidden="true" />
@@ -465,6 +475,60 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+      {pendingDeleteRun && (
+        <div
+          className="confirm-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deletingRunId) {
+              setPendingDeleteRun(null);
+            }
+          }}
+        >
+          <div
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-application-title"
+            aria-describedby="delete-application-copy"
+          >
+            <div className="confirm-modal-header">
+              <h2 id="delete-application-title">Delete application?</h2>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon-only"
+                aria-label="Close delete confirmation"
+                disabled={Boolean(deletingRunId)}
+                onClick={() => setPendingDeleteRun(null)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </div>
+            <p id="delete-application-copy">
+              This will remove {displayRunTitle(pendingDeleteRun)} and its saved resume, cover letter, and job description bundle.
+            </p>
+            <div className="confirm-modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={Boolean(deletingRunId)}
+                onClick={() => setPendingDeleteRun(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm btn-danger"
+                disabled={Boolean(deletingRunId)}
+                onClick={() => void handleDeleteApplication(pendingDeleteRun)}
+              >
+                {deletingRunId ? <Loader2 className="spin" aria-hidden="true" /> : <X aria-hidden="true" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

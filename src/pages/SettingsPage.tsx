@@ -173,7 +173,7 @@ export default function SettingsPage() {
                 <p className="settings-row-desc">Clerk handles sign-in; Cloudflare verifies each request.</p>
               </div>
               <div className="settings-row-control">
-                <UserButton afterSignOutUrl="/workspace/optimize" />
+                <UserButton />
                 <button className="btn btn-secondary btn-sm" type="button" onClick={() => void signOut()}>
                   <LogOut aria-hidden="true" />
                   Sign out
