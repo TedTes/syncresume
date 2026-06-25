@@ -1,9 +1,12 @@
 import {
   ArrowRight,
   BriefcaseBusiness,
+  FileCheck,
   FileText,
   Mail,
+  Package,
   RefreshCw,
+  Wand2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
@@ -46,20 +49,28 @@ const STEPS = [
 
 const FEATURES = [
   {
+    icon: FileCheck,
     label: "ATS-safe templates",
     desc: "Clean layouts built to parse correctly through applicant tracking systems — no tables, no text boxes.",
+    wide: true,
   },
   {
+    icon: Wand2,
     label: "Job-specific tailoring",
-    desc: "Rewrites bullets and skills sections to match the language and priorities of each individual role.",
+    desc: "Rewrites bullets and skills sections to match the language and priorities of each role.",
+    wide: false,
   },
   {
+    icon: Mail,
     label: "Cover letter included",
     desc: "Generates a targeted cover letter alongside every tailored resume — not a generic template.",
+    wide: false,
   },
   {
-    label: "Versioned application bundles",
+    icon: Package,
+    label: "Application bundles",
     desc: "Every run saves a complete package: tailored resume, cover letter, and the job description used to create it.",
+    wide: true,
   },
 ];
 
@@ -468,13 +479,15 @@ export default function LandingPage() {
             <h2 className="landing-section-title">Everything you need to apply smarter.</h2>
           </div>
           <div className="landing-features">
-            {FEATURES.map(({ label, desc }) => (
-              <div key={label} className="landing-feature">
-                <div className="landing-feature-dot" aria-hidden="true" />
-                <div>
+            {FEATURES.map(({ icon: Icon, label, desc, wide }) => (
+              <div key={label} className={`landing-feature${wide ? " landing-feature--wide" : ""}`}>
+                <div className="landing-feature-top">
+                  <div className="landing-feature-icon" aria-hidden="true">
+                    <Icon />
+                  </div>
                   <h3 className="landing-feature-label">{label}</h3>
-                  <p className="landing-feature-desc">{desc}</p>
                 </div>
+                <p className="landing-feature-desc">{desc}</p>
               </div>
             ))}
           </div>
