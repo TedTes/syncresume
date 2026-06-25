@@ -1,4 +1,4 @@
-import { FileText, LayoutGrid, RefreshCw, Settings } from "lucide-react";
+import { FileText, LayoutGrid, Settings } from "lucide-react";
 import { UserButton } from "@clerk/clerk-react";
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
@@ -94,7 +94,14 @@ export function AppShell() {
     <div className={`app-shell ${isTemplatePanelOpen ? "template-panel-open" : ""}`}>
       <nav className="sidebar" aria-label="Primary">
         <div className="sidebar-brand-mark" aria-hidden="true">
-          <RefreshCw />
+          <svg viewBox="0 0 18 22" fill="none">
+            <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" strokeWidth="1.1" transform="rotate(7 9.5 10.25)" />
+            <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" />
+            <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+            <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+            <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+            <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+          </svg>
         </div>
 
         <div className="sidebar-nav">

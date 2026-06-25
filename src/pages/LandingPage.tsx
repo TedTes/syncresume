@@ -5,7 +5,6 @@ import {
   FileText,
   Mail,
   Package,
-  RefreshCw,
   Wand2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
@@ -165,7 +164,14 @@ export default function LandingPage() {
         <div className="landing-nav-inner">
           <div className="landing-brand">
             <div className="landing-brand-mark" aria-hidden="true">
-              <RefreshCw />
+              <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+                  <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" strokeWidth="1.1" transform="rotate(7 9.5 10.25)" />
+                  <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" />
+                  <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+                  <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+                  <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+                  <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+                </svg>
             </div>
             <span className="landing-brand-name">SyncResume</span>
           </div>
@@ -182,12 +188,24 @@ export default function LandingPage() {
       <section className="landing-hero">
         <div className="landing-container">
           <div className="landing-hero-content">
-            <h1 className="landing-hero-headline">
-              Tailor every resume<br />to the job.
-            </h1>
-            <p className="landing-hero-sub">
-              Upload your resume, paste a job description, and watch the generic version peel into a job-matched one.
-            </p>
+            <div className="landing-hero-text">
+              <h1 className="landing-hero-headline">
+                Tailor every resume<br />to the job.
+              </h1>
+              <p className="landing-hero-sub">
+                Paste a job description and get a tailored resume that speaks the job's language — keywords matched, bullets rewritten, score lifted.
+              </p>
+              <div className="landing-hero-actions">
+                <Link className="btn btn-primary" to="/workspace/optimize">
+                  Start tailoring free
+                  <ArrowRight aria-hidden="true" />
+                </Link>
+                <a className="landing-text-link" href="#templates">
+                  View templates
+                </a>
+              </div>
+            </div>
+
             <div className="landing-peel-demo" aria-hidden="true">
               <div className="landing-peel-label">
                 <span />
@@ -207,8 +225,8 @@ export default function LandingPage() {
                   </div>
                   <div className="landing-peel-lines">
                     <p>
-                      Senior backend engineer delivering <mark>scalable distributed systems</mark>, <mark>Kafka-based workflows</mark>,
-                      and <mark>real-time data pipelines</mark>.
+                      Senior backend engineer delivering <mark>scalable distributed systems</mark>,{" "}
+                      <mark>Kafka-based workflows</mark>, and <mark>real-time data pipelines</mark>.
                     </p>
                     <span />
                     <span />
@@ -218,6 +236,8 @@ export default function LandingPage() {
                     <span>Kafka</span>
                     <span>distributed systems</span>
                     <span>CI/CD</span>
+                    <span>real-time pipelines</span>
+                    <span>backend</span>
                   </div>
                 </div>
                 <div className="landing-peel-card landing-peel-card-generic">
@@ -239,18 +259,9 @@ export default function LandingPage() {
                     <span />
                     <span />
                   </div>
-                  <div className="landing-peel-note">Peels away to reveal the job-matched version underneath.</div>
+                  <div className="landing-peel-note">Peels away to reveal the tailored version underneath.</div>
                 </div>
               </div>
-            </div>
-            <div className="landing-hero-actions">
-              <Link className="btn btn-primary" to="/workspace/optimize">
-                Start tailoring free
-                <ArrowRight aria-hidden="true" />
-              </Link>
-              <a className="landing-text-link" href="#templates">
-                View templates
-              </a>
             </div>
           </div>
         </div>
@@ -514,7 +525,14 @@ export default function LandingPage() {
           <div className="landing-footer-inner">
             <div className="landing-brand">
               <div className="landing-brand-mark" aria-hidden="true">
-                <RefreshCw />
+                <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+                  <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" strokeWidth="1.1" transform="rotate(7 9.5 10.25)" />
+                  <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" />
+                  <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+                  <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+                  <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+                  <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+                </svg>
               </div>
               <span className="landing-brand-name">SyncResume</span>
             </div>
