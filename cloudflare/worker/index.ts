@@ -263,6 +263,11 @@ export default {
         return await handleUpdateResumeText(request, env, corsHeaders, resumeTextMatch[1]);
       }
 
+      const resumeNameMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/name$/);
+      if (resumeNameMatch && request.method === "PATCH") {
+        return await handleUpdateResumeName(request, env, corsHeaders, resumeNameMatch[1]);
+      }
+
       const resumeTemplateMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/template$/);
       if (resumeTemplateMatch && request.method === "PATCH") {
         return await handleUpdateResumeTemplate(request, env, corsHeaders, resumeTemplateMatch[1]);
@@ -296,6 +301,11 @@ export default {
         return await handleUpdateRunReview(request, env, corsHeaders, runReviewMatch[1]);
       }
 
+      const runCoverLetterMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/cover-letter$/);
+      if (runCoverLetterMatch && request.method === "PATCH") {
+        return await handleUpdateRunCoverLetter(request, env, corsHeaders, runCoverLetterMatch[1]);
+      }
+
       const runTitleMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/title$/);
       if (runTitleMatch && request.method === "PATCH") {
         return await handleUpdateRunTitle(request, env, corsHeaders, runTitleMatch[1]);
@@ -304,6 +314,10 @@ export default {
       const runDetailMatch = url.pathname.match(/^\/api\/runs\/([^/]+)$/);
       if (runDetailMatch && request.method === "GET") {
         return await handleGetRun(request, env, corsHeaders, runDetailMatch[1]);
+      }
+
+      if (runDetailMatch && request.method === "DELETE") {
+        return await handleDeleteRun(request, env, corsHeaders, runDetailMatch[1]);
       }
 
       const runStatusMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/status$/);
@@ -800,6 +814,42 @@ async function handleUpdateResumeText(
   return json({ resume: mapResume(row) }, { headers });
 }
 
+async function handleUpdateResumeName(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  resumeId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const name = asNonEmptyString(body.name);
+
+  if (!name) {
+    return json({ error: "Resume name is required." }, { status: 400, headers });
+  }
+
+  if (name.length > 160) {
+    return json({ error: "Resume name must be 160 characters or fewer." }, { status: 400, headers });
+  }
+
+  const row = await env.DB.prepare(
+    [
+      "update resumes",
+      "set name = ?, updated_at = current_timestamp",
+      "where user_id = ? and id = ?",
+      "returning id, name, file_type, storage_key, extracted_text, character_count, usage_count, is_active, selected_template_id, version_type, source_resume_id, source_run_id, tailored_for, match_score, uploaded_at",
+    ].join(" "),
+  )
+    .bind(name, user.id, resumeId)
+    .first<ResumeRow>();
+
+  if (!row) {
+    return json({ error: "Resume not found." }, { status: 404, headers });
+  }
+
+  return json({ resume: mapResume(row) }, { headers });
+}
+
 async function handleUpdateResumeTemplate(
   request: Request,
   env: Env,
@@ -1141,6 +1191,43 @@ async function handleUpdateRunReview(
   return json({ run: mapRun(row) }, { headers });
 }
 
+async function handleUpdateRunCoverLetter(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  runId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const coverLetterText = String(body.coverLetterText ?? "").replace(/\r/g, "").trim();
+
+  if (coverLetterText.length > 15000) {
+    return json({ error: "Cover letter must be 15,000 characters or fewer." }, { status: 400, headers });
+  }
+
+  const row = await env.DB.prepare(
+    [
+      "update optimization_runs",
+      "set cover_letter_text = ?, updated_at = current_timestamp",
+      "where user_id = ? and id = ?",
+      [
+        "returning id, title, resume_id, resume_name, job_description, original_resume_text,",
+        "optimized_resume, optimized_resume_text, before_score, score, matched_keywords,",
+        "partial_keywords, missing_keywords, selected_template_id, tailored_resume_id, cover_letter_text,",
+        "status, created_at",
+      ].join(" "),
+    ].join(" "),
+  )
+    .bind(coverLetterText, user.id, runId)
+    .first<RunRow>();
+
+  if (!row) {
+    return json({ error: "Run not found." }, { status: 404, headers });
+  }
+
+  return json({ run: mapRun(row) }, { headers });
+}
+
 async function handleUpdateRunStatus(
   request: Request,
   env: Env,
@@ -1156,6 +1243,73 @@ async function handleUpdateRunStatus(
   )
     .bind(status, user.id, runId)
     .run();
+
+  return json({ ok: true }, { headers });
+}
+
+async function handleDeleteRun(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  runId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const run = await env.DB.prepare(
+    "select id, tailored_resume_id from optimization_runs where user_id = ? and id = ?",
+  )
+    .bind(user.id, runId)
+    .first<{ id: string; tailored_resume_id: string | null }>();
+
+  if (!run) {
+    return json({ error: "Application not found." }, { status: 404, headers });
+  }
+
+  const generatedResumes = await env.DB.prepare(
+    [
+      "select id, storage_key, is_active",
+      "from resumes",
+      "where user_id = ? and version_type = 'tailored'",
+      "and (source_run_id = ? or id = ?)",
+    ].join(" "),
+  )
+    .bind(user.id, runId, run.tailored_resume_id)
+    .all<{ id: string; storage_key: string | null; is_active: number }>();
+
+  const deletedActiveResume = generatedResumes.results.some((resume) => resume.is_active === 1);
+
+  await env.DB.batch([
+    env.DB.prepare("delete from optimization_runs where user_id = ? and id = ?").bind(user.id, runId),
+    env.DB.prepare(
+      [
+        "delete from resumes",
+        "where user_id = ? and version_type = 'tailored'",
+        "and (source_run_id = ? or id = ?)",
+      ].join(" "),
+    ).bind(user.id, runId, run.tailored_resume_id),
+  ]);
+
+  await Promise.all(
+    generatedResumes.results
+      .map((resume) => resume.storage_key)
+      .filter((storageKey): storageKey is string => Boolean(storageKey))
+      .map((storageKey) => env.RESUME_BUCKET.delete(storageKey)),
+  );
+
+  if (deletedActiveResume) {
+    const nextResume = await env.DB.prepare(
+      "select id from resumes where user_id = ? order by uploaded_at desc limit 1",
+    )
+      .bind(user.id)
+      .first<{ id: string }>();
+
+    if (nextResume) {
+      await env.DB.prepare(
+        "update resumes set is_active = 1, updated_at = current_timestamp where user_id = ? and id = ?",
+      )
+        .bind(user.id, nextResume.id)
+        .run();
+    }
+  }
 
   return json({ ok: true }, { headers });
 }

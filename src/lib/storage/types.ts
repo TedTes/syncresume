@@ -59,6 +59,10 @@ export type RunReviewUpdateInput = {
   templateId?: string;
 };
 
+export type RunCoverLetterUpdateInput = {
+  coverLetterText: string;
+};
+
 /**
  * Storage contract for resumes and run history.
  *
@@ -70,6 +74,7 @@ export interface StorageAdapter {
   saveResume(input: NewResumeInput): Promise<ResumeRecord>;
   getResumeFile?(id: string): Promise<Blob>;
   setActiveResume(id: string): Promise<void>;
+  updateResumeName(id: string, name: string): Promise<ResumeRecord>;
   updateResumeText(id: string, text: string): Promise<ResumeRecord>;
   updateResumeTemplate(id: string, templateId: string): Promise<ResumeRecord>;
   deleteResume(id: string): Promise<void>;
@@ -80,6 +85,8 @@ export interface StorageAdapter {
   saveRun(input: NewRunInput): Promise<RunRecord>;
   updateRunTitle(id: string, title: string): Promise<RunRecord>;
   updateRunReview(id: string, input: RunReviewUpdateInput): Promise<RunRecord>;
+  updateRunCoverLetter(id: string, input: RunCoverLetterUpdateInput): Promise<RunRecord>;
   updateRunStatus(id: string, status: RunStatus): Promise<void>;
+  deleteRun(id: string): Promise<void>;
   recordExport(runId: string, exportType: ExportType): Promise<void>;
 }

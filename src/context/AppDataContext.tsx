@@ -14,6 +14,7 @@ import type {
   NewRunInput,
   ExportType,
   ResumeRecord,
+  RunCoverLetterUpdateInput,
   RunReviewUpdateInput,
   RunRecord,
   RunStatus,
@@ -28,6 +29,7 @@ type AppDataContextValue = {
   addResume: (input: NewResumeInput) => Promise<ResumeRecord>;
   getResumeFile: (id: string) => Promise<Blob>;
   setActiveResume: (id: string) => Promise<void>;
+  updateResumeName: (id: string, name: string) => Promise<ResumeRecord>;
   updateResumeText: (id: string, text: string) => Promise<ResumeRecord>;
   updateResumeTemplate: (id: string, templateId: string) => Promise<ResumeRecord>;
   deleteResume: (id: string) => Promise<void>;
@@ -36,7 +38,9 @@ type AppDataContextValue = {
   addRun: (input: NewRunInput) => Promise<RunRecord>;
   updateRunTitle: (id: string, title: string) => Promise<RunRecord>;
   updateRunReview: (id: string, input: RunReviewUpdateInput) => Promise<RunRecord>;
+  updateRunCoverLetter: (id: string, input: RunCoverLetterUpdateInput) => Promise<RunRecord>;
   updateRunStatus: (id: string, status: RunStatus) => Promise<void>;
+  deleteRun: (id: string) => Promise<void>;
   recordExport: (runId: string, exportType: ExportType) => Promise<void>;
   refresh: (options?: { force?: boolean }) => Promise<void>;
 };
@@ -135,6 +139,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return record;
   }
 
+  async function updateResumeName(id: string, name: string) {
+    requireBackendUser();
+    const record = await storage.updateResumeName(id, name);
+    await refresh({ force: true });
+    return record;
+  }
+
   async function updateResumeTemplate(id: string, templateId: string) {
     requireBackendUser();
     const record = await storage.updateResumeTemplate(id, templateId);
@@ -180,9 +191,22 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return record;
   }
 
+  async function updateRunCoverLetter(id: string, input: RunCoverLetterUpdateInput) {
+    requireBackendUser();
+    const record = await storage.updateRunCoverLetter(id, input);
+    await refresh({ force: true });
+    return record;
+  }
+
   async function updateRunStatus(id: string, status: RunStatus) {
     requireBackendUser();
     await storage.updateRunStatus(id, status);
+    await refresh({ force: true });
+  }
+
+  async function deleteRun(id: string) {
+    requireBackendUser();
+    await storage.deleteRun(id);
     await refresh({ force: true });
   }
 
@@ -211,6 +235,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     addResume,
     getResumeFile,
     setActiveResume,
+    updateResumeName,
     updateResumeText,
     updateResumeTemplate,
     deleteResume,
@@ -219,7 +244,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     addRun,
     updateRunTitle,
     updateRunReview,
+    updateRunCoverLetter,
     updateRunStatus,
+    deleteRun,
     recordExport,
     refresh,
   };

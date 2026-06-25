@@ -4,6 +4,7 @@ import type {
   NewResumeInput,
   NewRunInput,
   ResumeRecord,
+  RunCoverLetterUpdateInput,
   RunReviewUpdateInput,
   RunRecord,
   RunStatus,
@@ -57,6 +58,19 @@ export class CloudflareStorageAdapter implements StorageAdapter {
     await cloudflareRequest(`/api/resumes/${encodeURIComponent(id)}/active`, {
       method: "PATCH",
     });
+  }
+
+  async updateResumeName(id: string, name: string): Promise<ResumeRecord> {
+    const data = await cloudflareRequest<{ resume?: ResumeRecord }>(
+      `/api/resumes/${encodeURIComponent(id)}/name`,
+      {
+        method: "PATCH",
+        body: { name },
+      },
+    );
+
+    if (!data.resume) throw new Error("The backend did not return the renamed resume.");
+    return data.resume;
   }
 
   async updateResumeText(id: string, text: string): Promise<ResumeRecord> {
@@ -151,10 +165,29 @@ export class CloudflareStorageAdapter implements StorageAdapter {
     return data.run;
   }
 
+  async updateRunCoverLetter(id: string, input: RunCoverLetterUpdateInput): Promise<RunRecord> {
+    const data = await cloudflareRequest<{ run?: RunRecord }>(
+      `/api/runs/${encodeURIComponent(id)}/cover-letter`,
+      {
+        method: "PATCH",
+        body: input,
+      },
+    );
+
+    if (!data.run) throw new Error("The backend did not return the updated cover letter.");
+    return data.run;
+  }
+
   async updateRunStatus(id: string, status: RunStatus): Promise<void> {
     await cloudflareRequest(`/api/runs/${encodeURIComponent(id)}/status`, {
       method: "PATCH",
       body: { status },
+    });
+  }
+
+  async deleteRun(id: string): Promise<void> {
+    await cloudflareRequest(`/api/runs/${encodeURIComponent(id)}`, {
+      method: "DELETE",
     });
   }
 
