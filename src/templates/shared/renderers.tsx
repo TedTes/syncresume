@@ -1,8 +1,28 @@
 import { Github, Globe, Linkedin, Mail, MapPin, Phone } from "lucide-react";
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import type { ResumeSection } from "../../resume/schema";
 import { parseResumeContact } from "../../resume/contact";
 import type { TemplatePreviewProps } from "./types";
+
+type TemplateRenderContextValue = {
+  renderContactSectionContent?: (section: ResumeSection) => ReactNode;
+};
+
+const TemplateRenderContext = createContext<TemplateRenderContextValue>({});
+
+export function TemplateRenderProvider({
+  children,
+  renderContactSectionContent,
+}: {
+  children: ReactNode;
+  renderContactSectionContent?: (section: ResumeSection) => ReactNode;
+}) {
+  return (
+    <TemplateRenderContext.Provider value={{ renderContactSectionContent }}>
+      {children}
+    </TemplateRenderContext.Provider>
+  );
+}
 
 // ─── Contact detail categorisation ──────────────────────────────────────────
 
@@ -79,6 +99,15 @@ export function TemplateContact({
   section?: ResumeSection;
   className?: string;
 }) {
+  const { renderContactSectionContent } = useContext(TemplateRenderContext);
+  if (section && renderContactSectionContent) {
+    return (
+      <header className={`${className} template-contact-editable`}>
+        <div className="template-section-body">{renderContactSectionContent(section)}</div>
+      </header>
+    );
+  }
+
   const { name, details } = parseResumeContact(section?.content ?? "", documentTitle);
   if (!name && details.length === 0) return null;
   return (

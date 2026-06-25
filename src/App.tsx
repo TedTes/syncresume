@@ -4,6 +4,7 @@ import { AppDataProvider } from "./context/AppDataContext";
 import { AuthProvider } from "./context/AuthContext";
 import { SettingsProvider } from "./context/SettingsContext";
 import DashboardPage from "./pages/DashboardPage";
+import LandingPage from "./pages/LandingPage";
 import SettingsPage from "./pages/SettingsPage";
 import WorkspacePage from "./pages/WorkspacePage";
 
@@ -13,8 +14,11 @@ export default function App() {
       <SettingsProvider>
         <AppDataProvider>
           <Routes>
-            <Route path="/" element={<AppShell />}>
-              <Route index element={<Navigate to="/workspace/optimize" replace />} />
+            {/* Public landing page */}
+            <Route path="/" element={<LandingPage />} />
+
+            {/* Authenticated app — AppShell is a pathless layout route */}
+            <Route element={<AppShell />}>
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="workspace" element={<WorkspacePage />} />
               <Route path="workspace/review/:runId" element={<WorkspacePage />} />
@@ -22,8 +26,10 @@ export default function App() {
               <Route path="optimizer" element={<Navigate to="/workspace/optimize" replace />} />
               <Route path="resumes" element={<Navigate to="/workspace/resumes" replace />} />
               <Route path="settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/workspace/optimize" replace />} />
             </Route>
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/workspace/optimize" replace />} />
           </Routes>
         </AppDataProvider>
       </SettingsProvider>

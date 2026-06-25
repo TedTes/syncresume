@@ -1,6 +1,26 @@
 import { template as academic } from "./definitions/academic";
 import { template as alto } from "./definitions/alto";
 import { template as anchor } from "./definitions/anchor";
+import { template as arctic } from "./definitions/arctic";
+import { template as beryl } from "./definitions/beryl";
+import { template as brine } from "./definitions/brine";
+import { template as carbon } from "./definitions/carbon";
+import { template as cedar } from "./definitions/cedar";
+import { template as depot } from "./definitions/depot";
+import { template as dusk } from "./definitions/dusk";
+import { template as glyph } from "./definitions/glyph";
+import { template as jade } from "./definitions/jade";
+import { template as ledger } from "./definitions/ledger";
+import { template as loft } from "./definitions/loft";
+import { template as mist } from "./definitions/mist";
+import { template as onyx } from "./definitions/onyx";
+import { template as petal } from "./definitions/petal";
+import { template as prism } from "./definitions/prism";
+import { template as quartz } from "./definitions/quartz";
+import { template as ruby } from "./definitions/ruby";
+import { template as solar } from "./definitions/solar";
+import { template as stark } from "./definitions/stark";
+import { template as tropic } from "./definitions/tropic";
 import { template as arc } from "./definitions/arc";
 import { template as bronze } from "./definitions/bronze";
 import { template as atsSimple } from "./definitions/ats-simple";
@@ -162,6 +182,26 @@ export const RESUME_TEMPLATE_DEFINITIONS = [
   moss,
   vapor,
   grain,
+  quartz,
+  onyx,
+  ruby,
+  jade,
+  prism,
+  depot,
+  cedar,
+  mist,
+  tropic,
+  stark,
+  dusk,
+  ledger,
+  solar,
+  arctic,
+  brine,
+  petal,
+  loft,
+  glyph,
+  beryl,
+  carbon,
 ] satisfies ResumeTemplateDefinition[];
 
 export const RESUME_TEMPLATES = RESUME_TEMPLATE_DEFINITIONS.map(toTemplateConfig);

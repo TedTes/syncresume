@@ -13,6 +13,7 @@ createRoot(document.getElementById("root")!).render(
     <ClerkProvider
       publishableKey={clerkPublishableKey}
       __internal_bypassMissingPublishableKey={!clerkPublishableKey}
+      afterSignOutUrl="/"
     >
       <BrowserRouter>
         <App />

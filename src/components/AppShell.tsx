@@ -144,7 +144,6 @@ export function AppShell() {
         <div className="sidebar-account">
           {user ? (
             <UserButton
-              afterSignOutUrl="/workspace/optimize"
               appearance={{
                 elements: {
                   avatarBox: "sidebar-user-button",

@@ -78,7 +78,10 @@ export type ResumeTemplateId =
   | "flux"
   | "moss"
   | "vapor"
-  | "grain";
+  | "grain"
+  | "quartz" | "onyx" | "ruby" | "jade" | "prism" | "depot" | "cedar" | "mist"
+  | "tropic" | "stark" | "dusk" | "ledger" | "solar" | "arctic" | "brine"
+  | "petal" | "loft" | "glyph" | "beryl" | "carbon";
 
 export type ResumeTemplateRenderer = "single-column" | "sidebar" | "timeline" | "technical" | "split" | "gradient";
 export type ResumeTemplateDensity = "comfortable" | "balanced" | "compact";
