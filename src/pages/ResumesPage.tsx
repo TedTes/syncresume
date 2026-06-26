@@ -226,13 +226,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     }
     return groups;
   }, new Map<string, ResumeRecord[]>());
-  const sourceResumeIds = new Set(resumes.map((resume) => resume.id));
-  const baseResumes = resumes.filter(
-    (resume) =>
-      resume.versionType !== "tailored" ||
-      !resume.sourceResumeId ||
-      !sourceResumeIds.has(resume.sourceResumeId),
-  );
+  const baseResumes = resumes.filter((resume) => resume.versionType !== "tailored");
   const orderedBaseResumes = baseResumes
     .map((resume, index) => ({ resume, index }))
     .sort((left, right) => {
@@ -244,12 +238,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     })
     .map(({ resume }) => resume);
   const ContentTag = embedded ? "section" : "main";
-
-  function getOrderedDerivedResumes(sourceResumeId: string) {
-    return [...(derivedBySource.get(sourceResumeId) ?? [])].sort(
-      (left, right) => Number(right.isActive) - Number(left.isActive),
-    );
-  }
 
   function parseResumeWithSourceContact(resume: ResumeRecord): ResumeDocument {
     const document = parseResumeDocument(resume.text, resume.name);
@@ -822,40 +810,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     );
   }
 
-  function renderResumeGroup(resume: ResumeRecord) {
-    const derivedResumes = getOrderedDerivedResumes(resume.id);
-    const activeDerived = derivedResumes.filter((derivedResume) => derivedResume.isActive);
-    const inactiveDerived = derivedResumes.filter((derivedResume) => !derivedResume.isActive);
-
-    if (activeDerived.length > 0 && !resume.isActive) {
-      return (
-        <div className="resume-group" key={resume.id}>
-          {activeDerived.map((derivedResume) => (
-            <div className="resume-derived-wrap resume-derived-wrap-active" key={derivedResume.id}>
-              {renderResumeRow(derivedResume, "tailored")}
-            </div>
-          ))}
-          {renderResumeRow(resume)}
-          {inactiveDerived.map((derivedResume) => (
-            <div className="resume-derived-wrap" key={derivedResume.id}>
-              {renderResumeRow(derivedResume, "tailored")}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className="resume-group" key={resume.id}>
-        {renderResumeRow(resume)}
-        {derivedResumes.map((derivedResume) => (
-          <div className="resume-derived-wrap" key={derivedResume.id}>
-            {renderResumeRow(derivedResume, "tailored")}
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   return (
     <>
@@ -1352,7 +1306,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           <div className="empty-state">No resumes uploaded yet.</div>
         ) : (
           <div className="resumes-list">
-            {orderedBaseResumes.map((resume) => renderResumeGroup(resume))}
+            {orderedBaseResumes.map((resume) => (
+              <div className="resume-group" key={resume.id}>
+                {renderResumeRow(resume)}
+              </div>
+            ))}
           </div>
         )}
       </ContentTag>

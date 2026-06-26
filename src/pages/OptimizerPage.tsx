@@ -13,7 +13,7 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
@@ -31,6 +31,16 @@ const ResumeReview = lazy(() =>
   import("../components/ResumeReview").then((module) => ({ default: module.ResumeReview })),
 );
 
+function formatRelativeDate(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86_400_000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
 type JobAddMode = "paste" | "link";
 type WorkspaceArtifact = "resume" | "cover-letter" | "job-description";
 
@@ -39,7 +49,9 @@ type OptimizerPageProps = {
   onOpenResumes?: () => void;
   onReviewOpenChange?: (isOpen: boolean) => void;
   preferredArtifact?: WorkspaceArtifact;
+  reviewBackPath?: string;
   reviewRunId?: string;
+  reviewToolbarHost?: HTMLElement | null;
 };
 
 type ReviewReturnState = {
@@ -52,9 +64,12 @@ export default function OptimizerPage({
   onOpenResumes,
   onReviewOpenChange,
   preferredArtifact = "resume",
+  reviewBackPath,
   reviewRunId,
+  reviewToolbarHost,
 }: OptimizerPageProps) {
   const {
+    runs,
     resumes,
     activeResume,
     setActiveResume,
@@ -100,6 +115,45 @@ export default function OptimizerPage({
 
   const hasJD = jobDescription.trim().length > 0;
   const canOptimize = hasJD && Boolean(activeResume) && !isOptimizing;
+
+  const jdSignals = useMemo(() => {
+    const text = jobDescription.trim();
+    if (text.length < 80) return { role: "", keywords: [] as string[] };
+
+    const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length > 2 && l.length < 70);
+    const role = lines.find((l) =>
+      /\b(engineer|developer|designer|analyst|manager|architect|scientist|lead|director|specialist)\b/i.test(l),
+    ) ?? "";
+
+    const knownTech =
+      /\b(React|TypeScript|JavaScript|Python|Java|Go|Rust|Node\.?js|AWS|GCP|Azure|Docker|Kubernetes|PostgreSQL|MySQL|MongoDB|Redis|GraphQL|gRPC|Kafka|Terraform|CI\/CD|Next\.?js|Vue|Angular|Swift|Kotlin|Flutter|Figma|SQL|NoSQL|Machine Learning|Spark|Airflow|dbt|Snowflake)\b/g;
+    const techMatches = [...new Set((text.match(knownTech) ?? []).map((k) => k.trim()))];
+    const acronyms = [...new Set(
+      (text.match(/\b[A-Z]{2,5}\b/g) ?? []).filter(
+        (w) => !["THE", "AND", "FOR", "WITH", "THAT", "THIS", "WILL", "HAVE", "FROM", "THEY",
+                  "YOUR", "BEEN", "WHEN", "WHAT", "MORE", "INTO", "ALSO", "OVER", "WORK",
+                  "TEAM", "ROLE", "JOIN", "HELP", "MUST", "NICE", "PLUS", "NOTE"].includes(w),
+      ),
+    )];
+    const keywords = [...new Set([...techMatches, ...acronyms])].slice(0, 8);
+    return { role, keywords };
+  }, [jobDescription]);
+
+  const resumeVersions = useMemo(() => {
+    if (!activeResume) return [];
+    return resumes
+      .filter((r) => r.versionType === "tailored" && r.sourceResumeId === activeResume.id)
+      .map((resume) => ({
+        resume,
+        run: runs.find((r) => r.tailoredResumeId === resume.id || r.id === resume.sourceRunId) ?? null,
+      }))
+      .sort((a, b) => new Date(b.resume.uploadedAt).getTime() - new Date(a.resume.uploadedAt).getTime())
+      .slice(0, 5);
+  }, [resumes, runs, activeResume]);
+  const sourceResumeOptions = useMemo(() => {
+    const originals = resumes.filter((resume) => resume.versionType !== "tailored");
+    return originals.length > 0 ? originals : resumes;
+  }, [resumes]);
   const canGenerateCoverLetter =
     hasJD && Boolean(activeResume) && !isGeneratingCoverLetter && !isOptimizing && !isFetchingJD;
   const isJobReferenceCollapsed = Boolean(optimizedResume && isJobPanelCollapsed);
@@ -117,9 +171,25 @@ export default function OptimizerPage({
   const shouldShowResumeReview = Boolean(
     optimizedResume && activeArtifact === "resume",
   );
+  const isSavedReviewMode = Boolean(reviewRunId);
   const ContentTag = embedded ? "section" : "main";
 
   function renderResumeAction(label: string) {
+    if (embedded) {
+      const hasOptions = sourceResumeOptions.length > 0;
+      return (
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={!hasOptions}
+          onClick={() => setIsSwitcherOpen(true)}
+        >
+          {hasOptions ? "Select resume" : "No resumes"}
+          <Upload aria-hidden="true" />
+        </button>
+      );
+    }
+
     if (onOpenResumes) {
       return (
         <button type="button" className="btn btn-secondary btn-sm" onClick={onOpenResumes}>
@@ -130,7 +200,7 @@ export default function OptimizerPage({
     }
 
     return (
-      <Link to="/workspace/resumes" className="btn btn-secondary btn-sm">
+      <Link to="/resumes" className="btn btn-secondary btn-sm">
         {label}
         <Upload aria-hidden="true" />
       </Link>
@@ -166,7 +236,7 @@ export default function OptimizerPage({
       return;
     }
 
-    navigate("/workspace/optimize", { replace: Boolean(reviewRunId) });
+    navigate(reviewBackPath ?? "/workspace/optimize", { replace: Boolean(reviewRunId) });
   }
 
   useEffect(() => {
@@ -263,18 +333,8 @@ export default function OptimizerPage({
 
     if (preferredArtifact === "job-description") {
       setIsJobPanelCollapsed(false);
-      requestAnimationFrame(() => {
-        jobPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-      return;
     }
-
-    const target =
-      preferredArtifact === "cover-letter" ? coverLetterPanelRef.current : reviewPanelRef.current;
-    requestAnimationFrame(() => {
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }, [preferredArtifact, reviewRunId, shouldShowSavedReviewLoader, shouldShowCoverLetterPanel]);
+  }, [preferredArtifact, reviewRunId, shouldShowSavedReviewLoader]);
 
   async function handleFetchLink() {
     setIsFetchingJD(true);
@@ -472,7 +532,11 @@ export default function OptimizerPage({
         </header>
       )}
 
-      <ContentTag className={`page-content optimizer-page${embedded ? " workspace-job-section" : ""}`}>
+      <ContentTag
+        className={`page-content optimizer-page${embedded ? " workspace-job-section" : ""}${
+          isSavedReviewMode ? " saved-application-review" : ""
+        }`}
+      >
         {shouldShowSavedReviewLoader ? (
           <div className="review-loading saved-review-loading">
             <Loader2 className="spin" aria-hidden="true" />
@@ -480,28 +544,28 @@ export default function OptimizerPage({
           </div>
         ) : (
           <>
-            {!embedded && (
+            {!isSavedReviewMode && !embedded && (
               <section className="optimizer-resume-context" aria-label="Selected resume">
-            <div className="optimizer-context-copy">
-              <span className="section-label">Selected resume</span>
-              {activeResume ? (
-                <>
-                  <h1>{activeResume.name}</h1>
-                  <p>
-                    {activeResume.characterCount.toLocaleString()} chars · used in {activeResume.usageCount} runs
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h1>No resume selected</h1>
-                  <p>Choose a source resume before generating a tailored version.</p>
-                </>
-              )}
-            </div>
-            <div className="optimizer-context-actions">
-              {renderResumeAction(activeResume ? "Change resume" : "Add resume")}
-            </div>
-          </section>
+                <div className="optimizer-context-copy">
+                  <span className="section-label">Selected resume</span>
+                  {activeResume ? (
+                    <>
+                      <h1>{activeResume.name}</h1>
+                      <p>
+                        {activeResume.characterCount.toLocaleString()} chars · used in {activeResume.usageCount} runs
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h1>No resume selected</h1>
+                      <p>Choose a source resume before generating a tailored version.</p>
+                    </>
+                  )}
+                </div>
+                <div className="optimizer-context-actions">
+                  {renderResumeAction(activeResume ? "Change resume" : "Add resume")}
+                </div>
+              </section>
             )}
 
             <section className="input-col" aria-label="Job description input">
@@ -555,6 +619,38 @@ export default function OptimizerPage({
                   <div>
                     <span className="section-label">Target job</span>
                     <h2 key={jobAddMode}>{jobAddMode === "paste" ? "Job description" : "Job posting URL"}</h2>
+                    {embedded && (
+                      <div className="workspace-resume-inline-wrap">
+                        <button
+                          type="button"
+                          className="workspace-resume-inline"
+                          disabled={sourceResumeOptions.length === 0}
+                          onClick={() => setIsSwitcherOpen((open) => !open)}
+                        >
+                          <span className="resume-pill-dot" aria-hidden="true" />
+                          <span>{activeResume?.name ?? (sourceResumeOptions.length > 0 ? "Select resume" : "No resumes added")}</span>
+                          {sourceResumeOptions.length > 0 && <ChevronDown aria-hidden="true" />}
+                        </button>
+                        {isSwitcherOpen && sourceResumeOptions.length > 0 && (
+                          <div className="workspace-resume-inline-menu">
+                            {sourceResumeOptions.map((resume) => (
+                              <button
+                                key={resume.id}
+                                type="button"
+                                className="workspace-resume-inline-option"
+                                onClick={() => {
+                                  setActiveResume(resume.id);
+                                  setIsSwitcherOpen(false);
+                                }}
+                              >
+                                {resume.id === activeResume?.id ? <CheckCircle2 aria-hidden="true" /> : null}
+                                <span>{resume.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {!activeResume && (
                     <div className="warning-banner">
@@ -652,6 +748,16 @@ export default function OptimizerPage({
                             resetResult();
                           }}
                         />
+                        {hasJD && !optimizedResume && jdSignals.keywords.length > 0 && (
+                          <div className="jd-signal-row">
+                            {jdSignals.role && (
+                              <span className="jd-signal-role">{jdSignals.role}</span>
+                            )}
+                            {jdSignals.keywords.map((kw) => (
+                              <span key={kw} className="jd-signal-chip">{kw}</span>
+                            ))}
+                          </div>
+                        )}
                         <div className="job-editor-footer">
                           <span>{jobDescription.trim().length.toLocaleString()} chars</span>
                           <span>
@@ -703,6 +809,16 @@ export default function OptimizerPage({
                                 resetResult();
                               }}
                             />
+                            {hasJD && !optimizedResume && jdSignals.keywords.length > 0 && (
+                              <div className="jd-signal-row">
+                                {jdSignals.role && (
+                                  <span className="jd-signal-role">{jdSignals.role}</span>
+                                )}
+                                {jdSignals.keywords.map((kw) => (
+                                  <span key={kw} className="jd-signal-chip">{kw}</span>
+                                ))}
+                              </div>
+                            )}
                             <div className="job-editor-footer">
                               <span>{jobDescription.trim().length.toLocaleString()} characters extracted</span>
                               <span>
@@ -809,8 +925,59 @@ export default function OptimizerPage({
           )}
             </section>
 
+            {!optimizedResume && !reviewRunId && resumeVersions.length > 0 && (
+              <section className="workspace-versions" aria-label="Tailored versions">
+                <h3 className="workspace-versions-heading">Tailored versions</h3>
+                <div className="workspace-versions-list">
+                  {resumeVersions.map(({ resume, run }) => {
+                    const applicationRunId = run?.id ?? resume.sourceRunId;
+                    const content = (
+                      <>
+                        <div className="workspace-version-meta">
+                          <span className="workspace-version-name">
+                            {run?.title ?? resume.tailoredFor ?? resume.name}
+                          </span>
+                          <span className="workspace-version-date">
+                            {formatRelativeDate(resume.uploadedAt)}
+                          </span>
+                        </div>
+                        <div className="workspace-version-end">
+                          {run?.hasCoverLetter && (
+                            <span className="workspace-version-badge">CL</span>
+                          )}
+                          {resume.matchScore != null && (
+                            <span className="workspace-version-score">{resume.matchScore}%</span>
+                          )}
+                        </div>
+                      </>
+                    );
+
+                    return applicationRunId ? (
+                      <Link
+                        key={resume.id}
+                        to={`/workspace/review/${applicationRunId}?artifact=resume`}
+                        state={{ returnTo: "/workspace" }}
+                        className="workspace-version-item"
+                      >
+                        {content}
+                      </Link>
+                    ) : (
+                      <button
+                        key={resume.id}
+                        type="button"
+                        className="workspace-version-item"
+                        onClick={() => setActiveResume(resume.id)}
+                      >
+                        {content}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             {shouldShowResumeReview && optimizedResume && (
-              <div ref={reviewPanelRef}>
+              <div ref={reviewPanelRef} className="review-panel-anchor">
           <Suspense
             fallback={
               <div className="review-loading">
@@ -827,6 +994,7 @@ export default function OptimizerPage({
               onResumeChange={setOptimizedResume}
               initialTemplateId={reviewTemplateId}
               onBack={handleReviewBack}
+              topbarPortalTarget={reviewToolbarHost}
               onSaveReview={
                 currentRunId
                   ? async (resume, templateId) => {

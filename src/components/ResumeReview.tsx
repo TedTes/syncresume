@@ -10,6 +10,7 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   copyPlainText,
@@ -50,6 +51,7 @@ type ResumeReviewProps = {
   ) => Promise<void>;
   onExported?: (exportType: ExportType) => void | Promise<void>;
   onBack?: () => void;
+  topbarPortalTarget?: HTMLElement | null;
 };
 
 type SectionConfig = {
@@ -82,6 +84,7 @@ export function ResumeReview({
   onSaveReview,
   onExported,
   onBack,
+  topbarPortalTarget,
 }: ResumeReviewProps) {
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [assistantSectionId, setAssistantSectionId] = useState("summary");
@@ -232,18 +235,23 @@ export function ResumeReview({
     }
   }
 
+  const reviewTopbar = (
+    <ReviewTopbar
+      selectedExportTypes={selectedExportTypes}
+      isExporting={isExporting}
+      onToggleExportType={toggleExportType}
+      onExportSelected={handleExportSelected}
+      onOpenAssistant={() => setIsAssistantOpen(true)}
+      canSaveReview={Boolean(onSaveReview)}
+      isSavingReview={isSavingReview}
+      onSaveReview={handleSaveReview}
+      onBack={onBack}
+    />
+  );
+
   return (
     <section className="review-workspace" aria-label="Review workspace">
-      <ReviewTopbar
-        selectedExportTypes={selectedExportTypes}
-        isExporting={isExporting}
-        onToggleExportType={toggleExportType}
-        onExportSelected={handleExportSelected}
-        canSaveReview={Boolean(onSaveReview)}
-        isSavingReview={isSavingReview}
-        onSaveReview={handleSaveReview}
-        onBack={onBack}
-      />
+      {topbarPortalTarget ? createPortal(reviewTopbar, topbarPortalTarget) : reviewTopbar}
 
       <div className="tab-content">
         <ResultsTab sections={sectionComparisons} templateId={selectedTemplateId} />
@@ -286,6 +294,7 @@ function ReviewTopbar({
   isExporting,
   onToggleExportType,
   onExportSelected,
+  onOpenAssistant,
   canSaveReview,
   isSavingReview,
   onSaveReview,
@@ -295,6 +304,7 @@ function ReviewTopbar({
   isExporting: boolean;
   onToggleExportType: (type: ExportType) => void;
   onExportSelected: () => Promise<void>;
+  onOpenAssistant: () => void;
   canSaveReview: boolean;
   isSavingReview: boolean;
   onSaveReview: () => Promise<void>;
@@ -334,6 +344,14 @@ function ReviewTopbar({
         </Link>
       )}
       <div className="review-topbar-actions">
+        <button
+          className="btn btn-secondary btn-sm review-edit-button"
+          type="button"
+          onClick={onOpenAssistant}
+        >
+          <WandSparkles aria-hidden="true" />
+          Edit
+        </button>
         <div className="review-export-group" ref={exportGroupRef}>
           <button
             className="btn btn-secondary btn-sm review-export-button"

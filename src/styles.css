@@ -75,9 +75,6 @@ a {
   min-height: 100vh;
 }
 
-.app-shell.template-panel-open {
-  --template-rail-width: var(--template-panel-width);
-}
 
 .sidebar {
   width: var(--sidebar-width);
@@ -197,14 +194,15 @@ a {
 
 /* Per-page topbar */
 .page-topbar {
+  --page-topbar-height: 56px;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 60;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 56px;
+  min-height: var(--page-topbar-height);
   padding: 0 24px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
@@ -223,14 +221,33 @@ a {
   gap: 8px;
 }
 
+.workspace-topbar.review-mode {
+  justify-content: stretch;
+}
+
+.review-toolbar-slot {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: visible;
+}
+
+.workspace-outer {
+  display: flex;
+  flex: 1;
+  /* clip panel slide animation without breaking sticky positioning */
+  overflow: clip;
+}
+
 .workspace-flow {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 16px;
-  width: min(1180px, calc(100% - 48px));
+  width: 100%;
+  max-width: 1220px;
   margin: 0 auto;
-  padding: 24px 0 42px;
+  padding: 24px clamp(18px, 3vw, 40px) 42px;
 }
 
 .workspace-flow:has(.review-workspace) {
@@ -250,6 +267,61 @@ a {
   flex: 0 0 auto;
   width: 100%;
   padding: 0;
+}
+
+.saved-application-review {
+  position: fixed;
+  inset: 56px 0 0 var(--sidebar-width);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  padding: 12px 18px 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+}
+
+.saved-application-review:has(.review-workspace) {
+  overflow: hidden;
+}
+
+.saved-application-review > .input-col {
+  flex: 0 0 auto;
+}
+
+.saved-application-review .review-panel-anchor {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.saved-application-review .review-workspace {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.saved-application-review .tab-content,
+.saved-application-review .results-template-stage {
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.saved-application-review .template-comparison-grid {
+  flex: 1 1 auto;
+  height: auto;
+  max-height: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .workspace-flow > .workspace-resumes-anchor {
@@ -367,7 +439,10 @@ a {
 
 /* ============ PDF full-page viewer ============ */
 .pdf-fullpage {
-  flex: 1;
+  position: fixed;
+  inset: 0 0 0 var(--sidebar-width);
+  z-index: 55;
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -375,10 +450,7 @@ a {
 }
 
 .workspace-fullpage-overlay {
-  position: fixed;
   inset: 0 0 0 calc(var(--sidebar-width) + var(--template-rail-width));
-  z-index: 55;
-  background: var(--bg);
 }
 
 .pdf-fullpage-header {
@@ -783,6 +855,56 @@ a {
     visibility 0s;
 }
 
+/* Right-side push panel (workspace template picker) */
+
+.template-drawer-push-right {
+  position: sticky;
+  top: 0;
+  z-index: 56;
+  width: 0;
+  max-width: 0;
+  height: 100vh;
+  flex: 0 0 0;
+  padding: 12px 0;
+  border-left-width: 0;
+  box-shadow: none;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  visibility: hidden;
+  animation: none;
+  transition:
+    width var(--motion-med) var(--ease-out),
+    max-width var(--motion-med) var(--ease-out),
+    flex-basis var(--motion-med) var(--ease-out),
+    opacity var(--motion-fast) ease,
+    visibility 0s linear var(--motion-med);
+}
+
+.template-drawer-push-right.is-open {
+  width: var(--template-panel-width);
+  max-width: var(--template-panel-width);
+  flex-basis: var(--template-panel-width);
+  padding: 12px;
+  border-left-width: 1px;
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transition:
+    width var(--motion-med) var(--ease-out),
+    max-width var(--motion-med) var(--ease-out),
+    flex-basis var(--motion-med) var(--ease-out),
+    opacity var(--motion-fast) ease 60ms,
+    visibility 0s;
+}
+
+/* Flip border and shadow direction for right-side panel */
+.template-drawer-push-right .template-drawer {
+  border-right: none;
+  border-left: 1px solid var(--border);
+  box-shadow: -24px 0 80px rgba(0, 0, 0, 0.42);
+}
+
 .template-drawer-header {
   display: flex;
   flex-shrink: 0;
@@ -1026,7 +1148,7 @@ a {
 
 .template-review-backdrop {
   position: fixed;
-  inset: 0 0 0 calc(var(--sidebar-width) + var(--template-panel-width));
+  inset: 0 var(--template-panel-width) 0 var(--sidebar-width);
   z-index: 140;
   display: block;
   padding: 0;
@@ -2736,6 +2858,142 @@ a {
   white-space: nowrap;
 }
 
+/* JD signal row — detected role + keyword chips */
+
+.jd-signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.18);
+  background: rgba(34, 197, 94, 0.04);
+  animation: fadeInUp 0.18s ease;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.jd-signal-role {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-right: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.jd-signal-chip {
+  font-size: 0.71rem;
+  font-weight: 700;
+  color: #70e7af;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+  white-space: nowrap;
+}
+
+/* Tailored versions */
+
+.workspace-versions {
+  margin-top: 4px;
+}
+
+.workspace-versions-heading {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+
+.workspace-versions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspace-version-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  text-decoration: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.workspace-version-item:hover {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: var(--accent-dim);
+}
+
+.workspace-version-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.workspace-version-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-version-date {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.workspace-version-end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.workspace-version-score {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 34px;
+  text-align: right;
+}
+
+.workspace-version-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
 .job-textarea {
   min-height: 360px;
   padding: 18px 20px;
@@ -2772,6 +3030,12 @@ a {
   gap: 8px;
 }
 
+.workspace-job-section .optimizer-resume-context {
+  width: 100%;
+  max-width: none;
+  border-radius: 14px;
+}
+
 .workspace-job-section .input-col {
   gap: 0;
 }
@@ -2799,6 +3063,11 @@ a {
 .workspace-job-section .job-entry-title {
   align-items: center;
   gap: 12px;
+}
+
+.workspace-job-section .job-entry-title > div {
+  position: relative;
+  min-width: 0;
 }
 
 .workspace-job-section .job-entry-header h2 {
@@ -4621,6 +4890,39 @@ a {
   overflow: visible;
 }
 
+.saved-application-review .review-topbar {
+  position: relative;
+  min-height: 0;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.saved-application-review .review-topbar-actions {
+  margin-left: auto;
+  flex-wrap: nowrap;
+}
+
+.review-toolbar-slot .review-topbar {
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow-x: visible;
+  overflow-y: visible;
+  scrollbar-width: none;
+}
+
+.review-toolbar-slot .review-topbar::-webkit-scrollbar {
+  display: none;
+}
+
+.saved-application-review .export-format-menu {
+  z-index: 90;
+}
+
 .review-back-button {
   flex-shrink: 0;
 }
@@ -4637,6 +4939,10 @@ a {
   gap: 8px;
   flex-shrink: 0;
   min-width: 0;
+}
+
+.review-edit-button {
+  flex-shrink: 0;
 }
 
 .review-export-group {
@@ -4774,6 +5080,8 @@ a {
   background:
     radial-gradient(circle at 50% 0, rgba(255, 255, 255, 0.04), transparent 34%),
     #20201f;
+  min-width: 0;
+  width: 100%;
 }
 
 .template-comparison-pane {
@@ -4783,21 +5091,47 @@ a {
   justify-content: center;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
   background: transparent;
 }
 
 .template-comparison-pane .resume-template-preview {
-  flex: 0 1 816px;
+  flex: 1 1 auto;
   width: min(100%, 816px);
+  max-width: 100%;
   height: 100%;
   max-height: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 6px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
   overscroll-behavior: contain;
   scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+
+.template-comparison-pane .resume-template-preview * {
+  min-width: 0;
+}
+
+.template-comparison-pane .template-contact,
+.template-comparison-pane .template-contact p,
+.template-comparison-pane .contact-detail-list,
+.template-comparison-pane .contact-detail-item,
+.template-comparison-pane .contact-detail-item span,
+.template-comparison-pane .template-section,
+.template-comparison-pane .template-section p,
+.template-comparison-pane .template-section li {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.template-comparison-pane .contact-detail-item {
+  white-space: normal;
 }
 
 .template-diff-content {
@@ -5308,17 +5642,24 @@ a {
     --template-rail-width: 0px;
   }
 
+  .pdf-fullpage,
   .workspace-fullpage-overlay {
     left: 0;
   }
 
+  .saved-application-review {
+    inset: 56px 0 0 var(--sidebar-width);
+    padding: 10px 12px 14px;
+  }
+
+  .app-shell.template-panel-open .pdf-fullpage,
   .app-shell.template-panel-open .workspace-fullpage-overlay {
     left: 0;
   }
 
   .workspace-flow {
-    width: calc(100% - 32px);
-    padding: 18px 0 36px;
+    width: 100%;
+    padding: 18px 16px 36px;
   }
 
   .template-drawer-backdrop {
@@ -5500,10 +5841,11 @@ a {
     text-align: left;
   }
 
-  .workspace-job-section .job-entry-title > div {
-    width: 100%;
-    text-align: left;
-  }
+.workspace-job-section .job-entry-title > div {
+  position: relative;
+  width: 100%;
+  text-align: left;
+}
 
   .workspace-job-section .job-entry-actions {
     display: grid;
@@ -5512,8 +5854,8 @@ a {
     gap: 8px;
   }
 
-  .workspace-job-section .mode-switch-button,
-  .workspace-job-section .job-entry-actions .btn-optimize {
+.workspace-job-section .mode-switch-button,
+.workspace-job-section .job-entry-actions .btn-optimize {
     width: 100%;
     height: 36px;
     min-width: 0;
@@ -5736,9 +6078,9 @@ a {
   }
 
   .workspace-flow {
-    width: calc(100% - 12px);
+    width: 100%;
     gap: 12px;
-    padding: 14px 0 28px;
+    padding: 14px 10px 28px;
   }
 
   .workspace-job-section .job-entry-panel {
@@ -9624,6 +9966,103 @@ a {
   color: var(--accent);
   font-size: 0.62rem;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.workspace-resume-inline-wrap {
+  position: relative;
+  margin-top: 8px;
+  max-width: min(460px, 100%);
+}
+
+.workspace-resume-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.workspace-resume-inline:hover,
+.workspace-resume-inline:focus-visible {
+  border-color: rgba(34, 197, 94, 0.38);
+  background: rgba(34, 197, 94, 0.08);
+  color: var(--accent-strong);
+  outline: none;
+}
+
+.workspace-resume-inline span:not(.resume-pill-dot) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-resume-inline svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+.workspace-resume-inline-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(360px, calc(100vw - 140px));
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+}
+
+.workspace-resume-inline-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspace-resume-inline-option:hover,
+.workspace-resume-inline-option:focus-visible {
+  background: var(--accent-dim);
+  color: var(--accent-strong);
+  outline: none;
+}
+
+.workspace-resume-inline-option svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.workspace-resume-inline-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
