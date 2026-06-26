@@ -424,6 +424,9 @@ function ResultsTab({
   sections: SectionComparison[];
   templateId: ResumeTemplateId;
 }) {
+  const comparisonRef = useRef<HTMLDivElement | null>(null);
+  const [isSinglePane, setIsSinglePane] = useState(false);
+
   const originalDocument = useMemo(
     () => comparisonDocument(sections, "before"),
     [sections],
@@ -437,13 +440,31 @@ function ResultsTab({
     [sections],
   );
 
+  useEffect(() => {
+    const comparison = comparisonRef.current;
+    if (!comparison) return;
+
+    function updateLayout(width: number) {
+      setIsSinglePane(width < 1280);
+    }
+
+    updateLayout(comparison.getBoundingClientRect().width);
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width != null) updateLayout(width);
+    });
+    resizeObserver.observe(comparison);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
   return (
     <div className="results-stage results-template-stage">
-      <div className="diff-column-labels" aria-hidden="true">
-        <span>Before</span>
-        <span>After</span>
-      </div>
-      <div className="template-comparison-grid">
+      <div
+        className={`template-comparison-grid${isSinglePane ? " is-single-pane" : ""}`}
+        ref={comparisonRef}
+      >
         <div className="template-comparison-pane template-comparison-before">
           <ResumeTemplatePreview
             key={`before-${templateId}`}
