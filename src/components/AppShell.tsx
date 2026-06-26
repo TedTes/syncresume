@@ -1,17 +1,13 @@
-import { FileText, LayoutGrid, Settings } from "lucide-react";
+import { FileText, Files, LayoutGrid, Settings } from "lucide-react";
 import { UserButton } from "@clerk/clerk-react";
-import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
-import { useSettings } from "../context/SettingsContext";
-import { parseResumeDocument, withFallbackContactSection } from "../resume/schema";
 import { AuthGate } from "./AuthGate";
-import { ResumeTemplatePanel, ResumeTemplateSelector } from "./ResumeTemplateSelector";
 
 const PRIMARY_NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { to: "/workspace", label: "Workspace", icon: FileText },
+  { to: "/resumes", label: "Resumes", icon: Files },
 ];
 
 const SECONDARY_NAV_ITEMS = [
@@ -20,78 +16,11 @@ const SECONDARY_NAV_ITEMS = [
 
 export function AppShell() {
   const { user } = useAuth();
-  const { activeResume, resumes } = useAppData();
-  const {
-    selectedTemplateId,
-    setSelectedTemplateId,
-    templatePreviewDocument,
-  } = useSettings();
-  const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
   const location = useLocation();
   const initials = user?.email?.slice(0, 2).toUpperCase() || "SR";
-  const activeResumeDocument = useMemo(
-    () => {
-      if (!activeResume) return null;
-
-      const document = parseResumeDocument(activeResume.text, activeResume.name);
-      const sourceResume = activeResume.sourceResumeId
-        ? resumes.find((resume) => resume.id === activeResume.sourceResumeId)
-        : null;
-      const sourceDocument = sourceResume
-        ? parseResumeDocument(sourceResume.text, sourceResume.name)
-        : null;
-
-      return withFallbackContactSection(document, sourceDocument);
-    },
-    [activeResume, resumes],
-  );
-  const templatePanelDocument = templatePreviewDocument ?? activeResumeDocument;
-
-  function closePanel() {
-    setIsTemplatePanelOpen(false);
-  }
-
-  useEffect(() => {
-    setIsTemplatePanelOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    if (!isTemplatePanelOpen) return;
-
-    function eventStartedInsideTemplateUi(target: EventTarget | null) {
-      return (
-        target instanceof Element &&
-        Boolean(target.closest(".template-drawer-push, .template-review-backdrop, .sidebar"))
-      );
-    }
-
-    function collapseOnPageMovement(event: Event) {
-      if (eventStartedInsideTemplateUi(event.target)) return;
-      closePanel();
-    }
-
-    function collapseOnViewportChange() {
-      setIsTemplatePanelOpen(false);
-    }
-
-    const movementOptions = { capture: true, passive: true };
-    document.addEventListener("scroll", collapseOnPageMovement, true);
-    document.addEventListener("wheel", collapseOnPageMovement, movementOptions);
-    document.addEventListener("touchmove", collapseOnPageMovement, movementOptions);
-    window.addEventListener("resize", collapseOnViewportChange);
-    window.addEventListener("orientationchange", collapseOnViewportChange);
-
-    return () => {
-      document.removeEventListener("scroll", collapseOnPageMovement, true);
-      document.removeEventListener("wheel", collapseOnPageMovement, movementOptions);
-      document.removeEventListener("touchmove", collapseOnPageMovement, movementOptions);
-      window.removeEventListener("resize", collapseOnViewportChange);
-      window.removeEventListener("orientationchange", collapseOnViewportChange);
-    };
-  }, [isTemplatePanelOpen]);
 
   return (
-    <div className={`app-shell ${isTemplatePanelOpen ? "template-panel-open" : ""}`}>
+    <div className="app-shell">
       <nav className="sidebar" aria-label="Primary">
         <div className="sidebar-brand-mark" aria-hidden="true">
           <svg viewBox="0 0 18 22" fill="none">
@@ -109,9 +38,11 @@ export function AppShell() {
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) =>
-                `sidebar-nav-item ${isActive && !isTemplatePanelOpen ? "active" : ""}`
-              }
+              className={({ isActive }) => {
+                const isApplicationDetail =
+                  to === "/dashboard" && location.pathname.startsWith("/applications/");
+                return `sidebar-nav-item ${isActive || isApplicationDetail ? "active" : ""}`;
+              }}
               title={label}
               aria-label={label}
             >
@@ -119,26 +50,11 @@ export function AppShell() {
               <span>{label}</span>
             </NavLink>
           ))}
-          <ResumeTemplateSelector
-            selectedTemplateId={selectedTemplateId}
-            onSelect={setSelectedTemplateId}
-            previewDocument={templatePanelDocument}
-            triggerClassName={`sidebar-nav-item sidebar-template-trigger ${
-              isTemplatePanelOpen ? "active" : ""
-            }`}
-            triggerLabel="Templates"
-            showSelectedName={false}
-            isOpen={isTemplatePanelOpen}
-            onOpenChange={setIsTemplatePanelOpen}
-            renderPanel={false}
-          />
           {SECONDARY_NAV_ITEMS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) =>
-                `sidebar-nav-item ${isActive && !isTemplatePanelOpen ? "active" : ""}`
-              }
+              className={({ isActive }) => `sidebar-nav-item ${isActive ? "active" : ""}`}
               title={label}
               aria-label={label}
             >
@@ -164,15 +80,6 @@ export function AppShell() {
           )}
         </div>
       </nav>
-
-      <ResumeTemplatePanel
-        selectedTemplateId={selectedTemplateId}
-        onSelect={setSelectedTemplateId}
-        previewDocument={templatePanelDocument}
-        onClose={closePanel}
-        isOpen={isTemplatePanelOpen}
-        className={`template-drawer-push${isTemplatePanelOpen ? " is-open" : ""}`}
-      />
 
       <div className="main-area">
         <AuthGate>

@@ -992,7 +992,7 @@ async function handleListRuns(request: Request, env: Env, headers: Headers): Pro
       "select id, title, resume_id, resume_name, job_description, score,",
       "case when optimized_resume is not null then 1 else 0 end as has_review,",
       "case when cover_letter_text is not null and length(trim(cover_letter_text)) > 0 then 1 else 0 end as has_cover_letter,",
-      "status, created_at",
+      "tailored_resume_id, status, created_at",
       "from optimization_runs",
       "where user_id = ?",
       "order by created_at desc",

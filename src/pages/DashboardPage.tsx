@@ -164,7 +164,7 @@ export default function DashboardPage() {
       return;
     }
 
-    navigate(`/workspace/review/${run.id}?artifact=${type}`, {
+    navigate(`/applications/${run.id}?artifact=${type}`, {
       state: {
         returnTo: "/dashboard",
         expandedRunId: run.id,
