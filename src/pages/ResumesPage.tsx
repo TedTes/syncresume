@@ -1,5 +1,7 @@
 import {
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   ClipboardPaste,
   Download,
@@ -8,8 +10,10 @@ import {
   Loader2,
   MessageCircle,
   PenLine,
+  Plus,
   Save,
   Send,
+  Trash2,
   UploadCloud,
   WandSparkles,
   X,
@@ -36,12 +40,18 @@ import {
 } from "../lib/exportResume";
 import { extractResumeText } from "../lib/fileExtract";
 import {
+  RESUME_SECTION_TYPE_OPTIONS,
+  addResumeDocumentSection,
+  moveResumeDocumentSection,
   parseResumeDocument,
+  removeResumeDocumentSection,
+  renameResumeDocumentSection,
   serializeResumeDocument,
   updateResumeDocumentSection,
   withFallbackContactSection,
   type ResumeDocument,
   type ResumeSection,
+  type ResumeSectionType,
 } from "../lib/resumeDocument";
 import {
   normalizeResumeTemplateId,
@@ -192,6 +202,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const [isRenamingResume, setIsRenamingResume] = useState(false);
   const [resumeRenameError, setResumeRenameError] = useState("");
   const [selectedEditorSectionId, setSelectedEditorSectionId] = useState("");
+  const [sectionToAdd, setSectionToAdd] = useState<ResumeSectionType>("projects");
   const [isEditorAssistantOpen, setIsEditorAssistantOpen] = useState(false);
   const [editorAssistantInstruction, setEditorAssistantInstruction] = useState("");
   const [editorAssistantStatus, setEditorAssistantStatus] = useState("");
@@ -219,6 +230,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const selectedEditorSection = editedResumeDocument?.sections.find(
     (section) => section.id === selectedEditorSectionId,
   ) ?? editedResumeDocument?.sections[0] ?? null;
+  const selectedEditorSectionIndex = editedResumeDocument && selectedEditorSection
+    ? [...editedResumeDocument.sections]
+        .sort((left, right) => left.order - right.order)
+        .findIndex((section) => section.id === selectedEditorSection.id)
+    : -1;
   const derivedBySource = resumes.reduce((groups, resume) => {
     if (resume.versionType === "tailored" && resume.sourceResumeId) {
       const sourceId = resume.sourceResumeId;
@@ -340,6 +356,48 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     if (!editedResumeDocument) return;
 
     setEditedResumeDocument(updateResumeDocumentSection(editedResumeDocument, sectionId, content));
+    setEditStatus("");
+    setEditError("");
+  }
+
+  function renameEditedSection(sectionId: string, title: string) {
+    if (!editedResumeDocument) return;
+
+    setEditedResumeDocument(renameResumeDocumentSection(editedResumeDocument, sectionId, title));
+    setEditStatus("");
+    setEditError("");
+  }
+
+  function addEditedSection() {
+    if (!editedResumeDocument) return;
+
+    const nextDocument = addResumeDocumentSection(editedResumeDocument, sectionToAdd);
+    setEditedResumeDocument(nextDocument);
+    setSelectedEditorSectionId(nextDocument.sections[nextDocument.sections.length - 1]?.id ?? "");
+    setEditStatus("");
+    setEditError("");
+  }
+
+  function removeEditedSection(sectionId: string) {
+    if (!editedResumeDocument || editedResumeDocument.sections.length <= 1) return;
+
+    const currentSections = [...editedResumeDocument.sections].sort((left, right) => left.order - right.order);
+    const currentIndex = currentSections.findIndex((section) => section.id === sectionId);
+    const nextDocument = removeResumeDocumentSection(editedResumeDocument, sectionId);
+    setEditedResumeDocument(nextDocument);
+    setSelectedEditorSectionId(
+      nextDocument.sections[Math.min(currentIndex, nextDocument.sections.length - 1)]?.id ?? "",
+    );
+    setEditStatus("");
+    setEditError("");
+  }
+
+  function moveEditedSection(sectionId: string, direction: -1 | 1) {
+    if (!editedResumeDocument) return;
+
+    const nextDocument = moveResumeDocumentSection(editedResumeDocument, sectionId, direction);
+    setEditedResumeDocument(nextDocument);
+    setSelectedEditorSectionId(sectionId);
     setEditStatus("");
     setEditError("");
   }
@@ -893,6 +951,78 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
               <span>Edit directly on the rendered resume. Template changes stay live.</span>
             </div>
             {editedResumeDocument && (
+              <div className="source-editor-toolbar" aria-label="Source resume section controls">
+                <div className="source-editor-toolbar-group">
+                  <label className="source-editor-field">
+                    <span>Selected section</span>
+                    <input
+                      className="source-editor-title-input"
+                      type="text"
+                      value={selectedEditorSection?.title ?? ""}
+                      disabled={!selectedEditorSection}
+                      onChange={(event) => {
+                        if (!selectedEditorSection) return;
+                        renameEditedSection(selectedEditorSection.id, event.target.value);
+                      }}
+                    />
+                  </label>
+                  <div className="source-editor-icon-actions" aria-label="Move or remove selected section">
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm btn-icon-only"
+                      aria-label="Move section up"
+                      disabled={!selectedEditorSection || selectedEditorSectionIndex <= 0}
+                      onClick={() => selectedEditorSection && moveEditedSection(selectedEditorSection.id, -1)}
+                    >
+                      <ArrowUp aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm btn-icon-only"
+                      aria-label="Move section down"
+                      disabled={
+                        !selectedEditorSection ||
+                        selectedEditorSectionIndex < 0 ||
+                        selectedEditorSectionIndex >= editedResumeDocument.sections.length - 1
+                      }
+                      onClick={() => selectedEditorSection && moveEditedSection(selectedEditorSection.id, 1)}
+                    >
+                      <ArrowDown aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm btn-icon-only"
+                      aria-label="Remove selected section"
+                      disabled={!selectedEditorSection || editedResumeDocument.sections.length <= 1}
+                      onClick={() => selectedEditorSection && removeEditedSection(selectedEditorSection.id)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+                <div className="source-editor-toolbar-group source-editor-add-group">
+                  <label className="source-editor-field">
+                    <span>Add section</span>
+                    <select
+                      className="source-editor-select"
+                      value={sectionToAdd}
+                      onChange={(event) => setSectionToAdd(event.target.value as ResumeSectionType)}
+                    >
+                      {RESUME_SECTION_TYPE_OPTIONS.filter((option) => option.type !== "contact").map((option) => (
+                        <option key={option.type} value={option.type}>
+                          {option.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={addEditedSection}>
+                    <Plus aria-hidden="true" />
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
+            {editedResumeDocument && (
               <div className="document-editor-stage" aria-label="Editable resume document">
                 <ResumeTemplatePreview
                   key={selectedTemplateId}
@@ -909,8 +1039,8 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                   <aside className="review-assistant-panel" aria-label="AI resume editor assistant">
                     <div className="review-assistant-header">
                       <div>
-                        <p className="section-label">AI assistant</p>
-                        <h3>Revise this resume</h3>
+                        <p className="section-label">Source resume assistant</p>
+                        <h3>Clean up a section</h3>
                       </div>
                       <button
                         type="button"
@@ -950,7 +1080,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                         disabled={isRevisingEditorSection}
                         placeholder={
                           selectedEditorSection
-                            ? `Ask AI to improve ${selectedEditorSection.title.toLowerCase()}...`
+                            ? `Ask AI to clean up ${selectedEditorSection.title.toLowerCase()}...`
                             : "Choose a resume section first..."
                         }
                         onChange={(event) => {

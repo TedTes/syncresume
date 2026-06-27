@@ -28,6 +28,24 @@ export type ResumeDocument = {
   sections: ResumeSection[];
 };
 
+export const RESUME_SECTION_TYPE_OPTIONS: Array<{
+  type: ResumeSectionType;
+  title: string;
+}> = [
+  { type: "contact", title: "Contact" },
+  { type: "summary", title: "Summary" },
+  { type: "skills", title: "Skills" },
+  { type: "experience", title: "Experience" },
+  { type: "projects", title: "Projects" },
+  { type: "education", title: "Education" },
+  { type: "certifications", title: "Certifications" },
+  { type: "languages", title: "Languages" },
+  { type: "awards", title: "Awards" },
+  { type: "publications", title: "Publications" },
+  { type: "volunteering", title: "Volunteering" },
+  { type: "custom", title: "Custom Section" },
+];
+
 const KNOWN_RESUME_HEADINGS: { heading: string; type: ResumeSectionType }[] = [
   { heading: "CONTACT INFORMATION", type: "contact" },
   { heading: "CONTACT", type: "contact" },
@@ -122,6 +140,73 @@ export function updateResumeDocumentSection(
       section.id === sectionId ? { ...section, content } : section,
     ),
   };
+}
+
+export function renameResumeDocumentSection(
+  document: ResumeDocument,
+  sectionId: string,
+  title: string,
+): ResumeDocument {
+  return {
+    ...document,
+    sections: document.sections.map((section) =>
+      section.id === sectionId ? { ...section, title } : section,
+    ),
+  };
+}
+
+export function addResumeDocumentSection(
+  document: ResumeDocument,
+  sectionType: ResumeSectionType,
+): ResumeDocument {
+  const title =
+    RESUME_SECTION_TYPE_OPTIONS.find((option) => option.type === sectionType)?.title ??
+    "Custom Section";
+  const nextOrder = document.sections.length;
+  const nextSection: ResumeSection = {
+    id: `${sectionType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: sectionType,
+    title,
+    content: "",
+    order: nextOrder,
+  };
+
+  return normalizeResumeDocumentOrder({
+    ...document,
+    sections: [...document.sections, nextSection],
+  });
+}
+
+export function removeResumeDocumentSection(
+  document: ResumeDocument,
+  sectionId: string,
+): ResumeDocument {
+  return normalizeResumeDocumentOrder({
+    ...document,
+    sections: document.sections.filter((section) => section.id !== sectionId),
+  });
+}
+
+export function moveResumeDocumentSection(
+  document: ResumeDocument,
+  sectionId: string,
+  direction: -1 | 1,
+): ResumeDocument {
+  const sections = [...document.sections].sort((a, b) => a.order - b.order);
+  const currentIndex = sections.findIndex((section) => section.id === sectionId);
+  const nextIndex = currentIndex + direction;
+
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= sections.length) {
+    return document;
+  }
+
+  const [section] = sections.splice(currentIndex, 1);
+  sections.splice(nextIndex, 0, section);
+
+  return normalizeResumeDocumentOrder({
+    ...document,
+    sections,
+  });
 }
 
 export function withFallbackContactSection(
@@ -227,6 +312,16 @@ function experienceRoleToSectionText(role: StructuredResume["experience"][number
     .filter(Boolean)
     .map((bullet) => `• ${bullet}`);
   return [heading, ...bullets].filter(Boolean).join("\n");
+}
+
+function normalizeResumeDocumentOrder(document: ResumeDocument): ResumeDocument {
+  return {
+    ...document,
+    sections: document.sections.map((section, index) => ({
+      ...section,
+      order: index,
+    })),
+  };
 }
 
 function parseResumeSections(text: string): ResumeSection[] {

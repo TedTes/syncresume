@@ -250,6 +250,12 @@ export function replaceSection(
         .filter(Boolean),
     };
   }
+  if (sectionId === "experience") {
+    return {
+      ...resume,
+      experience: parseExperienceSectionText(value, resume.experience),
+    };
+  }
   if (sectionId.startsWith("experience:")) {
     const roleId = sectionId.replace("experience:", "");
     return {
@@ -277,6 +283,9 @@ export function sectionText(resume: StructuredResume, sectionId: string): string
     const roleId = sectionId.replace("experience:", "");
     const role = resume.experience.find((item) => item.id === roleId);
     return role ? experienceRoleToText(role) : "";
+  }
+  if (sectionId === "experience") {
+    return resume.experience.map(experienceRoleToText).filter(Boolean).join("\n\n");
   }
   return "";
 }
@@ -373,6 +382,32 @@ function parseExperienceRoleText(value: string, fallback: ExperienceRole): Exper
 
   nextRole.bullets = bulletLines.length > 0 ? linesToBullets(bulletLines.join("\n")) : fallback.bullets;
   return nextRole;
+}
+
+function parseExperienceSectionText(value: string, fallbackRoles: ExperienceRole[]): ExperienceRole[] {
+  const blocks = value
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (blocks.length === 0) return [];
+
+  return blocks.map((block, index) => {
+    const fallback =
+      fallbackRoles[index] ?? {
+        id: `role-${index + 1}`,
+        title: "",
+        company: "",
+        location: "",
+        dates: "",
+        bullets: [],
+      };
+
+    return {
+      ...parseExperienceRoleText(block, fallback),
+      id: fallback.id || `role-${index + 1}`,
+    };
+  });
 }
 
 function asText(value: unknown): string {
