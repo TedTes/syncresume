@@ -1,14 +1,13 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  Columns2,
   Download,
+  LayoutTemplate,
   ListTodo,
   Loader2,
-  MessageCircle,
   Save,
   Send,
-  WandSparkles,
-  X,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
@@ -52,6 +51,10 @@ type ResumeReviewProps = {
   onExported?: (exportType: ExportType) => void | Promise<void>;
   onBack?: () => void;
   topbarPortalTarget?: HTMLElement | null;
+  title?: string;
+  matchScore?: number | null;
+  isTemplatePanelOpen?: boolean;
+  onOpenTemplates?: () => void;
 };
 
 type SectionConfig = {
@@ -74,6 +77,49 @@ const EXPORT_OPTIONS: Array<{ type: ExportType; label: string }> = [
   { type: "copy", label: "Text" },
 ];
 
+function EditableReviewSectionTextarea({
+  section,
+  isSelected,
+  onChange,
+  onSelect,
+}: {
+  section: ResumeSection;
+  isSelected: boolean;
+  onChange: (content: string) => void;
+  onSelect: () => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [section.content]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      className={`document-section-textarea review-document-textarea review-document-textarea-${section.type} ${
+        isSelected ? "is-selected" : ""
+      }`}
+      value={section.content}
+      rows={1}
+      aria-label={`Edit optimized ${section.title}`}
+      spellCheck
+      onFocus={onSelect}
+      onClick={onSelect}
+      onInput={(event) => {
+        const textarea = event.currentTarget;
+        textarea.style.height = "auto";
+        textarea.style.height = `${textarea.scrollHeight}px`;
+      }}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
+}
+
 export function ResumeReview({
   jobDescription,
   originalResumeText,
@@ -85,8 +131,11 @@ export function ResumeReview({
   onExported,
   onBack,
   topbarPortalTarget,
+  title,
+  matchScore,
+  isTemplatePanelOpen = false,
+  onOpenTemplates,
 }: ResumeReviewProps) {
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [assistantSectionId, setAssistantSectionId] = useState("summary");
   const [assistantInstruction, setAssistantInstruction] = useState("");
   const [revisingSectionId, setRevisingSectionId] = useState("");
@@ -98,6 +147,8 @@ export function ResumeReview({
   const [saveReviewStatus, setSaveReviewStatus] = useState("");
   const [saveReviewError, setSaveReviewError] = useState("");
   const [isSavingReview, setIsSavingReview] = useState(false);
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const assistantInputRef = useRef<HTMLTextAreaElement | null>(null);
   const {
     selectedTemplateId,
     setSelectedTemplateId,
@@ -175,6 +226,20 @@ export function ResumeReview({
     }
   }
 
+  function handleInlineSectionChange(sectionId: string, value: string) {
+    onResumeChange(replaceSection(resume, sectionId, value));
+    setAssistantSectionId(sectionId);
+    setSaveReviewStatus("");
+    setRevisionError("");
+    setRevisionStatus("");
+  }
+
+  function handleSelectReviewSection(sectionId: string) {
+    setAssistantSectionId(sectionId);
+    setRevisionStatus("");
+    setRevisionError("");
+  }
+
   function toggleExportType(type: ExportType) {
     setSelectedExportTypes((current) => {
       const next = current.includes(type)
@@ -241,7 +306,13 @@ export function ResumeReview({
       isExporting={isExporting}
       onToggleExportType={toggleExportType}
       onExportSelected={handleExportSelected}
-      onOpenAssistant={() => setIsAssistantOpen(true)}
+      title={title}
+      matchScore={matchScore}
+      saveReviewStatus={saveReviewStatus}
+      isCompareMode={isCompareMode}
+      onToggleCompare={() => setIsCompareMode((isOpen) => !isOpen)}
+      isTemplatePanelOpen={isTemplatePanelOpen}
+      onOpenTemplates={onOpenTemplates}
       canSaveReview={Boolean(onSaveReview)}
       isSavingReview={isSavingReview}
       onSaveReview={handleSaveReview}
@@ -254,7 +325,31 @@ export function ResumeReview({
       {topbarPortalTarget ? createPortal(reviewTopbar, topbarPortalTarget) : reviewTopbar}
 
       <div className="tab-content">
-        <ResultsTab sections={sectionComparisons} templateId={selectedTemplateId} />
+        <ResultsTab
+          sections={sectionComparisons}
+          templateId={selectedTemplateId}
+          selectedSectionId={selectedAssistantSection?.id ?? ""}
+          isCompareMode={isCompareMode}
+          onCloseCompare={() => setIsCompareMode(false)}
+          onSelectAfterSection={handleSelectReviewSection}
+          onAfterSectionChange={handleInlineSectionChange}
+        />
+
+        <InlineRevisionBar
+          selectedSectionId={selectedAssistantSection?.id ?? ""}
+          selectedSectionLabel={selectedAssistantSection?.label ?? "section"}
+          instruction={assistantInstruction}
+          inputRef={assistantInputRef}
+          isRevising={Boolean(revisingSectionId)}
+          revisionStatus={revisionStatus}
+          revisionError={revisionError}
+          onInstructionChange={(value) => {
+            setAssistantInstruction(value);
+            setRevisionStatus("");
+            setRevisionError("");
+          }}
+          onSubmit={handleAssistantRevise}
+        />
 
         <StatusMessages
           exportError={exportError}
@@ -262,29 +357,6 @@ export function ResumeReview({
         {saveReviewStatus && <p className="export-status-msg">{saveReviewStatus}</p>}
         {saveReviewError && <div className="inline-error">{saveReviewError}</div>}
       </div>
-
-      <RevisionAssistant
-        isOpen={isAssistantOpen}
-        sections={sections}
-        selectedSectionId={selectedAssistantSection?.id ?? ""}
-        instruction={assistantInstruction}
-        revisingSectionId={revisingSectionId}
-        revisionStatus={revisionStatus}
-        revisionError={revisionError}
-        onOpen={() => setIsAssistantOpen(true)}
-        onClose={() => setIsAssistantOpen(false)}
-        onSectionChange={(sectionId) => {
-          setAssistantSectionId(sectionId);
-          setRevisionStatus("");
-          setRevisionError("");
-        }}
-        onInstructionChange={(value) => {
-          setAssistantInstruction(value);
-          setRevisionStatus("");
-          setRevisionError("");
-        }}
-        onSubmit={handleAssistantRevise}
-      />
     </section>
   );
 }
@@ -294,7 +366,13 @@ function ReviewTopbar({
   isExporting,
   onToggleExportType,
   onExportSelected,
-  onOpenAssistant,
+  title,
+  matchScore,
+  saveReviewStatus,
+  isCompareMode,
+  onToggleCompare,
+  isTemplatePanelOpen,
+  onOpenTemplates,
   canSaveReview,
   isSavingReview,
   onSaveReview,
@@ -304,7 +382,13 @@ function ReviewTopbar({
   isExporting: boolean;
   onToggleExportType: (type: ExportType) => void;
   onExportSelected: () => Promise<void>;
-  onOpenAssistant: () => void;
+  title?: string;
+  matchScore?: number | null;
+  saveReviewStatus: string;
+  isCompareMode: boolean;
+  onToggleCompare: () => void;
+  isTemplatePanelOpen: boolean;
+  onOpenTemplates?: () => void;
   canSaveReview: boolean;
   isSavingReview: boolean;
   onSaveReview: () => Promise<void>;
@@ -343,15 +427,38 @@ function ReviewTopbar({
           Back
         </Link>
       )}
+      <div className="review-topbar-context">
+        <strong>{title?.trim() || "Optimized resume"}</strong>
+        <span>
+          {matchScore != null ? `${matchScore}% match · ` : ""}
+          {saveReviewStatus ? "saved" : "save version when ready"}
+        </span>
+      </div>
       <div className="review-topbar-actions">
         <button
-          className="btn btn-secondary btn-sm review-edit-button"
+          className={`btn btn-secondary btn-sm review-compare-button ${
+            isCompareMode ? "active" : ""
+          }`}
           type="button"
-          onClick={onOpenAssistant}
+          aria-pressed={isCompareMode}
+          onClick={onToggleCompare}
         >
-          <WandSparkles aria-hidden="true" />
-          Edit
+          <Columns2 aria-hidden="true" />
+          Compare
         </button>
+        {onOpenTemplates && (
+          <button
+            className={`btn btn-secondary btn-sm review-template-button ${
+              isTemplatePanelOpen ? "active" : ""
+            }`}
+            type="button"
+            aria-pressed={isTemplatePanelOpen}
+            onClick={onOpenTemplates}
+          >
+            <LayoutTemplate aria-hidden="true" />
+            Template
+          </button>
+        )}
         <div className="review-export-group" ref={exportGroupRef}>
           <button
             className="btn btn-secondary btn-sm review-export-button"
@@ -420,9 +527,19 @@ function ReviewTopbar({
 function ResultsTab({
   sections,
   templateId,
+  selectedSectionId,
+  isCompareMode,
+  onCloseCompare,
+  onSelectAfterSection,
+  onAfterSectionChange,
 }: {
   sections: SectionComparison[];
   templateId: ResumeTemplateId;
+  selectedSectionId: string;
+  isCompareMode: boolean;
+  onCloseCompare: () => void;
+  onSelectAfterSection: (sectionId: string) => void;
+  onAfterSectionChange: (sectionId: string, value: string) => void;
 }) {
   const comparisonRef = useRef<HTMLDivElement | null>(null);
   const [isSinglePane, setIsSinglePane] = useState(false);
@@ -445,7 +562,7 @@ function ResultsTab({
     if (!comparison) return;
 
     function updateLayout(width: number) {
-      setIsSinglePane(width < 1280);
+      setIsSinglePane(width < 900);
     }
 
     updateLayout(comparison.getBoundingClientRect().width);
@@ -459,29 +576,64 @@ function ResultsTab({
     return () => resizeObserver.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!isCompareMode) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (comparisonRef.current?.contains(target)) return;
+      if (target.closest(".review-compare-button")) return;
+      onCloseCompare();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onCloseCompare();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isCompareMode, onCloseCompare]);
+
   return (
     <div className="results-stage results-template-stage">
       <div
-        className={`template-comparison-grid${isSinglePane ? " is-single-pane" : ""}`}
+        className={`template-comparison-grid${isSinglePane ? " is-single-pane" : ""} ${
+          isCompareMode ? "is-compare-mode" : "is-optimized-only"
+        }`}
         ref={comparisonRef}
       >
-        <div className="template-comparison-pane template-comparison-before">
-          <ResumeTemplatePreview
-            key={`before-${templateId}`}
-            document={originalDocument}
-            templateId={templateId}
-            renderSectionContent={(section) =>
-              renderDiffSectionContent(section, comparisonById, "before")
-            }
-          />
-        </div>
+        {isCompareMode && (
+          <div className="template-comparison-pane template-comparison-before">
+            <ResumeTemplatePreview
+              key={`before-${templateId}`}
+              document={originalDocument}
+              templateId={templateId}
+              renderSectionContent={(section) =>
+                renderDiffSectionContent(section, comparisonById, "before")
+              }
+            />
+          </div>
+        )}
         <div className="template-comparison-pane template-comparison-after">
           <ResumeTemplatePreview
             key={`after-${templateId}`}
             document={optimizedDocument}
             templateId={templateId}
             renderSectionContent={(section) =>
-              renderDiffSectionContent(section, comparisonById, "after")
+              isCompareMode
+                ? renderDiffSectionContent(section, comparisonById, "after")
+                : renderEditableAfterSectionContent(
+                    section,
+                    comparisonById,
+                    selectedSectionId,
+                    onSelectAfterSection,
+                    onAfterSectionChange,
+                  )
             }
           />
         </div>
@@ -490,121 +642,60 @@ function ResultsTab({
   );
 }
 
-function RevisionAssistant({
-  isOpen,
-  sections,
+function InlineRevisionBar({
   selectedSectionId,
+  selectedSectionLabel,
   instruction,
-  revisingSectionId,
+  inputRef,
+  isRevising,
   revisionStatus,
   revisionError,
-  onOpen,
-  onClose,
-  onSectionChange,
   onInstructionChange,
   onSubmit,
 }: {
-  isOpen: boolean;
-  sections: SectionConfig[];
   selectedSectionId: string;
+  selectedSectionLabel: string;
   instruction: string;
-  revisingSectionId: string;
+  inputRef: RefObject<HTMLTextAreaElement | null>;
+  isRevising: boolean;
   revisionStatus: string;
   revisionError: string;
-  onOpen: () => void;
-  onClose: () => void;
-  onSectionChange: (sectionId: string) => void;
   onInstructionChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
 }) {
-  const assistantRef = useRef<HTMLDivElement | null>(null);
-  const selectedSection = sections.find((section) => section.id === selectedSectionId);
-  const isRevising = Boolean(revisingSectionId);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (assistantRef.current?.contains(target)) return;
-      onClose();
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [isOpen, onClose]);
-
   return (
-    <div className="review-assistant" ref={assistantRef}>
-      {isOpen && (
-        <aside className="review-assistant-panel" aria-label="AI section assistant">
-          <div className="review-assistant-header">
-            <div>
-              <p className="section-label">AI assistant</p>
-              <h3>Revise a section</h3>
-            </div>
-            <button type="button" className="icon-button" aria-label="Close assistant" onClick={onClose}>
-              <X aria-hidden="true" />
-            </button>
-          </div>
-
-          <div className="assistant-section-options" aria-label="Choose section">
-            {sections.map((section) => (
-              <button
-                key={section.id}
-                type="button"
-                className={`assistant-section-chip ${section.id === selectedSectionId ? "active" : ""}`}
-                disabled={isRevising}
-                onClick={() => onSectionChange(section.id)}
-              >
-                {section.label}
-              </button>
-            ))}
-          </div>
-
-          <form className="assistant-chat-form" onSubmit={onSubmit}>
-            <textarea
-              className="assistant-chat-input"
-              value={instruction}
-              rows={4}
-              disabled={isRevising}
-              placeholder={
-                selectedSection?.id === "summary"
-                  ? "Ask AI to sharpen this summary for the target job..."
-                  : "e.g. add impact metrics, make it more concise, or mirror the job language"
-              }
-              onChange={(event) => onInstructionChange(event.target.value)}
-            />
-            <button
-              className="btn btn-primary"
-              type="submit"
-              disabled={isRevising || !instruction.trim() || !selectedSection}
-            >
-              {isRevising ? (
-                <Loader2 className="spin" aria-hidden="true" />
-              ) : (
-                <Send aria-hidden="true" />
-              )}
-              {isRevising ? "Revising..." : "Ask AI"}
-            </button>
-          </form>
-
-          {revisionStatus && <p className="export-status-msg">{revisionStatus}</p>}
-          {revisionError && <div className="inline-error">{revisionError}</div>}
-        </aside>
-      )}
-
-      <button
-        type="button"
-        className="review-assistant-fab"
-        aria-label="Open AI section assistant"
-        aria-expanded={isOpen}
-        onClick={isOpen ? onClose : onOpen}
-      >
-        {isOpen ? <X aria-hidden="true" /> : <MessageCircle aria-hidden="true" />}
-        <WandSparkles aria-hidden="true" />
-      </button>
+    <div className="review-inline-revision" aria-label="Inline AI revision">
+      <div className="review-inline-revision-inner">
+        <div className="review-inline-revision-hint">
+          <span>Click any section above to edit directly, or ask AI below.</span>
+          {selectedSectionId && <span>Selected: {selectedSectionLabel}</span>}
+        </div>
+        <form className="review-inline-revision-form" onSubmit={onSubmit}>
+          <textarea
+            ref={inputRef}
+            className="review-inline-revision-input"
+            value={instruction}
+            rows={1}
+            disabled={isRevising}
+            placeholder={`Ask AI to revise the selected ${selectedSectionLabel.toLowerCase()}...`}
+            onChange={(event) => onInstructionChange(event.target.value)}
+          />
+          <button
+            className="btn btn-primary review-inline-revision-submit"
+            type="submit"
+            disabled={isRevising || !instruction.trim() || !selectedSectionId}
+          >
+            {isRevising ? (
+              <Loader2 className="spin" aria-hidden="true" />
+            ) : (
+              <Send aria-hidden="true" />
+            )}
+            {isRevising ? "Revising..." : "Revise"}
+          </button>
+        </form>
+        {revisionStatus && <p className="export-status-msg">{revisionStatus}</p>}
+        {revisionError && <div className="inline-error">{revisionError}</div>}
+      </div>
     </div>
   );
 }
@@ -739,6 +830,27 @@ function renderDiffSectionContent(
           </span>
         ))}
     </div>
+  );
+}
+
+function renderEditableAfterSectionContent(
+  section: ResumeSection,
+  comparisonById: Map<string, SectionComparison>,
+  selectedSectionId: string,
+  onSelectAfterSection: (sectionId: string) => void,
+  onAfterSectionChange: (sectionId: string, value: string) => void,
+) {
+  if (section.type === "contact" || section.id === "contact") {
+    return renderDiffSectionContent(section, comparisonById, "after");
+  }
+
+  return (
+    <EditableReviewSectionTextarea
+      section={section}
+      isSelected={section.id === selectedSectionId}
+      onSelect={() => onSelectAfterSection(section.id)}
+      onChange={(content) => onAfterSectionChange(section.id, content)}
+    />
   );
 }
 

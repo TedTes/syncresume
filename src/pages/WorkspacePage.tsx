@@ -1,5 +1,4 @@
-import { LayoutTemplate } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
@@ -29,9 +28,19 @@ export default function WorkspacePage() {
 
   const templatePanelDocument = templatePreviewDocument ?? activeResumeDocument;
 
-  function closeTemplatePanel() {
+  const closeTemplatePanel = useCallback(() => {
     setIsTemplatePanelOpen(false);
-  }
+  }, []);
+
+  const toggleTemplatePanel = useCallback(() => {
+    setIsTemplatePanelOpen((open) => !open);
+  }, []);
+
+  const handleReviewOpenChange = useCallback((isOpen: boolean) => {
+    if (!isOpen) {
+      closeTemplatePanel();
+    }
+  }, [closeTemplatePanel]);
 
   useEffect(() => {
     if (!isTemplatePanelOpen) return;
@@ -66,7 +75,7 @@ export default function WorkspacePage() {
       window.removeEventListener("resize", collapseOnViewportChange);
       window.removeEventListener("orientationchange", collapseOnViewportChange);
     };
-  }, [isTemplatePanelOpen]);
+  }, [closeTemplatePanel, isTemplatePanelOpen]);
 
   return (
     <>
@@ -76,26 +85,17 @@ export default function WorkspacePage() {
         ) : (
           <span className="page-topbar-title">Workspace</span>
         )}
-        {!runId && (
-          <div className="page-topbar-end">
-            <button
-              type="button"
-              className={`btn btn-secondary btn-sm template-drawer-trigger${isTemplatePanelOpen ? " active" : ""}`}
-              onClick={() => setIsTemplatePanelOpen((open) => !open)}
-            >
-              <LayoutTemplate aria-hidden="true" />
-              <span className="template-trigger-label">Template</span>
-            </button>
-          </div>
-        )}
       </header>
 
-      <div className="workspace-outer">
+      <div className={`workspace-outer${isTemplatePanelOpen ? " template-panel-open" : ""}`}>
         <div className="workspace-flow">
           <OptimizerPage
             embedded
             reviewRunId={runId}
             reviewToolbarHost={reviewToolbarHost}
+            onReviewOpenChange={handleReviewOpenChange}
+            isTemplatePanelOpen={isTemplatePanelOpen}
+            onOpenTemplates={toggleTemplatePanel}
           />
         </div>
 
