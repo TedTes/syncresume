@@ -106,6 +106,21 @@ KNOWN_RESUME_HEADINGS.sort((a, b) => b.heading.length - a.heading.length);
 
 const INLINE_AMBIGUOUS_HEADINGS = new Set(["PROFILE"]);
 
+export function inferResumeSectionTypeFromTitle(title: string): ResumeSectionType {
+  const normalizedTitle = normalizeResumeSectionTitle(title);
+  if (!normalizedTitle) return "custom";
+
+  const matchedHeading = KNOWN_RESUME_HEADINGS.find(
+    ({ heading, type }) => type !== "contact" && normalizeResumeSectionTitle(heading) === normalizedTitle,
+  );
+
+  return matchedHeading?.type ?? "custom";
+}
+
+function normalizeResumeSectionTitle(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 export function parseResumeDocument(text: string, title = "Extracted resume"): ResumeDocument {
   const normalizedText = text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
   return {
@@ -158,22 +173,33 @@ export function renameResumeDocumentSection(
 export function addResumeDocumentSection(
   document: ResumeDocument,
   sectionType: ResumeSectionType,
+  afterSectionId?: string,
+  sectionData: { title?: string; content?: string } = {},
 ): ResumeDocument {
-  const title =
+  const fallbackTitle =
     RESUME_SECTION_TYPE_OPTIONS.find((option) => option.type === sectionType)?.title ??
     "Custom Section";
-  const nextOrder = document.sections.length;
   const nextSection: ResumeSection = {
     id: `${sectionType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     type: sectionType,
-    title,
-    content: "",
-    order: nextOrder,
+    title: sectionData.title?.trim() || fallbackTitle,
+    content: sectionData.content?.trim() ?? "",
+    order: document.sections.length,
   };
+  const sections = [...document.sections].sort((a, b) => a.order - b.order);
+  const insertIndex = afterSectionId
+    ? sections.findIndex((section) => section.id === afterSectionId) + 1
+    : sections.length;
+
+  if (insertIndex <= 0 || insertIndex > sections.length) {
+    sections.push(nextSection);
+  } else {
+    sections.splice(insertIndex, 0, nextSection);
+  }
 
   return normalizeResumeDocumentOrder({
     ...document,
-    sections: [...document.sections, nextSection],
+    sections,
   });
 }
 
@@ -247,6 +273,26 @@ export function structuredResumeToDocument(
   resume: StructuredResume,
   title = "Optimized resume",
 ): ResumeDocument {
+  if (resume.sections?.length) {
+    return {
+      id: `structured-${hashText(JSON.stringify(resume.sections))}`,
+      title,
+      sections: normalizeResumeDocumentOrder({
+        id: "tmp",
+        title,
+        sections: resume.sections
+          .map((section, index): ResumeSection => ({
+            id: section.id || `${section.type || "custom"}-${index}`,
+            type: normalizeSectionType(section.type),
+            title: section.title || "Section",
+            content: section.content || "",
+            order: Number.isFinite(section.order) ? section.order : index,
+          }))
+          .filter((section) => section.title.trim() || section.content.trim()),
+      }).sections,
+    };
+  }
+
   const sections: ResumeSection[] = [];
 
   if (resume.summary.trim()) {
@@ -294,6 +340,12 @@ export function structuredResumeToDocument(
     title,
     sections,
   };
+}
+
+function normalizeSectionType(value: string): ResumeSectionType {
+  return RESUME_SECTION_TYPE_OPTIONS.some((option) => option.type === value)
+    ? (value as ResumeSectionType)
+    : "custom";
 }
 
 export function sectionTextareaRows(content: string): number {

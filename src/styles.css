@@ -726,6 +726,157 @@ a {
   background: rgba(16, 185, 129, 0.08);
 }
 
+.review-editable-section-shell {
+  position: relative;
+  min-width: 0;
+  padding-right: 24px;
+}
+
+.review-inline-delete-section {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  z-index: 2;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 999px;
+  background: rgba(254, 242, 242, 0.94);
+  color: #b91c1c;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.94);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease,
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+
+.review-editable-section-shell:hover .review-inline-delete-section,
+.review-editable-section-shell:focus-within .review-inline-delete-section {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.review-inline-delete-section:hover {
+  border-color: rgba(220, 38, 38, 0.58);
+  background: rgba(254, 226, 226, 0.98);
+}
+
+.review-inline-delete-section svg {
+  width: 13px;
+  height: 13px;
+}
+
+.review-inline-add-section {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px dashed rgba(16, 185, 129, 0.5);
+  border-radius: 7px;
+  background: rgba(16, 185, 129, 0.055);
+  color: #047857;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+}
+
+.review-inline-add-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-weight: 800;
+  opacity: 0.72;
+}
+
+.review-inline-add-trigger:hover {
+  border-color: rgba(5, 150, 105, 0.78);
+  background: rgba(16, 185, 129, 0.09);
+  opacity: 1;
+}
+
+.review-inline-add-panel {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.review-inline-add-header,
+.review-inline-add-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.review-inline-add-header {
+  color: #064e3b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.review-inline-add-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 8px;
+}
+
+.review-inline-add-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: #065f46;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.review-inline-add-field-wide {
+  grid-column: 1 / -1;
+}
+
+.review-inline-add-field select,
+.review-inline-add-field input,
+.review-inline-add-field textarea {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid rgba(16, 185, 129, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #111827;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.review-inline-add-field select,
+.review-inline-add-field input {
+  height: 34px;
+  padding: 0 10px;
+}
+
+.review-inline-add-field textarea {
+  min-height: 72px;
+  resize: vertical;
+  padding: 9px 10px;
+  line-height: 1.35;
+}
+
+.review-inline-add-field select:focus,
+.review-inline-add-field input:focus,
+.review-inline-add-field textarea:focus {
+  border-color: rgba(5, 150, 105, 0.72);
+  outline: 3px solid rgba(16, 185, 129, 0.12);
+}
+
 .review-inline-revision {
   flex: 0 0 auto;
   display: flex;
@@ -754,7 +905,7 @@ a {
 .review-inline-revision-hint {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   margin-bottom: 7px;
   color: var(--muted);
@@ -824,6 +975,28 @@ a {
   .review-inline-revision-hint {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .review-editable-section-shell {
+    padding-right: 28px;
+  }
+
+  .review-inline-delete-section {
+    opacity: 1;
+    transform: none;
+  }
+
+  .review-inline-add-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .review-inline-add-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .review-inline-add-controls .btn {
+    width: 100%;
   }
 
   .review-inline-revision-form {
@@ -1349,6 +1522,8 @@ a {
 
 .template-section {
   margin-top: 16px;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .template-section h2 {
@@ -1357,11 +1532,15 @@ a {
   font-size: 0.74rem;
   letter-spacing: 0;
   text-transform: uppercase;
+  break-after: avoid;
+  page-break-after: avoid;
 }
 
 .template-section-body {
   display: grid;
   gap: 5px;
+  break-before: avoid;
+  page-break-before: avoid;
 }
 
 .template-section-body p,
@@ -1376,6 +1555,16 @@ a {
   gap: 4px;
   margin: 0;
   padding-left: 16px;
+}
+
+.template-timeline-entry {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.template-timeline-entry h2 {
+  break-after: avoid;
+  page-break-after: avoid;
 }
 
 .template-labeled-line {

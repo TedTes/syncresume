@@ -7,11 +7,20 @@ export type ExperienceRole = {
   bullets: string[];
 };
 
+export type StructuredResumeSection = {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  order: number;
+};
+
 export type StructuredResume = {
   summary: string;
   experience: ExperienceRole[];
   skills: string[];
   education: string[];
+  sections?: StructuredResumeSection[];
 };
 
 export type KeywordScore = {
@@ -102,6 +111,7 @@ export function normalizeStructuredResume(input: unknown): StructuredResume {
     experience: normalizeExperience(input.experience),
     skills: normalizeStringList(input.skills),
     education: normalizeStringList(input.education),
+    sections: normalizeStructuredResumeSections(input.sections),
   };
 }
 
@@ -121,6 +131,23 @@ export function parseResumeJson(raw: string): StructuredResume {
 }
 
 export function resumeToPlainText(resume: StructuredResume): string {
+  if (resume.sections?.length) {
+    return resume.sections
+      .slice()
+      .sort((left, right) => left.order - right.order)
+      .map((section) => {
+        const title = section.title.trim();
+        const content = section.content.trim();
+        if (!title) return content;
+        if (!content) return title;
+        return `${title}\n${content}`;
+      })
+      .filter(Boolean)
+      .join("\n\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
   const lines: string[] = [];
 
   if (resume.summary.trim()) {
@@ -271,6 +298,31 @@ function normalizeStringList(value: unknown): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+function normalizeStructuredResumeSections(value: unknown): StructuredResumeSection[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+
+  const sections = value
+    .map((item, index): StructuredResumeSection | null => {
+      if (!isRecord(item)) return null;
+      const title = asText(item.title) || "Section";
+      const content = asText(item.content);
+      if (!title && !content) return null;
+
+      return {
+        id: asText(item.id) || `section-${index}`,
+        type: asText(item.type) || "custom",
+        title,
+        content,
+        order: Number.isFinite(Number(item.order)) ? Number(item.order) : index,
+      };
+    })
+    .filter((section): section is StructuredResumeSection => Boolean(section))
+    .sort((left, right) => left.order - right.order)
+    .map((section, index) => ({ ...section, order: index }));
+
+  return sections.length > 0 ? sections : undefined;
 }
 
 function asText(value: unknown): string {

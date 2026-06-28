@@ -6,8 +6,10 @@ import {
   LayoutTemplate,
   ListTodo,
   Loader2,
+  Plus,
   Save,
   Send,
+  X,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
@@ -21,17 +23,22 @@ import { useSettings } from "../context/SettingsContext";
 import { openAIErrorMessage } from "../lib/openai";
 import { reviseResumeSectionWithProvider } from "../lib/providers/dispatch";
 import type { LLMProvider } from "../lib/providers/types";
-import { parseResumeDocument, structuredResumeToDocument } from "../lib/resumeDocument";
+import {
+  RESUME_SECTION_TYPE_OPTIONS,
+  addResumeDocumentSection,
+  inferResumeSectionTypeFromTitle,
+  parseResumeDocument,
+  removeResumeDocumentSection,
+  serializeResumeDocument,
+  structuredResumeToDocument,
+  updateResumeDocumentSection,
+} from "../lib/resumeDocument";
 import type { ResumeDocument, ResumeSection, ResumeSectionType } from "../resume/schema";
 import {
   type ResumeTemplateId,
 } from "../templates/registry";
 import {
   diffWords,
-  experienceRoleToText,
-  replaceSection,
-  resumeToPlainText,
-  sectionText,
   type DiffToken,
   type StructuredResume,
 } from "../lib/resume";
@@ -48,6 +55,10 @@ type ResumeReviewProps = {
     resume: StructuredResume,
     templateId: ResumeTemplateId,
   ) => Promise<void>;
+  onTemplateChange?: (
+    templateId: ResumeTemplateId,
+    resume: StructuredResume,
+  ) => Promise<void> | void;
   onExported?: (exportType: ExportType) => void | Promise<void>;
   onBack?: () => void;
   topbarPortalTarget?: HTMLElement | null;
@@ -76,6 +87,10 @@ const EXPORT_OPTIONS: Array<{ type: ExportType; label: string }> = [
   { type: "pdf", label: "PDF" },
   { type: "copy", label: "Text" },
 ];
+
+const ADDABLE_RESUME_SECTION_TYPE_OPTIONS = RESUME_SECTION_TYPE_OPTIONS.filter(
+  (option) => option.type !== "contact" && option.type !== "custom",
+);
 
 function EditableReviewSectionTextarea({
   section,
@@ -128,6 +143,7 @@ export function ResumeReview({
   onResumeChange,
   initialTemplateId,
   onSaveReview,
+  onTemplateChange,
   onExported,
   onBack,
   topbarPortalTarget,
@@ -148,52 +164,113 @@ export function ResumeReview({
   const [saveReviewError, setSaveReviewError] = useState("");
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [isCompareMode, setIsCompareMode] = useState(false);
+  const [addSectionAfterId, setAddSectionAfterId] = useState<string | null>(null);
   const assistantInputRef = useRef<HTMLTextAreaElement | null>(null);
   const {
     selectedTemplateId,
     setSelectedTemplateId,
     setTemplatePreviewDocument,
   } = useSettings();
+  const persistedTemplateIdRef = useRef<ResumeTemplateId>(initialTemplateId ?? selectedTemplateId);
+  const hasAppliedInitialTemplateRef = useRef(!initialTemplateId);
 
   useEffect(() => {
+    if (!initialTemplateId) {
+      hasAppliedInitialTemplateRef.current = true;
+      return;
+    }
+
+    persistedTemplateIdRef.current = initialTemplateId;
+    hasAppliedInitialTemplateRef.current = false;
     if (initialTemplateId) {
       setSelectedTemplateId(initialTemplateId);
     }
   }, [initialTemplateId, setSelectedTemplateId]);
 
+  useEffect(() => {
+    if (initialTemplateId && selectedTemplateId === initialTemplateId) {
+      hasAppliedInitialTemplateRef.current = true;
+    }
+  }, [initialTemplateId, selectedTemplateId]);
+
   const originalContactSection = useMemo(
     () => parseResumeDocument(originalResumeText, "Original resume").sections.find((section) => section.type === "contact"),
     [originalResumeText],
   );
-  const resumeDocument = useMemo(
+  const incomingResumeDocument = useMemo(
     () => withContactSection(structuredResumeToDocument(resume), originalContactSection),
     [originalContactSection, resume],
   );
+  const [resumeDocument, setResumeDocument] = useState<ResumeDocument>(incomingResumeDocument);
+  const localDocumentSignatureRef = useRef(serializeResumeDocument(incomingResumeDocument));
+
+  useEffect(() => {
+    const incomingSignature = serializeResumeDocument(incomingResumeDocument);
+    if (incomingSignature === localDocumentSignatureRef.current) return;
+
+    setResumeDocument(incomingResumeDocument);
+    localDocumentSignatureRef.current = incomingSignature;
+    const firstEditableSection = incomingResumeDocument.sections.find((section) => section.type !== "contact");
+    setAssistantSectionId(firstEditableSection?.id ?? "");
+  }, [incomingResumeDocument]);
+
   const sectionComparisons = useMemo(
-    () => buildSectionComparisons(originalResumeText, resume),
-    [originalResumeText, resume],
+    () => buildSectionComparisons(originalResumeText, resumeDocument),
+    [originalResumeText, resumeDocument],
   );
 
-  const sections: SectionConfig[] = [
-    { id: "summary", label: "Summary" },
-    ...resume.experience.map((role, index) => ({
-      id: `experience:${role.id}`,
-      label: role.title || `Experience ${index + 1}`,
-    })),
-    { id: "skills", label: "Skills" },
-    { id: "education", label: "Education" },
-  ];
+  const sections: SectionConfig[] = resumeDocument.sections
+    .filter((section) => section.type !== "contact")
+    .map((section) => ({
+      id: section.id,
+      label: section.title,
+    }));
   const selectedAssistantSection =
     sections.find((section) => section.id === assistantSectionId) ?? sections[0];
+  const selectedDocumentSection = resumeDocument.sections.find(
+    (section) => section.id === selectedAssistantSection?.id,
+  );
+  const downloadBaseName = useMemo(
+    () => safeDownloadBaseName(title || resumeDocument.title || "optimized-resume"),
+    [resumeDocument.title, title],
+  );
+  const availableAddSectionTitles = useMemo(
+    () => getAvailableAddSectionTitles(resumeDocument.sections),
+    [resumeDocument.sections],
+  );
 
   useEffect(() => {
     setTemplatePreviewDocument(resumeDocument);
     return () => setTemplatePreviewDocument(null);
   }, [resumeDocument, setTemplatePreviewDocument]);
 
+  useEffect(() => {
+    if (!onTemplateChange) return;
+    if (!hasAppliedInitialTemplateRef.current) return;
+    if (selectedTemplateId === persistedTemplateIdRef.current) return;
+
+    persistedTemplateIdRef.current = selectedTemplateId;
+    Promise.resolve(onTemplateChange(selectedTemplateId, documentToStructuredResume(resumeDocument, resume))).catch((error) => {
+      setSaveReviewError(error instanceof Error ? error.message : "Could not save template choice.");
+    });
+  }, [onTemplateChange, resume, resumeDocument, selectedTemplateId]);
+
+  function commitResumeDocumentChange(nextDocument: ResumeDocument, sectionId?: string) {
+    setResumeDocument(nextDocument);
+    localDocumentSignatureRef.current = serializeResumeDocument(nextDocument);
+    onResumeChange(documentToStructuredResume(nextDocument, resume));
+    if (sectionId) {
+      setAssistantSectionId(sectionId);
+    }
+    setSaveReviewStatus("");
+    setSaveReviewError("");
+    setRevisionError("");
+    setRevisionStatus("");
+  }
+
   async function handleAssistantRevise(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedAssistantSection) return;
+    if (!selectedAssistantSection || !selectedDocumentSection) return;
 
     const instruction = assistantInstruction.trim();
 
@@ -210,12 +287,15 @@ export function ResumeReview({
       const revisedText = await reviseResumeSectionWithProvider({
         provider,
         jobDescription,
-        resume,
+        resume: documentToStructuredResume(resumeDocument, resume),
         sectionLabel: selectedAssistantSection.label,
-        sectionText: sectionText(resume, selectedAssistantSection.id),
+        sectionText: selectedDocumentSection.content,
         instruction,
       });
-      onResumeChange(replaceSection(resume, selectedAssistantSection.id, revisedText));
+      commitResumeDocumentChange(
+        updateResumeDocumentSection(resumeDocument, selectedAssistantSection.id, revisedText),
+        selectedAssistantSection.id,
+      );
       setSaveReviewStatus("");
       setRevisionStatus(`${selectedAssistantSection.label} updated.`);
       setAssistantInstruction("");
@@ -227,11 +307,29 @@ export function ResumeReview({
   }
 
   function handleInlineSectionChange(sectionId: string, value: string) {
-    onResumeChange(replaceSection(resume, sectionId, value));
-    setAssistantSectionId(sectionId);
-    setSaveReviewStatus("");
-    setRevisionError("");
-    setRevisionStatus("");
+    commitResumeDocumentChange(updateResumeDocumentSection(resumeDocument, sectionId, value), sectionId);
+  }
+
+  function handleAddSection(afterSectionId: string, title: string, content: string) {
+    const previousSectionIds = new Set(resumeDocument.sections.map((section) => section.id));
+    const nextSectionType = inferResumeSectionTypeFromTitle(title);
+    const nextDocument = addResumeDocumentSection(resumeDocument, nextSectionType, afterSectionId, {
+      title,
+      content,
+    });
+    const nextSection = nextDocument.sections.find((section) => !previousSectionIds.has(section.id));
+    commitResumeDocumentChange(nextDocument, nextSection?.id);
+    setAddSectionAfterId(null);
+  }
+
+  function handleRemoveSectionById(sectionId: string) {
+    if (sections.length <= 1) return;
+
+    const currentIndex = sections.findIndex((section) => section.id === sectionId);
+    const nextDocument = removeResumeDocumentSection(resumeDocument, sectionId);
+    const nextSections = nextDocument.sections.filter((section) => section.type !== "contact");
+    const nextSelectedSection = nextSections[Math.min(currentIndex, nextSections.length - 1)];
+    commitResumeDocumentChange(nextDocument, nextSelectedSection?.id ?? "");
   }
 
   function handleSelectReviewSection(sectionId: string) {
@@ -251,15 +349,15 @@ export function ResumeReview({
 
   async function exportOne(action: ExportType) {
     if (action === "docx") {
-      await downloadResumeDocumentDocx(resumeDocument, selectedTemplateId, "syncresume-optimized-resume.docx");
+      await downloadResumeDocumentDocx(resumeDocument, selectedTemplateId, `${downloadBaseName}.docx`);
       await onExported?.(action);
     }
     if (action === "pdf") {
-      await downloadResumeDocumentPdf(resumeDocument, selectedTemplateId, "syncresume-optimized-resume.pdf");
+      await downloadResumeDocumentPdf(resumeDocument, selectedTemplateId, `${downloadBaseName}.pdf`);
       await onExported?.(action);
     }
     if (action === "copy") {
-      await copyPlainText(resume);
+      await copyPlainText(documentToStructuredResume(resumeDocument, resume));
       await onExported?.(action);
     }
   }
@@ -291,7 +389,7 @@ export function ResumeReview({
     setSaveReviewError("");
     setIsSavingReview(true);
     try {
-      await onSaveReview(resume, selectedTemplateId);
+      await onSaveReview(documentToStructuredResume(resumeDocument, resume), selectedTemplateId);
       setSaveReviewStatus("Review changes saved.");
     } catch (error) {
       setSaveReviewError(error instanceof Error ? error.message : "Could not save review changes.");
@@ -336,6 +434,13 @@ export function ResumeReview({
           onCloseCompare={() => setIsCompareMode(false)}
           onSelectAfterSection={handleSelectReviewSection}
           onAfterSectionChange={handleInlineSectionChange}
+          canRemoveAfterSection={sections.length > 1}
+          onRemoveAfterSection={handleRemoveSectionById}
+          availableAddSectionTitles={availableAddSectionTitles}
+          addSectionAfterId={addSectionAfterId}
+          onAddSection={handleAddSection}
+          onOpenAddSection={setAddSectionAfterId}
+          onCloseAddSection={() => setAddSectionAfterId(null)}
         />
 
         <InlineRevisionBar
@@ -535,6 +640,13 @@ function ResultsTab({
   onCloseCompare,
   onSelectAfterSection,
   onAfterSectionChange,
+  canRemoveAfterSection,
+  onRemoveAfterSection,
+  availableAddSectionTitles,
+  addSectionAfterId,
+  onAddSection,
+  onOpenAddSection,
+  onCloseAddSection,
 }: {
   sections: SectionComparison[];
   templateId: ResumeTemplateId;
@@ -543,6 +655,13 @@ function ResultsTab({
   onCloseCompare: () => void;
   onSelectAfterSection: (sectionId: string) => void;
   onAfterSectionChange: (sectionId: string, value: string) => void;
+  canRemoveAfterSection: boolean;
+  onRemoveAfterSection: (sectionId: string) => void;
+  availableAddSectionTitles: string[];
+  addSectionAfterId: string | null;
+  onAddSection: (afterSectionId: string, title: string, content: string) => void;
+  onOpenAddSection: (afterSectionId: string) => void;
+  onCloseAddSection: () => void;
 }) {
   const comparisonRef = useRef<HTMLDivElement | null>(null);
   const [isSinglePane, setIsSinglePane] = useState(false);
@@ -559,7 +678,6 @@ function ResultsTab({
     () => new Map(sections.map((section) => [section.id, section])),
     [sections],
   );
-
   useEffect(() => {
     const comparison = comparisonRef.current;
     if (!comparison) return;
@@ -636,6 +754,15 @@ function ResultsTab({
                     selectedSectionId,
                     onSelectAfterSection,
                     onAfterSectionChange,
+                    canRemoveAfterSection,
+                    onRemoveAfterSection,
+                    {
+                      availableSectionTitles: availableAddSectionTitles,
+                      isAddSectionOpen: addSectionAfterId === section.id,
+                      onAddSection: (title, content) => onAddSection(section.id, title, content),
+                      onOpenAddSection: () => onOpenAddSection(section.id),
+                      onCloseAddSection,
+                    },
                   )
             }
           />
@@ -671,7 +798,6 @@ function InlineRevisionBar({
       <div className="review-inline-revision-inner">
         <div className="review-inline-revision-hint">
           <span>Click any section above to edit directly, or ask AI below.</span>
-          {selectedSectionId && <span>Selected: {selectedSectionLabel}</span>}
         </div>
         <form className="review-inline-revision-form" onSubmit={onSubmit}>
           <textarea
@@ -711,57 +837,41 @@ function StatusMessages({ exportError }: { exportError: string }) {
   );
 }
 
-function buildSectionComparisons(originalResumeText: string, resume: StructuredResume): SectionComparison[] {
-  const originalSections = extractOriginalResumeSections(originalResumeText);
-  const optimizedSections: Array<Omit<SectionComparison, "tokens">> = [
-    ...(originalSections.contact
-      ? [
-          {
-            id: "contact",
-            label: "Contact",
-            type: "contact" as const,
-            before: originalSections.contact,
-            after: originalSections.contact,
-          },
-        ]
-      : []),
-    {
-      id: "summary",
-      label: "Summary",
-      type: "summary" as const,
-      before: originalSections.summary,
-      after: resume.summary,
-    },
-    {
-      id: "experience",
-      label: "Experience",
-      type: "experience" as const,
-      before: originalSections.experience,
-      after: resume.experience.map(experienceRoleToText).filter(Boolean).join("\n\n"),
-    },
-    {
-      id: "skills",
-      label: "Skills",
-      type: "skills" as const,
-      before: originalSections.skills,
-      after: resume.skills.join(", "),
-    },
-    {
-      id: "education",
-      label: "Education",
-      type: "education" as const,
-      before: originalSections.education,
-      after: resume.education.join("\n"),
-    },
-  ];
+function buildSectionComparisons(originalResumeText: string, resumeDocument: ResumeDocument): SectionComparison[] {
+  const originalDocument = parseResumeDocument(originalResumeText, "Original resume");
+  const originalSectionsByType = new Map<ResumeSectionType, string>();
+  const originalSectionsByTitle = new Map<string, string>();
+
+  for (const section of originalDocument.sections) {
+    const content = section.content.trim();
+    if (!content) continue;
+    originalSectionsByType.set(
+      section.type,
+      [originalSectionsByType.get(section.type), content].filter(Boolean).join("\n\n"),
+    );
+    originalSectionsByTitle.set(normalizeSectionTitle(section.title), content);
+  }
+
+  const optimizedSections: Array<Omit<SectionComparison, "tokens">> = resumeDocument.sections.map((section) => ({
+    id: section.id,
+    label: section.title,
+    type: section.type,
+    before:
+      section.type === "contact"
+        ? section.content
+        : originalSectionsByTitle.get(normalizeSectionTitle(section.title)) ??
+          originalSectionsByType.get(section.type) ??
+          "",
+    after: section.content,
+  }));
 
   const comparisons = optimizedSections
     .map((section) => ({
       ...section,
       before: section.before.trim(),
-      after: section.after.trim(),
+      after: section.after,
     }))
-    .filter((section) => section.before || section.after)
+    .filter((section) => section.before || section.after || section.label.trim())
     .map((section) => ({
       ...section,
       tokens: diffWords(section.before, section.after),
@@ -771,7 +881,7 @@ function buildSectionComparisons(originalResumeText: string, resume: StructuredR
     return comparisons;
   }
 
-  const fallbackAfter = resumeToPlainText(resume);
+  const fallbackAfter = serializeResumeDocument(resumeDocument);
   const fallbackTokens = diffWords(originalResumeText.trim(), fallbackAfter);
   return [
     {
@@ -842,19 +952,188 @@ function renderEditableAfterSectionContent(
   selectedSectionId: string,
   onSelectAfterSection: (sectionId: string) => void,
   onAfterSectionChange: (sectionId: string, value: string) => void,
+  canRemoveAfterSection: boolean,
+  onRemoveAfterSection: (sectionId: string) => void,
+  addSectionControl?: {
+    availableSectionTitles: string[];
+    isAddSectionOpen: boolean;
+    onAddSection: (title: string, content: string) => void;
+    onOpenAddSection: () => void;
+    onCloseAddSection: () => void;
+  },
 ) {
   if (section.type === "contact" || section.id === "contact") {
     return renderDiffSectionContent(section, comparisonById, "after");
   }
 
   return (
-    <EditableReviewSectionTextarea
-      section={section}
-      isSelected={section.id === selectedSectionId}
-      onSelect={() => onSelectAfterSection(section.id)}
-      onChange={(content) => onAfterSectionChange(section.id, content)}
-    />
+    <div className="review-editable-section-shell">
+      {canRemoveAfterSection && (
+        <button
+          className="review-inline-delete-section"
+          type="button"
+          aria-label={`Delete ${section.title}`}
+          title={`Delete ${section.title}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemoveAfterSection(section.id);
+          }}
+        >
+          <X aria-hidden="true" />
+        </button>
+      )}
+      <EditableReviewSectionTextarea
+        section={section}
+        isSelected={section.id === selectedSectionId}
+        onSelect={() => onSelectAfterSection(section.id)}
+        onChange={(content) => onAfterSectionChange(section.id, content)}
+      />
+      {addSectionControl && <InlineAddSectionControl {...addSectionControl} />}
+    </div>
   );
+}
+
+function InlineAddSectionControl({
+  availableSectionTitles,
+  isAddSectionOpen,
+  onAddSection,
+  onOpenAddSection,
+  onCloseAddSection,
+}: {
+  availableSectionTitles: string[];
+  isAddSectionOpen: boolean;
+  onAddSection: (title: string, content: string) => void;
+  onOpenAddSection: () => void;
+  onCloseAddSection: () => void;
+}) {
+  const [sectionTitle, setSectionTitle] = useState("");
+  const [sectionContent, setSectionContent] = useState("");
+  const [selectedTitleOption, setSelectedTitleOption] = useState("other");
+
+  useEffect(() => {
+    if (!isAddSectionOpen) return;
+    const firstSuggestedTitle = availableSectionTitles[0] ?? "other";
+    setSelectedTitleOption(firstSuggestedTitle);
+    setSectionTitle(firstSuggestedTitle === "other" ? "" : firstSuggestedTitle);
+    setSectionContent("");
+  }, [availableSectionTitles, isAddSectionOpen]);
+
+  if (!isAddSectionOpen) {
+    return (
+      <button
+        className="review-inline-add-section review-inline-add-trigger"
+        type="button"
+        onClick={onOpenAddSection}
+      >
+        <Plus aria-hidden="true" />
+        Add section here
+      </button>
+    );
+  }
+
+  return (
+    <div className="review-inline-add-section review-inline-add-panel">
+      <div className="review-inline-add-header">
+        <span>Add a resume section</span>
+      </div>
+      <div className="review-inline-add-fields">
+        <label className="review-inline-add-field">
+          <span>Suggested title</span>
+          <select
+            value={selectedTitleOption}
+            onChange={(event) => {
+              const nextTitle = event.target.value;
+              setSelectedTitleOption(nextTitle);
+              setSectionTitle(nextTitle === "other" ? "" : nextTitle);
+            }}
+            aria-label="Suggested section title"
+          >
+            {availableSectionTitles.map((title) => (
+              <option key={title} value={title}>
+                {title}
+              </option>
+            ))}
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label className="review-inline-add-field">
+          <span>Title</span>
+          <input
+            type="text"
+            value={sectionTitle}
+            placeholder="Projects, Leadership, Open Source..."
+            onChange={(event) => {
+              setSectionTitle(event.target.value);
+              setSelectedTitleOption("other");
+            }}
+          />
+        </label>
+        <label className="review-inline-add-field review-inline-add-field-wide">
+          <span>Content</span>
+          <textarea
+            value={sectionContent}
+            rows={3}
+            placeholder="Add the content for this section..."
+            onChange={(event) => setSectionContent(event.target.value)}
+          />
+        </label>
+      </div>
+      <div className="review-inline-add-controls">
+        <button className="btn btn-secondary btn-sm" type="button" onClick={onCloseAddSection}>
+          Cancel
+        </button>
+        <button
+          className="btn btn-primary btn-sm"
+          type="button"
+          disabled={!sectionTitle.trim() || !sectionContent.trim()}
+          onClick={() => onAddSection(sectionTitle, sectionContent)}
+        >
+          <Plus aria-hidden="true" />
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function documentToStructuredResume(
+  document: ResumeDocument,
+  fallback: StructuredResume,
+): StructuredResume {
+  const orderedSections = document.sections
+    .slice()
+    .sort((left, right) => left.order - right.order)
+    .map((section, index) => ({ ...section, order: index }));
+  const sectionContent = (type: ResumeSectionType) =>
+    orderedSections.find((section) => section.type === type)?.content ?? "";
+  const splitList = (value: string) =>
+    value
+      .split(/\n|,/)
+      .map((item) => item.replace(/^[-•]\s*/, "").trim())
+      .filter(Boolean);
+
+  return {
+    ...fallback,
+    summary: sectionContent("summary").trim(),
+    experience: orderedSections
+      .filter((section) => section.type === "experience")
+      .map((section, index) => ({
+        id: section.id || `experience-${index}`,
+        title: section.title,
+        company: "",
+        location: "",
+        dates: "",
+        bullets: section.content
+          .split("\n")
+          .map((line) => line.replace(/^[-•]\s*/, "").trim())
+          .filter(Boolean),
+      })),
+    skills: splitList(sectionContent("skills")),
+    education: orderedSections
+      .filter((section) => section.type === "education")
+      .flatMap((section) => splitList(section.content)),
+    sections: orderedSections,
+  };
 }
 
 function withContactSection(
@@ -881,103 +1160,38 @@ function withContactSection(
   };
 }
 
-function extractOriginalResumeSections(text: string): Record<"contact" | "summary" | "experience" | "skills" | "education", string> {
-  const originalDocument = parseResumeDocument(text, "Original resume");
-  const contact = originalDocument.sections.find((section) => section.type === "contact")?.content.trim() ?? "";
-  const normalizedText = text.replace(/\r\n?/g, "\n");
-  const headings = findResumeHeadings(normalizedText);
-  const sections = {
-    contact,
-    summary: "",
-    experience: "",
-    skills: "",
-    education: "",
-  };
-
-  if (headings.length === 0) {
-    return sections;
-  }
-
-  for (let index = 0; index < headings.length; index += 1) {
-    const heading = headings[index];
-    const nextHeading = headings[index + 1];
-    const start = heading.index + heading.text.length;
-    const end = nextHeading?.index ?? normalizedText.length;
-    const value = normalizedText.slice(start, end).trim();
-    sections[heading.section] = [sections[heading.section], value].filter(Boolean).join("\n\n");
-  }
-
-  return sections;
+function normalizeSectionTitle(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-function findResumeHeadings(text: string): Array<{
-  section: "summary" | "experience" | "skills" | "education";
-  text: string;
-  index: number;
-}> {
-  const headingMap: Array<{
-    section: "summary" | "experience" | "skills" | "education";
-    labels: string[];
-  }> = [
-    {
-      section: "summary",
-      labels: ["professional summary", "career summary", "summary", "profile"],
-    },
-    {
-      section: "experience",
-      labels: ["professional experience", "work experience", "employment history", "experience"],
-    },
-    {
-      section: "skills",
-      labels: ["technical skills", "core skills", "skills"],
-    },
-    {
-      section: "education",
-      labels: ["education", "academic background"],
-    },
-  ];
+function getAvailableAddSectionTitles(sections: ResumeSection[]): string[] {
+  const existingKeys = new Set(
+    sections
+      .filter((section) => section.type !== "contact")
+      .flatMap((section) => [
+        normalizeSectionTitle(section.title),
+        section.type === "custom" ? "" : section.type,
+      ])
+      .filter(Boolean),
+  );
 
-  const matches: Array<{
-    section: "summary" | "experience" | "skills" | "education";
-    text: string;
-    index: number;
-  }> = [];
-
-  for (const item of headingMap) {
-    for (const label of item.labels) {
-      const pattern = new RegExp(`(^|\\n|\\s{2,})(${escapeRegExp(label)})(?=\\s|:|$)`, "gi");
-      for (const match of text.matchAll(pattern)) {
-        const prefix = match[1] ?? "";
-        const headingText = match[2] ?? "";
-        matches.push({
-          section: item.section,
-          text: headingText,
-          index: (match.index ?? 0) + prefix.length,
-        });
-      }
-
-      const uppercaseLabel = label.toUpperCase();
-      const uppercasePattern = new RegExp(`(^|\\s)(${escapeRegExp(uppercaseLabel)})(?=\\s|:|$)`, "g");
-      for (const match of text.matchAll(uppercasePattern)) {
-        const prefix = match[1] ?? "";
-        const headingText = match[2] ?? "";
-        matches.push({
-          section: item.section,
-          text: headingText,
-          index: (match.index ?? 0) + prefix.length,
-        });
-      }
-    }
-  }
-
-  return matches
-    .sort((a, b) => a.index - b.index || b.text.length - a.text.length)
-    .filter((match, index, sorted) => {
-      const previous = sorted[index - 1];
-      return !previous || match.index >= previous.index + previous.text.length;
-    });
+  return ADDABLE_RESUME_SECTION_TYPE_OPTIONS
+    .filter((option) => {
+      const optionTitleKey = normalizeSectionTitle(option.title);
+      return !existingKeys.has(option.type) && !existingKeys.has(optionTitleKey);
+    })
+    .map((option) => option.title);
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function safeDownloadBaseName(value: string): string {
+  return (
+    value
+      .trim()
+      .replace(/\.[a-z0-9]{2,5}$/i, "")
+      .replace(/[^a-z0-9._ -]+/gi, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^[.-]+|[.-]+$/g, "")
+      .slice(0, 80) || "optimized-resume"
+  );
 }

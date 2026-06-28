@@ -1008,11 +1008,13 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                       value={sectionToAdd}
                       onChange={(event) => setSectionToAdd(event.target.value as ResumeSectionType)}
                     >
-                      {RESUME_SECTION_TYPE_OPTIONS.filter((option) => option.type !== "contact").map((option) => (
-                        <option key={option.type} value={option.type}>
-                          {option.title}
-                        </option>
-                      ))}
+                      {RESUME_SECTION_TYPE_OPTIONS
+                        .filter((option) => option.type !== "contact" && option.type !== "custom")
+                        .map((option) => (
+                          <option key={option.type} value={option.type}>
+                            {option.title}
+                          </option>
+                        ))}
                     </select>
                   </label>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={addEditedSection}>

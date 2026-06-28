@@ -1242,6 +1242,27 @@ export default function OptimizerPage({
                     }
                   : undefined
               }
+              onTemplateChange={
+                currentRunId
+                  ? async (templateId, resume) => {
+                      const run = await updateRunReview(currentRunId, {
+                        jobDescription,
+                        originalResumeText: reviewOriginalResumeText || activeResume?.text || "",
+                        resume,
+                        templateId,
+                      });
+
+                      if (run.optimizedResume) {
+                        setOptimizedResume(normalizeStructuredResume(run.optimizedResume));
+                      }
+                      setReviewOriginalResumeText(run.originalResumeText || reviewOriginalResumeText);
+                      setReviewTitle(run.title);
+                      setReviewSourceResumeId(run.resumeId);
+                      setReviewTemplateId((run.templateId as ResumeTemplateId | undefined) ?? templateId);
+                      setCurrentRunId(run.id);
+                    }
+                  : undefined
+              }
               onExported={(exportType) => {
                 if (currentRunId) {
                   return recordExport(currentRunId, exportType);

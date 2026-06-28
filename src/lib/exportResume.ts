@@ -228,7 +228,6 @@ function getSafePdfCutPositions(previewElement: HTMLElement, scale: number): num
   const selectors = [
     ".template-contact",
     ".template-section",
-    ".template-section h2",
     ".template-section-body > p",
     ".template-section-body > ul",
     ".template-section-body li",
