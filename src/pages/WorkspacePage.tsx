@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
+import { applyUserProfileContactFallback } from "../lib/userProfile";
 import { parseResumeDocument, withFallbackContactSection } from "../resume/schema";
 import { ResumeTemplatePanel } from "../components/ResumeTemplateSelector";
 import OptimizerPage from "./OptimizerPage";
@@ -12,7 +13,12 @@ export default function WorkspacePage() {
   const [reviewToolbarHost, setReviewToolbarHost] = useState<HTMLDivElement | null>(null);
 
   const { activeResume, resumes } = useAppData();
-  const { selectedTemplateId, setSelectedTemplateId, templatePreviewDocument } = useSettings();
+  const {
+    selectedTemplateId,
+    setSelectedTemplateId,
+    templatePreviewDocument,
+    userProfileDetails,
+  } = useSettings();
 
   const activeResumeDocument = useMemo(() => {
     if (!activeResume) return null;
@@ -26,7 +32,21 @@ export default function WorkspacePage() {
     return withFallbackContactSection(doc, sourceDocument);
   }, [activeResume, resumes]);
 
-  const templatePanelDocument = templatePreviewDocument ?? activeResumeDocument;
+  const profileActiveResumeDocument = useMemo(
+    () =>
+      activeResumeDocument
+        ? applyUserProfileContactFallback(activeResumeDocument, userProfileDetails)
+        : null,
+    [activeResumeDocument, userProfileDetails],
+  );
+  const profileTemplatePreviewDocument = useMemo(
+    () =>
+      templatePreviewDocument
+        ? applyUserProfileContactFallback(templatePreviewDocument, userProfileDetails)
+        : null,
+    [templatePreviewDocument, userProfileDetails],
+  );
+  const templatePanelDocument = profileTemplatePreviewDocument ?? profileActiveResumeDocument;
 
   const closeTemplatePanel = useCallback(() => {
     setIsTemplatePanelOpen(false);

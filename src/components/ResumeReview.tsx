@@ -23,6 +23,7 @@ import { useSettings } from "../context/SettingsContext";
 import { openAIErrorMessage } from "../lib/openai";
 import { reviseResumeSectionWithProvider } from "../lib/providers/dispatch";
 import type { LLMProvider } from "../lib/providers/types";
+import { applyUserProfileContactFallback } from "../lib/userProfile";
 import {
   RESUME_SECTION_TYPE_OPTIONS,
   addResumeDocumentSection,
@@ -136,6 +137,7 @@ export function ResumeReview({
     selectedTemplateId,
     setSelectedTemplateId,
     setTemplatePreviewDocument,
+    userProfileDetails,
   } = useSettings();
   const persistedTemplateIdRef = useRef<ResumeTemplateId>(initialTemplateId ?? selectedTemplateId);
   const hasAppliedInitialTemplateRef = useRef(!initialTemplateId);
@@ -169,6 +171,10 @@ export function ResumeReview({
   );
   const [resumeDocument, setResumeDocument] = useState<ResumeDocument>(incomingResumeDocument);
   const localDocumentSignatureRef = useRef(serializeResumeDocument(incomingResumeDocument));
+  const displayResumeDocument = useMemo(
+    () => applyUserProfileContactFallback(resumeDocument, userProfileDetails),
+    [resumeDocument, userProfileDetails],
+  );
 
   useEffect(() => {
     const incomingSignature = serializeResumeDocument(incomingResumeDocument);
@@ -181,8 +187,8 @@ export function ResumeReview({
   }, [incomingResumeDocument]);
 
   const sectionComparisons = useMemo(
-    () => buildSectionComparisons(originalResumeText, resumeDocument),
-    [originalResumeText, resumeDocument],
+    () => buildSectionComparisons(originalResumeText, displayResumeDocument),
+    [displayResumeDocument, originalResumeText],
   );
 
   const sections: SectionConfig[] = resumeDocument.sections
@@ -206,9 +212,9 @@ export function ResumeReview({
   );
 
   useEffect(() => {
-    setTemplatePreviewDocument(resumeDocument);
+    setTemplatePreviewDocument(displayResumeDocument);
     return () => setTemplatePreviewDocument(null);
-  }, [resumeDocument, setTemplatePreviewDocument]);
+  }, [displayResumeDocument, setTemplatePreviewDocument]);
 
   useEffect(() => {
     if (!onTemplateChange) return;
@@ -346,15 +352,15 @@ export function ResumeReview({
 
   async function exportOne(action: ExportType) {
     if (action === "docx") {
-      await downloadResumeDocumentDocx(resumeDocument, selectedTemplateId, `${downloadBaseName}.docx`);
+      await downloadResumeDocumentDocx(displayResumeDocument, selectedTemplateId, `${downloadBaseName}.docx`);
       await onExported?.(action);
     }
     if (action === "pdf") {
-      await downloadResumeDocumentPdf(resumeDocument, selectedTemplateId, `${downloadBaseName}.pdf`);
+      await downloadResumeDocumentPdf(displayResumeDocument, selectedTemplateId, `${downloadBaseName}.pdf`);
       await onExported?.(action);
     }
     if (action === "copy") {
-      await copyPlainText(documentToStructuredResume(resumeDocument, resume));
+      await copyPlainText(documentToStructuredResume(displayResumeDocument, resume));
       await onExported?.(action);
     }
   }
@@ -386,7 +392,7 @@ export function ResumeReview({
     setSaveReviewError("");
     setIsSavingReview(true);
     try {
-      await onSaveReview(documentToStructuredResume(resumeDocument, resume), selectedTemplateId);
+      await onSaveReview(documentToStructuredResume(displayResumeDocument, resume), selectedTemplateId);
       setSaveReviewStatus("Review changes saved.");
     } catch (error) {
       setSaveReviewError(error instanceof Error ? error.message : "Could not save review changes.");

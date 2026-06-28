@@ -12,7 +12,7 @@ function notImplemented(provider: LLMProvider): never {
   const info = getProviderInfo(provider);
   // TODO: wire up a real client for this provider (see lib/providers/types.ts).
   throw new Error(
-    `${info.label} integration is coming soon. Switch to OpenAI in Settings to run live optimization.`,
+    `${info.label} integration is not enabled for this workspace yet.`,
   );
 }
 

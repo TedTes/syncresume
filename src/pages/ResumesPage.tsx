@@ -39,6 +39,7 @@ import {
   downloadResumeDocumentPdf,
 } from "../lib/exportResume";
 import { extractResumeText } from "../lib/fileExtract";
+import { applyUserProfileContactFallback } from "../lib/userProfile";
 import {
   RESUME_SECTION_TYPE_OPTIONS,
   addResumeDocumentSection,
@@ -134,7 +135,13 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     deleteResume,
   } = useAppData();
   const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
-  const { provider, selectedTemplateId, setSelectedTemplateId, setTemplatePreviewDocument } = useSettings();
+  const {
+    provider,
+    selectedTemplateId,
+    setSelectedTemplateId,
+    setTemplatePreviewDocument,
+    userProfileDetails,
+  } = useSettings();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
@@ -181,8 +188,22 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     () => (previewResume ? parseResumeWithSourceContact(previewResume) : null),
     [previewResume, resumes],
   );
+  const previewResumeDocumentWithProfile = useMemo(
+    () =>
+      previewResumeDocument
+        ? applyUserProfileContactFallback(previewResumeDocument, userProfileDetails)
+        : null,
+    [previewResumeDocument, userProfileDetails],
+  );
   const previewTemplateId = selectedTemplateId;
   const editingResume = resumes.find((resume) => resume.id === editingResumeId) ?? null;
+  const editedResumeDocumentWithProfile = useMemo(
+    () =>
+      editedResumeDocument
+        ? applyUserProfileContactFallback(editedResumeDocument, userProfileDetails)
+        : null,
+    [editedResumeDocument, userProfileDetails],
+  );
   const isFullPagePreview = Boolean(previewId || previewLoadingId || filePreview || previewError);
   const currentEditedResumeText = editedResumeDocument
     ? serializeResumeDocument(editedResumeDocument)
@@ -253,9 +274,13 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   }, [isEditorExportMenuOpen]);
 
   useEffect(() => {
-    setTemplatePreviewDocument(editedResumeDocument ?? previewResumeDocument);
+    setTemplatePreviewDocument(editedResumeDocumentWithProfile ?? previewResumeDocumentWithProfile);
     return () => setTemplatePreviewDocument(null);
-  }, [editedResumeDocument, previewResumeDocument, setTemplatePreviewDocument]);
+  }, [
+    editedResumeDocumentWithProfile,
+    previewResumeDocumentWithProfile,
+    setTemplatePreviewDocument,
+  ]);
 
   useEffect(() => {
     if (!editedResumeDocument) return;
@@ -490,10 +515,18 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     try {
       for (const type of selectedEditorExportTypes) {
         if (type === "docx") {
-          await downloadResumeDocumentDocx(editedResumeDocument, selectedTemplateId, editingResume.name);
+          await downloadResumeDocumentDocx(
+            editedResumeDocumentWithProfile ?? editedResumeDocument,
+            selectedTemplateId,
+            editingResume.name,
+          );
         }
         if (type === "pdf") {
-          await downloadResumeDocumentPdf(editedResumeDocument, selectedTemplateId, editingResume.name);
+          await downloadResumeDocumentPdf(
+            editedResumeDocumentWithProfile ?? editedResumeDocument,
+            selectedTemplateId,
+            editingResume.name,
+          );
         }
       }
     } catch (error) {
@@ -1154,9 +1187,9 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                     type="button"
                     className="btn btn-ghost btn-sm"
                     onClick={() => {
-                      if (!previewResumeDocument) return;
+                      if (!previewResumeDocumentWithProfile) return;
                       void downloadResumeDocumentPdf(
-                        previewResumeDocument,
+                        previewResumeDocumentWithProfile,
                         previewTemplateId,
                         previewResume.name,
                       );
@@ -1177,11 +1210,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           ) : previewError ? (
             <div className="extracted-preview-shell">
               <div className="inline-error">{previewError}</div>
-              {previewResumeDocument && (
+              {previewResumeDocumentWithProfile && (
                 <div className="template-fullpage-preview-shell">
                   <ResumeTemplatePreview
                     key={previewTemplateId}
-                    document={previewResumeDocument}
+                    document={previewResumeDocumentWithProfile}
                     templateId={previewTemplateId}
                   />
                 </div>
@@ -1193,11 +1226,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
               src={`${filePreview.url}#toolbar=0&navpanes=0&scrollbar=1`}
               title={`${filePreview.name} PDF preview`}
             />
-          ) : previewResumeDocument ? (
+          ) : previewResumeDocumentWithProfile ? (
             <div className="extracted-preview-shell template-fullpage-preview-shell">
               <ResumeTemplatePreview
                 key={previewTemplateId}
-                document={previewResumeDocument}
+                document={previewResumeDocumentWithProfile}
                 templateId={previewTemplateId}
               />
             </div>

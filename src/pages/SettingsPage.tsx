@@ -1,5 +1,13 @@
-import { useState } from "react";
-import { CreditCard, Loader2, LogOut, ShieldCheck, Zap } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  LogOut,
+  ShieldCheck,
+  UserRound,
+  Zap,
+} from "lucide-react";
 import { UserButton } from "@clerk/clerk-react";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
@@ -7,18 +15,47 @@ import {
   createBillingCheckoutSession,
   createBillingPortalSession,
 } from "../lib/cloudflare/client";
-import { PROVIDERS } from "../lib/providers/types";
+import type { UserProfileDetails } from "../lib/userProfile";
+
+type ProfileSaveStatus = "saved" | "saving";
 
 export default function SettingsPage() {
-  const { provider, setProvider, model, toggles, setToggle } = useSettings();
+  const {
+    toggles,
+    setToggle,
+    userProfileDetails,
+    setUserProfileField,
+  } = useSettings();
   const { user, profile, signOut } = useAuth();
   const [billingAction, setBillingAction] = useState<"checkout" | "portal" | null>(null);
   const [billingError, setBillingError] = useState<string | null>(null);
-  const activeProvider = PROVIDERS.find((info) => info.id === provider) ?? PROVIDERS[0];
+  const [profileSaveStatus, setProfileSaveStatus] = useState<ProfileSaveStatus>("saved");
+  const profileSaveTimerRef = useRef<number | null>(null);
   const usage = profile?.usage;
   const isPro = profile?.plan === "Pro";
   const canCheckout = Boolean(profile?.billing?.checkoutEnabled);
   const canOpenPortal = Boolean(profile?.billing?.portalEnabled);
+
+  useEffect(() => {
+    return () => {
+      if (profileSaveTimerRef.current) {
+        window.clearTimeout(profileSaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  function updateProfileField(key: keyof UserProfileDetails, value: string) {
+    setProfileSaveStatus("saving");
+    setUserProfileField(key, value);
+
+    if (profileSaveTimerRef.current) {
+      window.clearTimeout(profileSaveTimerRef.current);
+    }
+
+    profileSaveTimerRef.current = window.setTimeout(() => {
+      setProfileSaveStatus("saved");
+    }, 450);
+  }
 
   async function openBilling(action: "checkout" | "portal") {
     setBillingAction(action);
@@ -45,48 +82,89 @@ export default function SettingsPage() {
       <main className="page-content page-content-narrow">
         <div className="settings-page">
           <section className="settings-card">
-            <p className="settings-card-title">LLM provider</p>
-
-            <div className="settings-row">
+            <div className="settings-card-heading">
               <div>
-                <p className="settings-row-label">Provider</p>
-                <p className="settings-row-desc">
-                  {activeProvider.label} is active. Other providers unlock when their Worker secrets are configured.
+                <p className="settings-card-title">Profile details</p>
+                <p className="settings-card-subtitle">
+                  Used as contact fallback when a resume is missing stable personal details.
                 </p>
               </div>
-              <div className="provider-pills">
-                {PROVIDERS.map((info) => (
-                  <button
-                    key={info.id}
-                    type="button"
-                    className={`provider-pill ${provider === info.id ? "active" : ""}`}
-                    disabled={!info.enabled}
-                    onClick={() => setProvider(info.id)}
-                  >
-                    {info.label}
-                  </button>
-                ))}
+              <div className="settings-card-actions">
+                <span
+                  className={`settings-save-status ${profileSaveStatus}`}
+                  aria-live="polite"
+                >
+                  {profileSaveStatus === "saving" ? (
+                    <Loader2 aria-hidden="true" className="spin-icon" />
+                  ) : (
+                    <CheckCircle2 aria-hidden="true" />
+                  )}
+                  {profileSaveStatus === "saving" ? "Saving..." : "Saved"}
+                </span>
+                <span className="settings-card-icon" aria-hidden="true">
+                  <UserRound />
+                </span>
               </div>
             </div>
 
-            <div className="settings-row">
-              <div>
-                <p className="settings-row-label">Credentials</p>
-                <p className="settings-row-desc">
-                  Provider keys are stored as Cloudflare Worker secrets.
-                </p>
-              </div>
-              <span className="settings-readonly-value">Server-side</span>
+            <div className="settings-profile-grid">
+              <ProfileField
+                label="Full name"
+                value={userProfileDetails.fullName}
+                placeholder="Jane Doe"
+                onChange={(value) => updateProfileField("fullName", value)}
+              />
+              <ProfileField
+                label="Default role"
+                value={userProfileDetails.targetTitle}
+                placeholder="Senior Software Engineer"
+                onChange={(value) => updateProfileField("targetTitle", value)}
+              />
+              <ProfileField
+                label="Email"
+                value={userProfileDetails.email}
+                placeholder="jane@example.com"
+                inputMode="email"
+                onChange={(value) => updateProfileField("email", value)}
+              />
+              <ProfileField
+                label="Phone"
+                value={userProfileDetails.phone}
+                placeholder="+1 (555) 123-4567"
+                inputMode="tel"
+                onChange={(value) => updateProfileField("phone", value)}
+              />
+              <ProfileField
+                label="Location"
+                value={userProfileDetails.location}
+                placeholder="Toronto, ON"
+                onChange={(value) => updateProfileField("location", value)}
+              />
+              <ProfileField
+                label="Website"
+                value={userProfileDetails.website}
+                placeholder="janedoe.dev"
+                inputMode="url"
+                onChange={(value) => updateProfileField("website", value)}
+              />
+              <ProfileField
+                label="LinkedIn"
+                value={userProfileDetails.linkedin}
+                placeholder="linkedin.com/in/janedoe"
+                inputMode="url"
+                onChange={(value) => updateProfileField("linkedin", value)}
+              />
+              <ProfileField
+                label="GitHub"
+                value={userProfileDetails.github}
+                placeholder="github.com/janedoe"
+                inputMode="url"
+                onChange={(value) => updateProfileField("github", value)}
+              />
             </div>
-
-            <div className="settings-row">
-              <div>
-                <p className="settings-row-label">Model</p>
-              </div>
-              <span className="settings-readonly-value">
-                {activeProvider.enabled ? model : "Not enabled"}
-              </span>
-            </div>
+            <p className="settings-row-desc settings-profile-note">
+              Saved automatically in this browser. Resume-specific contact details stay unchanged.
+            </p>
           </section>
 
           <section className="settings-card">
@@ -223,5 +301,33 @@ function ToggleRow({
         <span className="toggle-switch-track" />
       </label>
     </div>
+  );
+}
+
+function ProfileField({
+  label,
+  value,
+  placeholder,
+  inputMode,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  inputMode?: "email" | "tel" | "url";
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="settings-profile-field">
+      <span>{label}</span>
+      <input
+        className="settings-profile-input"
+        type="text"
+        inputMode={inputMode}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
   );
 }
