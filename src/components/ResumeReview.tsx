@@ -321,7 +321,10 @@ export function ResumeReview({
   );
 
   return (
-    <section className="review-workspace" aria-label="Review workspace">
+    <section
+      className={`review-workspace${isTemplatePanelOpen ? " template-panel-open" : ""}`}
+      aria-label="Review workspace"
+    >
       {topbarPortalTarget ? createPortal(reviewTopbar, topbarPortalTarget) : reviewTopbar}
 
       <div className="tab-content">

@@ -5078,17 +5078,24 @@ a {
   color: #047857;
 }
 
-.workspace-outer.template-panel-open .results-template-stage .template-comparison-grid {
+.workspace-outer.template-panel-open .results-template-stage .template-comparison-grid,
+.review-workspace.template-panel-open .results-template-stage .template-comparison-grid {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.workspace-outer.template-panel-open .results-template-stage .template-comparison-before {
+.workspace-outer.template-panel-open .results-template-stage .template-comparison-before,
+.review-workspace.template-panel-open .results-template-stage .template-comparison-before {
   display: none;
 }
 
-.workspace-outer.template-panel-open .results-template-stage .template-comparison-after .resume-template-preview {
+.workspace-outer.template-panel-open .results-template-stage .template-comparison-after .resume-template-preview,
+.review-workspace.template-panel-open .results-template-stage .template-comparison-after .resume-template-preview {
   flex-basis: 860px;
   width: min(100%, 860px);
+}
+
+.review-workspace.template-panel-open {
+  max-width: calc(100vw - var(--sidebar-width) - var(--template-panel-width));
 }
 
 /* Review assistant */
