@@ -14,11 +14,14 @@ export type ResumeSectionType =
   | "volunteering"
   | "custom";
 
+export type ResumeSectionContentKind = "paragraph" | "bullets";
+
 export type ResumeSection = {
   id: string;
   type: ResumeSectionType;
   title: string;
   content: string;
+  contentKind?: ResumeSectionContentKind;
   order: number;
 };
 
@@ -44,6 +47,14 @@ export const RESUME_SECTION_TYPE_OPTIONS: Array<{
   { type: "publications", title: "Publications" },
   { type: "volunteering", title: "Volunteering" },
   { type: "custom", title: "Custom Section" },
+];
+
+export const RESUME_SECTION_CONTENT_KIND_OPTIONS: Array<{
+  kind: ResumeSectionContentKind;
+  title: string;
+}> = [
+  { kind: "paragraph", title: "Paragraph" },
+  { kind: "bullets", title: "Bullet list" },
 ];
 
 const KNOWN_RESUME_HEADINGS: { heading: string; type: ResumeSectionType }[] = [
@@ -117,6 +128,29 @@ export function inferResumeSectionTypeFromTitle(title: string): ResumeSectionTyp
   return matchedHeading?.type ?? "custom";
 }
 
+export function inferResumeSectionContentKind(
+  sectionType: ResumeSectionType,
+  title = "",
+  content = "",
+): ResumeSectionContentKind {
+  if (isBulletDominantContent(content)) return "bullets";
+
+  const inferredType = title ? inferResumeSectionTypeFromTitle(title) : sectionType;
+  const effectiveType = inferredType === "custom" ? sectionType : inferredType;
+
+  if (
+    effectiveType === "projects" ||
+    effectiveType === "awards" ||
+    effectiveType === "publications" ||
+    effectiveType === "volunteering" ||
+    effectiveType === "certifications"
+  ) {
+    return "bullets";
+  }
+
+  return "paragraph";
+}
+
 function normalizeResumeSectionTitle(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -135,7 +169,7 @@ export function serializeResumeDocument(document: ResumeDocument): string {
     .sort((a, b) => a.order - b.order)
     .map((section) => {
       const title = section.title.trim();
-      const content = section.content.trim();
+      const content = serializeSectionContent(section);
       if (!title) return content;
       if (!content) return title;
       return `${title}\n${content}`;
@@ -157,6 +191,19 @@ export function updateResumeDocumentSection(
   };
 }
 
+export function updateResumeDocumentSectionContentKind(
+  document: ResumeDocument,
+  sectionId: string,
+  contentKind: ResumeSectionContentKind,
+): ResumeDocument {
+  return {
+    ...document,
+    sections: document.sections.map((section) =>
+      section.id === sectionId ? { ...section, contentKind } : section,
+    ),
+  };
+}
+
 export function renameResumeDocumentSection(
   document: ResumeDocument,
   sectionId: string,
@@ -174,16 +221,19 @@ export function addResumeDocumentSection(
   document: ResumeDocument,
   sectionType: ResumeSectionType,
   afterSectionId?: string,
-  sectionData: { title?: string; content?: string } = {},
+  sectionData: { title?: string; content?: string; contentKind?: ResumeSectionContentKind } = {},
 ): ResumeDocument {
   const fallbackTitle =
     RESUME_SECTION_TYPE_OPTIONS.find((option) => option.type === sectionType)?.title ??
     "Custom Section";
+  const title = sectionData.title?.trim() || fallbackTitle;
+  const contentKind = sectionData.contentKind ?? inferResumeSectionContentKind(sectionType, title);
   const nextSection: ResumeSection = {
     id: `${sectionType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     type: sectionType,
-    title: sectionData.title?.trim() || fallbackTitle,
-    content: sectionData.content?.trim() ?? "",
+    title,
+    content: normalizeSectionContentForKind(sectionData.content ?? "", contentKind),
+    contentKind,
     order: document.sections.length,
   };
   const sections = [...document.sections].sort((a, b) => a.order - b.order);
@@ -281,13 +331,20 @@ export function structuredResumeToDocument(
         id: "tmp",
         title,
         sections: resume.sections
-          .map((section, index): ResumeSection => ({
-            id: section.id || `${section.type || "custom"}-${index}`,
-            type: normalizeSectionType(section.type),
-            title: section.title || "Section",
-            content: section.content || "",
-            order: Number.isFinite(section.order) ? section.order : index,
-          }))
+          .map((section, index): ResumeSection => {
+            const sectionType = normalizeSectionType(section.type);
+            const title = section.title || "Section";
+            return {
+              id: section.id || `${section.type || "custom"}-${index}`,
+              type: sectionType,
+              title,
+              content: section.content || "",
+              contentKind:
+                normalizeSectionContentKind(section.contentKind) ??
+                inferResumeSectionContentKind(sectionType, title),
+              order: Number.isFinite(section.order) ? section.order : index,
+            };
+          })
           .filter((section) => section.title.trim() || section.content.trim()),
       }).sections,
     };
@@ -301,6 +358,7 @@ export function structuredResumeToDocument(
       type: "summary",
       title: "Summary",
       content: resume.summary.trim(),
+      contentKind: "paragraph",
       order: sections.length,
     });
   }
@@ -311,6 +369,7 @@ export function structuredResumeToDocument(
       type: "experience",
       title: "Experience",
       content: resume.experience.map(experienceRoleToSectionText).filter(Boolean).join("\n\n"),
+      contentKind: "paragraph",
       order: sections.length,
     });
   }
@@ -321,6 +380,7 @@ export function structuredResumeToDocument(
       type: "skills",
       title: "Skills",
       content: resume.skills.join(", "),
+      contentKind: "paragraph",
       order: sections.length,
     });
   }
@@ -331,6 +391,7 @@ export function structuredResumeToDocument(
       type: "education",
       title: "Education",
       content: resume.education.join("\n"),
+      contentKind: "paragraph",
       order: sections.length,
     });
   }
@@ -346,6 +407,38 @@ function normalizeSectionType(value: string): ResumeSectionType {
   return RESUME_SECTION_TYPE_OPTIONS.some((option) => option.type === value)
     ? (value as ResumeSectionType)
     : "custom";
+}
+
+function normalizeSectionContentKind(value: unknown): ResumeSectionContentKind | undefined {
+  return value === "paragraph" || value === "bullets" ? value : undefined;
+}
+
+function normalizeSectionContentForKind(value: string, kind: ResumeSectionContentKind): string {
+  const trimmed = value.trim();
+  if (kind !== "bullets") return trimmed;
+
+  return trimmed
+    .split("\n")
+    .map((line) => line.replace(/^\s*[-*•]\s*/, "").trim())
+    .filter(Boolean)
+    .map((line) => `• ${line}`)
+    .join("\n");
+}
+
+function serializeSectionContent(section: ResumeSection): string {
+  if (section.contentKind !== "bullets") return section.content.trim();
+  return normalizeSectionContentForKind(section.content, "bullets");
+}
+
+function isBulletDominantContent(value: string): boolean {
+  const lines = value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length < 2) return false;
+
+  const bulletLines = lines.filter((line) => /^[-*•]\s+/.test(line)).length;
+  return bulletLines >= 2 && bulletLines / lines.length >= 0.5;
 }
 
 export function sectionTextareaRows(content: string): number {
@@ -390,12 +483,13 @@ function parseResumeSections(text: string): ResumeSection[] {
   if (matches.length === 0) {
     return [
       {
-        id: "resume-0",
-        type: "custom",
-        title: "Extracted Resume",
-        content: formatSectionContent(text),
-        order: 0,
-      },
+      id: "resume-0",
+      type: "custom",
+      title: "Extracted Resume",
+      content: formatSectionContent(text),
+      contentKind: "paragraph",
+      order: 0,
+    },
     ];
   }
 
@@ -408,6 +502,7 @@ function parseResumeSections(text: string): ResumeSection[] {
       type: "contact",
       title: "Contact",
       content: formatSectionContent(contactText, "contact"),
+      contentKind: "paragraph",
       order: sections.length,
     });
   }
@@ -426,6 +521,7 @@ function parseResumeSections(text: string): ResumeSection[] {
       type: metadata?.type ?? "custom",
       title: headingLabel(heading),
       content,
+      contentKind: inferResumeSectionContentKind(metadata?.type ?? "custom", heading, content),
       order: sections.length,
     });
   });

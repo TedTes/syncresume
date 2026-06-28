@@ -143,6 +143,18 @@ export function SectionContent({ section }: { section: ResumeSection }) {
     .map((line) => line.trim())
     .filter(Boolean);
 
+  if (section.contentKind === "bullets") {
+    return (
+      <div className="template-section-body">
+        <ul>
+          {lines.map((line) => (
+            <li key={line}>{line.replace(/^[-•]\s*/, "")}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   if (section.type === "projects") {
     const projectEntries = lines.flatMap(splitProjectEntries).filter(Boolean);
     if (projectEntries.length > 1) {

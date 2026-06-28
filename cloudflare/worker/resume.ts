@@ -12,6 +12,7 @@ export type StructuredResumeSection = {
   type: string;
   title: string;
   content: string;
+  contentKind?: "paragraph" | "bullets";
   order: number;
 };
 
@@ -315,6 +316,7 @@ function normalizeStructuredResumeSections(value: unknown): StructuredResumeSect
         type: asText(item.type) || "custom",
         title,
         content,
+        contentKind: normalizeSectionContentKind(item.contentKind),
         order: Number.isFinite(Number(item.order)) ? Number(item.order) : index,
       };
     })
@@ -323,6 +325,10 @@ function normalizeStructuredResumeSections(value: unknown): StructuredResumeSect
     .map((section, index) => ({ ...section, order: index }));
 
   return sections.length > 0 ? sections : undefined;
+}
+
+function normalizeSectionContentKind(value: unknown): "paragraph" | "bullets" | undefined {
+  return value === "paragraph" || value === "bullets" ? value : undefined;
 }
 
 function asText(value: unknown): string {
