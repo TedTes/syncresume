@@ -978,6 +978,11 @@ a {
   box-shadow: -24px 0 80px rgba(0, 0, 0, 0.42);
 }
 
+.template-drawer-push-right .template-thumbnail-page {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 .template-drawer-header {
   display: flex;
   flex-shrink: 0;
