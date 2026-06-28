@@ -691,6 +691,74 @@ a {
     box-shadow 0.14s ease;
 }
 
+.resume-section-text-editor {
+  position: relative;
+  min-width: 0;
+}
+
+.resume-section-text-editor .document-section-textarea {
+  padding-right: 70px;
+}
+
+.resume-section-format-toolbar {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  border-radius: 7px;
+  background: rgba(236, 253, 245, 0.92);
+  box-shadow: 0 6px 16px rgba(4, 120, 87, 0.08);
+  opacity: 0;
+  transform: translateY(-1px);
+  pointer-events: none;
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.resume-section-text-editor:hover .resume-section-format-toolbar,
+.resume-section-text-editor:focus-within .resume-section-format-toolbar,
+.resume-section-text-editor.is-selected .resume-section-format-toolbar,
+.review-inline-add-editor .resume-section-format-toolbar {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.resume-section-format-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #047857;
+  cursor: pointer;
+}
+
+.resume-section-format-toolbar button:hover,
+.resume-section-format-toolbar button.active {
+  background: rgba(16, 185, 129, 0.16);
+  color: #064e3b;
+}
+
+.resume-section-format-toolbar button:focus-visible {
+  outline: 2px solid rgba(5, 150, 105, 0.72);
+  outline-offset: 2px;
+}
+
+.resume-section-format-toolbar svg {
+  width: 14px;
+  height: 14px;
+}
+
 .document-section-textarea:hover {
   border-color: rgba(16, 185, 129, 0.22);
   background: rgba(16, 185, 129, 0.035);

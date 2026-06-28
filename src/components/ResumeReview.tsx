@@ -1,4 +1,4 @@
-import { type FormEvent, type RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Columns2,
@@ -26,14 +26,21 @@ import type { LLMProvider } from "../lib/providers/types";
 import {
   RESUME_SECTION_TYPE_OPTIONS,
   addResumeDocumentSection,
+  inferResumeSectionContentKind,
   inferResumeSectionTypeFromTitle,
   parseResumeDocument,
   removeResumeDocumentSection,
   serializeResumeDocument,
   structuredResumeToDocument,
   updateResumeDocumentSection,
+  updateResumeDocumentSectionContentKind,
 } from "../lib/resumeDocument";
-import type { ResumeDocument, ResumeSection, ResumeSectionType } from "../resume/schema";
+import type {
+  ResumeDocument,
+  ResumeSection,
+  ResumeSectionContentKind,
+  ResumeSectionType,
+} from "../resume/schema";
 import {
   type ResumeTemplateId,
 } from "../templates/registry";
@@ -43,6 +50,7 @@ import {
   type StructuredResume,
 } from "../lib/resume";
 import type { ExportType } from "../lib/storage";
+import { ResumeSectionTextEditor } from "./ResumeSectionTextEditor";
 
 type ResumeReviewProps = {
   jobDescription: string;
@@ -77,6 +85,7 @@ type SectionComparison = {
   id: string;
   label: string;
   type: ResumeSectionType;
+  contentKind?: ResumeSectionContentKind;
   before: string;
   after: string;
   tokens: DiffToken[];
@@ -91,49 +100,6 @@ const EXPORT_OPTIONS: Array<{ type: ExportType; label: string }> = [
 const ADDABLE_RESUME_SECTION_TYPE_OPTIONS = RESUME_SECTION_TYPE_OPTIONS.filter(
   (option) => option.type !== "contact" && option.type !== "custom",
 );
-
-function EditableReviewSectionTextarea({
-  section,
-  isSelected,
-  onChange,
-  onSelect,
-}: {
-  section: ResumeSection;
-  isSelected: boolean;
-  onChange: (content: string) => void;
-  onSelect: () => void;
-}) {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useLayoutEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  }, [section.content]);
-
-  return (
-    <textarea
-      ref={textareaRef}
-      className={`document-section-textarea review-document-textarea review-document-textarea-${section.type} ${
-        isSelected ? "is-selected" : ""
-      }`}
-      value={section.content}
-      rows={1}
-      aria-label={`Edit optimized ${section.title}`}
-      spellCheck
-      onFocus={onSelect}
-      onClick={onSelect}
-      onInput={(event) => {
-        const textarea = event.currentTarget;
-        textarea.style.height = "auto";
-        textarea.style.height = `${textarea.scrollHeight}px`;
-      }}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  );
-}
 
 export function ResumeReview({
   jobDescription,
@@ -310,12 +276,43 @@ export function ResumeReview({
     commitResumeDocumentChange(updateResumeDocumentSection(resumeDocument, sectionId, value), sectionId);
   }
 
-  function handleAddSection(afterSectionId: string, title: string, content: string) {
+  function handleInlineSectionContentKindChange(
+    sectionId: string,
+    contentKind: ResumeSectionContentKind,
+  ) {
+    commitResumeDocumentChange(
+      updateResumeDocumentSectionContentKind(resumeDocument, sectionId, contentKind),
+      sectionId,
+    );
+  }
+
+  function handleInlineSectionFormatChange(
+    sectionId: string,
+    content: string,
+    contentKind: ResumeSectionContentKind,
+  ) {
+    commitResumeDocumentChange(
+      updateResumeDocumentSectionContentKind(
+        updateResumeDocumentSection(resumeDocument, sectionId, content),
+        sectionId,
+        contentKind,
+      ),
+      sectionId,
+    );
+  }
+
+  function handleAddSection(
+    afterSectionId: string,
+    title: string,
+    content: string,
+    contentKind: ResumeSectionContentKind,
+  ) {
     const previousSectionIds = new Set(resumeDocument.sections.map((section) => section.id));
     const nextSectionType = inferResumeSectionTypeFromTitle(title);
     const nextDocument = addResumeDocumentSection(resumeDocument, nextSectionType, afterSectionId, {
       title,
       content,
+      contentKind,
     });
     const nextSection = nextDocument.sections.find((section) => !previousSectionIds.has(section.id));
     commitResumeDocumentChange(nextDocument, nextSection?.id);
@@ -434,6 +431,8 @@ export function ResumeReview({
           onCloseCompare={() => setIsCompareMode(false)}
           onSelectAfterSection={handleSelectReviewSection}
           onAfterSectionChange={handleInlineSectionChange}
+          onAfterSectionContentKindChange={handleInlineSectionContentKindChange}
+          onAfterSectionFormatChange={handleInlineSectionFormatChange}
           canRemoveAfterSection={sections.length > 1}
           onRemoveAfterSection={handleRemoveSectionById}
           availableAddSectionTitles={availableAddSectionTitles}
@@ -640,6 +639,8 @@ function ResultsTab({
   onCloseCompare,
   onSelectAfterSection,
   onAfterSectionChange,
+  onAfterSectionContentKindChange,
+  onAfterSectionFormatChange,
   canRemoveAfterSection,
   onRemoveAfterSection,
   availableAddSectionTitles,
@@ -655,11 +656,25 @@ function ResultsTab({
   onCloseCompare: () => void;
   onSelectAfterSection: (sectionId: string) => void;
   onAfterSectionChange: (sectionId: string, value: string) => void;
+  onAfterSectionContentKindChange: (
+    sectionId: string,
+    contentKind: ResumeSectionContentKind,
+  ) => void;
+  onAfterSectionFormatChange: (
+    sectionId: string,
+    content: string,
+    contentKind: ResumeSectionContentKind,
+  ) => void;
   canRemoveAfterSection: boolean;
   onRemoveAfterSection: (sectionId: string) => void;
   availableAddSectionTitles: string[];
   addSectionAfterId: string | null;
-  onAddSection: (afterSectionId: string, title: string, content: string) => void;
+  onAddSection: (
+    afterSectionId: string,
+    title: string,
+    content: string,
+    contentKind: ResumeSectionContentKind,
+  ) => void;
   onOpenAddSection: (afterSectionId: string) => void;
   onCloseAddSection: () => void;
 }) {
@@ -754,12 +769,15 @@ function ResultsTab({
                     selectedSectionId,
                     onSelectAfterSection,
                     onAfterSectionChange,
+                    onAfterSectionContentKindChange,
+                    onAfterSectionFormatChange,
                     canRemoveAfterSection,
                     onRemoveAfterSection,
                     {
                       availableSectionTitles: availableAddSectionTitles,
                       isAddSectionOpen: addSectionAfterId === section.id,
-                      onAddSection: (title, content) => onAddSection(section.id, title, content),
+                      onAddSection: (title, content, contentKind) =>
+                        onAddSection(section.id, title, content, contentKind),
                       onOpenAddSection: () => onOpenAddSection(section.id),
                       onCloseAddSection,
                     },
@@ -856,6 +874,7 @@ function buildSectionComparisons(originalResumeText: string, resumeDocument: Res
     id: section.id,
     label: section.title,
     type: section.type,
+    contentKind: section.contentKind,
     before:
       section.type === "contact"
         ? section.content
@@ -888,6 +907,7 @@ function buildSectionComparisons(originalResumeText: string, resumeDocument: Res
       id: "resume",
       label: "Resume",
       type: "custom",
+      contentKind: "paragraph",
       before: originalResumeText.trim(),
       after: fallbackAfter,
       tokens: fallbackTokens,
@@ -907,6 +927,7 @@ function comparisonDocument(
       type: section.type,
       title: section.label,
       content: side === "before" ? section.before : section.after,
+      contentKind: section.contentKind,
       order: index,
     })),
   };
@@ -952,12 +973,21 @@ function renderEditableAfterSectionContent(
   selectedSectionId: string,
   onSelectAfterSection: (sectionId: string) => void,
   onAfterSectionChange: (sectionId: string, value: string) => void,
+  onAfterSectionContentKindChange: (
+    sectionId: string,
+    contentKind: ResumeSectionContentKind,
+  ) => void,
+  onAfterSectionFormatChange: (
+    sectionId: string,
+    content: string,
+    contentKind: ResumeSectionContentKind,
+  ) => void,
   canRemoveAfterSection: boolean,
   onRemoveAfterSection: (sectionId: string) => void,
   addSectionControl?: {
     availableSectionTitles: string[];
     isAddSectionOpen: boolean;
-    onAddSection: (title: string, content: string) => void;
+    onAddSection: (title: string, content: string, contentKind: ResumeSectionContentKind) => void;
     onOpenAddSection: () => void;
     onCloseAddSection: () => void;
   },
@@ -982,11 +1012,18 @@ function renderEditableAfterSectionContent(
           <X aria-hidden="true" />
         </button>
       )}
-      <EditableReviewSectionTextarea
+      <ResumeSectionTextEditor
         section={section}
         isSelected={section.id === selectedSectionId}
         onSelect={() => onSelectAfterSection(section.id)}
-        onChange={(content) => onAfterSectionChange(section.id, content)}
+        onContentChange={(content) => onAfterSectionChange(section.id, content)}
+        onContentKindChange={(contentKind) =>
+          onAfterSectionContentKindChange(section.id, contentKind)
+        }
+        onContentAndKindChange={(content, contentKind) =>
+          onAfterSectionFormatChange(section.id, content, contentKind)
+        }
+        textareaClassName="review-document-textarea"
       />
       {addSectionControl && <InlineAddSectionControl {...addSectionControl} />}
     </div>
@@ -1002,19 +1039,31 @@ function InlineAddSectionControl({
 }: {
   availableSectionTitles: string[];
   isAddSectionOpen: boolean;
-  onAddSection: (title: string, content: string) => void;
+  onAddSection: (title: string, content: string, contentKind: ResumeSectionContentKind) => void;
   onOpenAddSection: () => void;
   onCloseAddSection: () => void;
 }) {
   const [sectionTitle, setSectionTitle] = useState("");
   const [sectionContent, setSectionContent] = useState("");
+  const [sectionContentKind, setSectionContentKind] = useState<ResumeSectionContentKind>("paragraph");
   const [selectedTitleOption, setSelectedTitleOption] = useState("other");
+  const draftSectionType = inferResumeSectionTypeFromTitle(sectionTitle);
+  const draftSection: ResumeSection = {
+    id: "draft-section",
+    type: draftSectionType,
+    title: sectionTitle.trim() || "New section",
+    content: sectionContent,
+    contentKind: sectionContentKind,
+    order: 0,
+  };
 
   useEffect(() => {
     if (!isAddSectionOpen) return;
     const firstSuggestedTitle = availableSectionTitles[0] ?? "other";
+    const nextTitle = firstSuggestedTitle === "other" ? "" : firstSuggestedTitle;
     setSelectedTitleOption(firstSuggestedTitle);
-    setSectionTitle(firstSuggestedTitle === "other" ? "" : firstSuggestedTitle);
+    setSectionTitle(nextTitle);
+    setSectionContentKind(defaultContentKindForTitle(nextTitle));
     setSectionContent("");
   }, [availableSectionTitles, isAddSectionOpen]);
 
@@ -1043,8 +1092,10 @@ function InlineAddSectionControl({
             value={selectedTitleOption}
             onChange={(event) => {
               const nextTitle = event.target.value;
+              const titleValue = nextTitle === "other" ? "" : nextTitle;
               setSelectedTitleOption(nextTitle);
-              setSectionTitle(nextTitle === "other" ? "" : nextTitle);
+              setSectionTitle(titleValue);
+              setSectionContentKind(defaultContentKindForTitle(titleValue));
             }}
             aria-label="Suggested section title"
           >
@@ -1063,18 +1114,21 @@ function InlineAddSectionControl({
             value={sectionTitle}
             placeholder="Projects, Leadership, Open Source..."
             onChange={(event) => {
-              setSectionTitle(event.target.value);
+              const nextTitle = event.target.value;
+              setSectionTitle(nextTitle);
               setSelectedTitleOption("other");
+              setSectionContentKind(defaultContentKindForTitle(nextTitle));
             }}
           />
         </label>
         <label className="review-inline-add-field review-inline-add-field-wide">
           <span>Content</span>
-          <textarea
-            value={sectionContent}
-            rows={3}
-            placeholder="Add the content for this section..."
-            onChange={(event) => setSectionContent(event.target.value)}
+          <ResumeSectionTextEditor
+            section={draftSection}
+            className="review-inline-add-editor"
+            textareaClassName="review-inline-add-textarea"
+            onContentChange={setSectionContent}
+            onContentKindChange={setSectionContentKind}
           />
         </label>
       </div>
@@ -1086,7 +1140,7 @@ function InlineAddSectionControl({
           className="btn btn-primary btn-sm"
           type="button"
           disabled={!sectionTitle.trim() || !sectionContent.trim()}
-          onClick={() => onAddSection(sectionTitle, sectionContent)}
+          onClick={() => onAddSection(sectionTitle, sectionContent, sectionContentKind)}
         >
           <Plus aria-hidden="true" />
           Add
@@ -1181,6 +1235,11 @@ function getAvailableAddSectionTitles(sections: ResumeSection[]): string[] {
       return !existingKeys.has(option.type) && !existingKeys.has(optionTitleKey);
     })
     .map((option) => option.title);
+}
+
+function defaultContentKindForTitle(title: string): ResumeSectionContentKind {
+  const sectionType = inferResumeSectionTypeFromTitle(title);
+  return inferResumeSectionContentKind(sectionType, title);
 }
 
 function safeDownloadBaseName(value: string): string {

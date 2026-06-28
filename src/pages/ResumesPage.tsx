@@ -24,13 +24,13 @@ import {
   type KeyboardEvent,
   type FormEvent,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { Link } from "react-router-dom";
 import { ResumeTemplatePreview } from "../components/ResumeTemplatePreview";
+import { ResumeSectionTextEditor } from "../components/ResumeSectionTextEditor";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
@@ -48,9 +48,11 @@ import {
   renameResumeDocumentSection,
   serializeResumeDocument,
   updateResumeDocumentSection,
+  updateResumeDocumentSectionContentKind,
   withFallbackContactSection,
   type ResumeDocument,
   type ResumeSection,
+  type ResumeSectionContentKind,
   type ResumeSectionType,
 } from "../lib/resumeDocument";
 import {
@@ -119,48 +121,6 @@ function waitForRenderFrame(): Promise<void> {
   return new Promise((resolve) => {
     requestAnimationFrame(() => resolve());
   });
-}
-
-function EditableDocumentSectionTextarea({
-  section,
-  isSelected,
-  onSelect,
-  onChange,
-}: {
-  section: ResumeSection;
-  isSelected: boolean;
-  onSelect: () => void;
-  onChange: (content: string) => void;
-}) {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useLayoutEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  }, [section.content]);
-
-  return (
-    <textarea
-      ref={textareaRef}
-      className={`document-section-textarea document-section-textarea-${section.type}${
-        isSelected ? " is-selected" : ""
-      }`}
-      value={section.content}
-      rows={1}
-      aria-label={`Edit ${section.title}`}
-      spellCheck
-      onFocus={onSelect}
-      onInput={(event) => {
-        const textarea = event.currentTarget;
-        textarea.style.height = "auto";
-        textarea.style.height = `${textarea.scrollHeight}px`;
-      }}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  );
 }
 
 export default function ResumesPage({ embedded = false }: ResumesPageProps) {
@@ -360,6 +320,37 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     setEditError("");
   }
 
+  function updateEditedSectionContentKind(
+    sectionId: string,
+    contentKind: ResumeSectionContentKind,
+  ) {
+    if (!editedResumeDocument) return;
+
+    setEditedResumeDocument(
+      updateResumeDocumentSectionContentKind(editedResumeDocument, sectionId, contentKind),
+    );
+    setEditStatus("");
+    setEditError("");
+  }
+
+  function updateEditedSectionFormat(
+    sectionId: string,
+    content: string,
+    contentKind: ResumeSectionContentKind,
+  ) {
+    if (!editedResumeDocument) return;
+
+    setEditedResumeDocument(
+      updateResumeDocumentSectionContentKind(
+        updateResumeDocumentSection(editedResumeDocument, sectionId, content),
+        sectionId,
+        contentKind,
+      ),
+    );
+    setEditStatus("");
+    setEditError("");
+  }
+
   function renameEditedSection(sectionId: string, title: string) {
     if (!editedResumeDocument) return;
 
@@ -404,11 +395,15 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
 
   function renderEditableSectionContent(section: ResumeSection) {
     return (
-      <EditableDocumentSectionTextarea
+      <ResumeSectionTextEditor
         section={section}
         isSelected={section.id === selectedEditorSectionId}
         onSelect={() => setSelectedEditorSectionId(section.id)}
-        onChange={(content) => updateEditedSection(section.id, content)}
+        onContentChange={(content) => updateEditedSection(section.id, content)}
+        onContentKindChange={(contentKind) => updateEditedSectionContentKind(section.id, contentKind)}
+        onContentAndKindChange={(content, contentKind) =>
+          updateEditedSectionFormat(section.id, content, contentKind)
+        }
       />
     );
   }
