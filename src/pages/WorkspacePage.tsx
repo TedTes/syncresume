@@ -45,37 +45,18 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (!isTemplatePanelOpen) return;
 
-    function eventInsidePanel(target: EventTarget | null) {
-      return (
-        target instanceof Element &&
-        Boolean(target.closest(".template-drawer-push-right, .template-review-backdrop"))
-      );
-    }
-
-    function collapseOnPageMovement(event: Event) {
-      if (eventInsidePanel(event.target)) return;
-      closeTemplatePanel();
-    }
-
     function collapseOnViewportChange() {
       setIsTemplatePanelOpen(false);
     }
 
-    const opts = { capture: true, passive: true } as const;
-    document.addEventListener("scroll", collapseOnPageMovement, true);
-    document.addEventListener("wheel", collapseOnPageMovement, opts);
-    document.addEventListener("touchmove", collapseOnPageMovement, opts);
     window.addEventListener("resize", collapseOnViewportChange);
     window.addEventListener("orientationchange", collapseOnViewportChange);
 
     return () => {
-      document.removeEventListener("scroll", collapseOnPageMovement, true);
-      document.removeEventListener("wheel", collapseOnPageMovement, opts);
-      document.removeEventListener("touchmove", collapseOnPageMovement, opts);
       window.removeEventListener("resize", collapseOnViewportChange);
       window.removeEventListener("orientationchange", collapseOnViewportChange);
     };
-  }, [closeTemplatePanel, isTemplatePanelOpen]);
+  }, [isTemplatePanelOpen]);
 
   return (
     <>

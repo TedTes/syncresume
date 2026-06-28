@@ -5096,6 +5096,32 @@ a {
 
 .review-workspace.template-panel-open {
   max-width: calc(100vw - var(--sidebar-width) - var(--template-panel-width));
+  min-height: 0;
+}
+
+.review-workspace.template-panel-open .tab-content,
+.review-workspace.template-panel-open .results-template-stage {
+  flex: 0 0 auto;
+  height: auto;
+  overflow: visible;
+}
+
+.review-workspace.template-panel-open .results-template-stage .template-comparison-grid.is-optimized-only {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  overflow: visible;
+  padding-bottom: 8px;
+}
+
+.review-workspace.template-panel-open .results-template-stage .template-comparison-grid.is-optimized-only .template-comparison-pane {
+  height: auto;
+  max-height: min(560px, calc(100vh - 232px));
+  overflow-y: auto;
+}
+
+.review-workspace.template-panel-open .review-inline-revision {
+  padding-top: 8px;
 }
 
 /* Review assistant */
