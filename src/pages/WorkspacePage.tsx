@@ -5,6 +5,7 @@ import { useSettings } from "../context/SettingsContext";
 import { applyUserProfileContactFallback } from "../lib/userProfile";
 import { parseResumeDocument, withFallbackContactSection } from "../resume/schema";
 import { ResumeTemplatePanel } from "../components/ResumeTemplateSelector";
+import { TopbarAccount } from "../components/TopbarAccount";
 import OptimizerPage from "./OptimizerPage";
 
 export default function WorkspacePage() {
@@ -16,6 +17,7 @@ export default function WorkspacePage() {
   const {
     selectedTemplateId,
     setSelectedTemplateId,
+    selectedFontId,
     templatePreviewDocument,
     userProfileDetails,
   } = useSettings();
@@ -86,6 +88,7 @@ export default function WorkspacePage() {
         ) : (
           <span className="page-topbar-title">Workspace</span>
         )}
+        <TopbarAccount />
       </header>
 
       <div className={`workspace-outer${isTemplatePanelOpen ? " template-panel-open" : ""}`}>
@@ -103,6 +106,7 @@ export default function WorkspacePage() {
         <ResumeTemplatePanel
           selectedTemplateId={selectedTemplateId}
           onSelect={setSelectedTemplateId}
+          selectedFontId={selectedFontId}
           previewDocument={templatePanelDocument}
           onClose={closeTemplatePanel}
           isOpen={isTemplatePanelOpen}

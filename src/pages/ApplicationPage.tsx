@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
+import { TopbarAccount } from "../components/TopbarAccount";
 import OptimizerPage from "./OptimizerPage";
 
 type ApplicationArtifact = "resume" | "cover-letter" | "job-description";
@@ -21,6 +22,7 @@ export default function ApplicationPage() {
     <>
       <header className="page-topbar workspace-topbar review-mode">
         <div className="review-toolbar-slot" ref={setReviewToolbarHost} />
+        <TopbarAccount />
       </header>
 
       <div className="workspace-outer application-detail-outer">

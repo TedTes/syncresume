@@ -5,6 +5,10 @@ import {
   RESUME_TEMPLATES,
   type ResumeTemplateId,
 } from "../templates/registry";
+import {
+  DEFAULT_RESUME_FONT_ID,
+  type ResumeFontId,
+} from "../templates/shared/fonts";
 import type { ResumeDocument } from "../resume/schema";
 import { DEFAULT_TEMPLATE_PREVIEW_DOCUMENT } from "../resume/sample";
 import { ResumeTemplatePreview } from "./ResumeTemplatePreview";
@@ -20,6 +24,7 @@ type ResumeTemplateSelectorProps = {
   onOpenChange?: (isOpen: boolean) => void;
   renderPanel?: boolean;
   previewDocument?: ResumeDocument | null;
+  selectedFontId?: ResumeFontId;
 };
 
 export function ResumeTemplateSelector({
@@ -32,6 +37,7 @@ export function ResumeTemplateSelector({
   onOpenChange,
   renderPanel = true,
   previewDocument = null,
+  selectedFontId = DEFAULT_RESUME_FONT_ID,
 }: ResumeTemplateSelectorProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const controlled = typeof isOpen === "boolean";
@@ -69,6 +75,7 @@ export function ResumeTemplateSelector({
             selectedTemplateId={selectedTemplateId}
             onSelect={onSelect}
             previewDocument={previewDocument}
+            selectedFontId={selectedFontId}
             onClose={() => setOpen(false)}
           />
         </div>
@@ -82,6 +89,7 @@ type ResumeTemplatePanelProps = {
   onSelect: (templateId: ResumeTemplateId) => void;
   onClose: () => void;
   previewDocument?: ResumeDocument | null;
+  selectedFontId?: ResumeFontId;
   className?: string;
   isOpen?: boolean;
 };
@@ -91,6 +99,7 @@ export function ResumeTemplatePanel({
   onSelect,
   onClose,
   previewDocument = null,
+  selectedFontId = DEFAULT_RESUME_FONT_ID,
   className = "",
   isOpen = true,
 }: ResumeTemplatePanelProps) {
@@ -160,6 +169,7 @@ export function ResumeTemplatePanel({
                 key={reviewTemplate.id}
                 document={reviewDocument}
                 templateId={reviewTemplate.id}
+                fontId={selectedFontId}
               />
             </div>
           </section>
@@ -206,7 +216,11 @@ export function ResumeTemplatePanel({
                   aria-label={`Select ${template.name} template`}
                   onClick={() => handleSelectTemplate(template.id)}
                 >
-                  <ResumeTemplateThumbnail templateId={template.id} />
+                  <ResumeTemplateThumbnail
+                    templateId={template.id}
+                    document={reviewDocument}
+                    fontId={selectedFontId}
+                  />
                   <span className="template-drawer-option-main">
                     <strong>{template.name}</strong>
                   </span>

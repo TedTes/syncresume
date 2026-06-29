@@ -2,8 +2,8 @@ import { fetchJobPageText } from "./jobPage";
 import { ALL_RESUME_TEMPLATE_IDS } from "../../src/templates/ids";
 import {
   generateCoverLetterWithProvider,
-  normalizeLLMProvider,
   optimizeResumeWithProvider,
+  resolveLLMProvider,
   reviseSectionWithProvider,
 } from "./llm/dispatch";
 import {
@@ -332,7 +332,7 @@ export default {
 async function handleOptimize(request: Request, env: Env, headers: Headers): Promise<Response> {
   const { user } = await requireSession(request, env);
   const body = await readJson(request);
-  const provider = normalizeLLMProvider(String(body.provider || "openai"));
+  const provider = resolveLLMProvider(env, String(body.provider || ""));
   const jobDescription = asNonEmptyString(body.jobDescription);
   const resumeId = asNonEmptyString(body.resumeId);
   let resumeText = asNonEmptyString(body.resumeText);
@@ -440,7 +440,7 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
 async function handleReviseSection(request: Request, env: Env, headers: Headers): Promise<Response> {
   const { user } = await requireSession(request, env);
   const body = await readJson(request);
-  const provider = normalizeLLMProvider(String(body.provider || "openai"));
+  const provider = resolveLLMProvider(env, String(body.provider || ""));
   const jobDescription = asNonEmptyString(body.jobDescription);
   const instruction = asNonEmptyString(body.instruction);
   const sectionText = asNonEmptyString(body.sectionText);
@@ -481,7 +481,7 @@ async function handleGenerateCoverLetter(
 ): Promise<Response> {
   const { user } = await requireSession(request, env);
   const body = await readJson(request);
-  const provider = normalizeLLMProvider(String(body.provider || "openai"));
+  const provider = resolveLLMProvider(env, String(body.provider || ""));
   const jobDescription = asNonEmptyString(body.jobDescription);
   const directResumeText = asNonEmptyString(body.resumeText);
   const resumeText = directResumeText || resumeToPlainText(normalizeStructuredResume(body.resume));
@@ -1494,8 +1494,8 @@ function aiActionLabel(actionType: AiActionType): string {
 function getProviderModel(env: Env, provider: string): string {
   const llmEnv = env as Env & { ANTHROPIC_MODEL?: string; GEMINI_MODEL?: string };
   if (provider === "openai") return env.OPENAI_MODEL || "gpt-5.4-mini";
-  if (provider === "anthropic") return llmEnv.ANTHROPIC_MODEL || "anthropic";
-  if (provider === "gemini") return llmEnv.GEMINI_MODEL || "gemini";
+  if (provider === "anthropic") return llmEnv.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+  if (provider === "gemini") return llmEnv.GEMINI_MODEL || "gemini-2.5-flash";
   return provider;
 }
 

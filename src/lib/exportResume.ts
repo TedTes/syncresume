@@ -4,8 +4,9 @@ import {
   getResumeTemplateDefinition,
   type ResumeTemplateId,
 } from "../templates/registry";
+import { getResumeFontOption, type ResumeFontId } from "../templates/shared/fonts";
 import { getTemplateDocxBlocks } from "../render/renderDocx";
-import { parseResumeContact } from "../resume/contact";
+import { formatContactDetailDisplay, parseResumeContact } from "../resume/contact";
 
 const FILE_BASENAME = "syncresume-optimized-resume";
 const PDF_CONTINUATION_TOP_MARGIN = 34;
@@ -148,6 +149,7 @@ export async function downloadResumeDocumentPdf(
   resumeDocument: ResumeDocument,
   templateId: ResumeTemplateId,
   fileName = "syncresume-resume.pdf",
+  fontId?: ResumeFontId,
 ) {
   const { jsPDF } = await import("jspdf");
   const { createRoot } = await import("react-dom/client");
@@ -164,7 +166,7 @@ export async function downloadResumeDocumentPdf(
   const root = createRoot(renderTarget);
 
   try {
-    root.render(renderResumeHtmlElement(resumeDocument, templateId));
+    root.render(renderResumeHtmlElement(resumeDocument, templateId, fontId));
     await waitForBrowserPaint();
     await waitForBrowserPaint();
 
@@ -264,9 +266,12 @@ export async function downloadResumeDocumentDocx(
   document: ResumeDocument,
   templateId: ResumeTemplateId,
   fileName = "syncresume-resume.docx",
+  fontId?: ResumeFontId,
 ) {
   const { Document, Packer, Paragraph, TextRun } = await import("docx");
   const template = getResumeTemplateDefinition(templateId);
+  const font = fontId ? getResumeFontOption(fontId) : null;
+  const docxFont = font?.docxFamily;
   const blocks = getTemplateDocxBlocks(document, templateId);
   const paragraphs: InstanceType<typeof Paragraph>[] = [];
   const addText = (text: string, options: { bold?: boolean; center?: boolean; size?: number } = {}) => {
@@ -274,7 +279,7 @@ export async function downloadResumeDocumentDocx(
       new Paragraph({
         alignment: options.center ? "center" : undefined,
         spacing: { after: template.density === "compact" ? 50 : 80 },
-        children: [new TextRun({ text, bold: options.bold, size: options.size ?? 21 })],
+        children: [new TextRun({ text, bold: options.bold, size: options.size ?? 21, font: docxFont })],
       }),
     );
   };
@@ -282,7 +287,7 @@ export async function downloadResumeDocumentDocx(
     paragraphs.push(
       new Paragraph({
         spacing: { before: template.density === "compact" ? 120 : 180, after: 80 },
-        children: [new TextRun({ text: text.toUpperCase(), bold: true, size: 22 })],
+        children: [new TextRun({ text: text.toUpperCase(), bold: true, size: 22, font: docxFont })],
       }),
     );
   };
@@ -291,7 +296,9 @@ export async function downloadResumeDocumentDocx(
     if (block.isContact) {
       const { name, details } = parseResumeContact(block.lines.join(" | "), document.title);
       if (name) addText(name, { bold: true, center: true, size: 24 });
-      if (details.length > 0) addText(details.join(" | "), { center: true, size: 19 });
+      if (details.length > 0) {
+        addText(details.map(formatContactDetailDisplay).join(" | "), { center: true, size: 19 });
+      }
       continue;
     }
 

@@ -1,7 +1,7 @@
 import { Github, Globe, Linkedin, Mail, MapPin, Phone } from "lucide-react";
 import { createContext, useContext, type ReactNode } from "react";
 import type { ResumeSection } from "../../resume/schema";
-import { parseResumeContact } from "../../resume/contact";
+import { formatContactDetailDisplay, parseResumeContact } from "../../resume/contact";
 import type { TemplatePreviewProps } from "./types";
 
 type TemplateRenderContextValue = {
@@ -35,22 +35,13 @@ function categorizeDetail(raw: string): { category: DetailCategory; display: str
     return { category: "email", display: raw };
   }
   if (/linkedin\.com/i.test(lower)) {
-    const slug = raw
-      .replace(/https?:\/\/(?:www\.)?linkedin\.com\/in\//i, "")
-      .replace(/^(?:www\.)?linkedin\.com\/in\//i, "")
-      .replace(/\/$/, "");
-    return { category: "linkedin", display: slug || raw };
+    return { category: "linkedin", display: formatContactDetailDisplay(raw) };
   }
   if (/github\.com/i.test(lower)) {
-    const slug = raw
-      .replace(/https?:\/\/(?:www\.)?github\.com\//i, "")
-      .replace(/^(?:www\.)?github\.com\//i, "")
-      .replace(/\/$/, "");
-    return { category: "github", display: slug || raw };
+    return { category: "github", display: formatContactDetailDisplay(raw) };
   }
   if (/https?:\/\/|www\./i.test(raw)) {
-    const display = raw.replace(/https?:\/\/(?:www\.)?/i, "").replace(/\/$/, "");
-    return { category: "website", display };
+    return { category: "website", display: formatContactDetailDisplay(raw) };
   }
   if (/\+?\d[\d\s().-]{5,}/.test(raw)) {
     return { category: "phone", display: raw };

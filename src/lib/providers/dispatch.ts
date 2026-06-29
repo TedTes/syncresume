@@ -6,15 +6,7 @@ import {
 } from "../resume";
 import type { RunRecord } from "../storage";
 import { cloudflareRequest, hasCloudflareConfig } from "../cloudflare/client";
-import { getProviderInfo, type LLMProvider } from "./types";
-
-function notImplemented(provider: LLMProvider): never {
-  const info = getProviderInfo(provider);
-  // TODO: wire up a real client for this provider (see lib/providers/types.ts).
-  throw new Error(
-    `${info.label} integration is not enabled for this workspace yet.`,
-  );
-}
+import type { LLMProvider } from "./types";
 
 type OptimizeArgs = {
   provider: LLMProvider;
@@ -48,10 +40,6 @@ export async function optimizeResumeWithProvider({
   saveRunHistory,
   title,
 }: OptimizeArgs): Promise<OptimizeProviderResult> {
-  if (provider !== "openai") {
-    notImplemented(provider);
-  }
-
   if (!hasCloudflareConfig()) {
     throw new Error("Cloudflare API is not configured. Set VITE_CLOUDFLARE_API_URL.");
   }
@@ -99,10 +87,6 @@ export async function reviseResumeSectionWithProvider({
   sectionText,
   instruction,
 }: ReviseArgs): Promise<string> {
-  if (provider !== "openai") {
-    notImplemented(provider);
-  }
-
   if (!hasCloudflareConfig()) {
     throw new Error("Cloudflare API is not configured. Set VITE_CLOUDFLARE_API_URL.");
   }
@@ -141,10 +125,6 @@ export async function generateCoverLetterWithProvider({
   jobTitle,
   runId,
 }: CoverLetterArgs): Promise<string> {
-  if (provider !== "openai") {
-    notImplemented(provider);
-  }
-
   if (!hasCloudflareConfig()) {
     throw new Error("Cloudflare API is not configured. Set VITE_CLOUDFLARE_API_URL.");
   }

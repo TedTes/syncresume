@@ -12,6 +12,14 @@ export type ParsedResumeContact = {
   details: string[];
 };
 
+export function formatContactDetailDisplay(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (/linkedin\.com/i.test(lower)) return "LinkedIn";
+  if (/github\.com/i.test(lower)) return "GitHub";
+  if (/https?:\/\/|www\./i.test(raw)) return "Website";
+  return raw;
+}
+
 export function parseResumeContact(
   content: string,
   fallbackTitle = "",

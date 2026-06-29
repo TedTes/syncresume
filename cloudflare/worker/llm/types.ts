@@ -3,6 +3,8 @@ import type { StructuredResume } from "../resume";
 export type LLMProviderName = "openai" | "anthropic" | "gemini";
 
 export type LLMEnv = {
+  DEFAULT_LLM_PROVIDER?: string;
+  LLM_PROVIDER?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
   ANTHROPIC_API_KEY?: string;

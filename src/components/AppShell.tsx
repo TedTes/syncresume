@@ -1,7 +1,5 @@
 import { FileText, Files, LayoutGrid, Settings } from "lucide-react";
-import { UserButton } from "@clerk/clerk-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 import { AuthGate } from "./AuthGate";
 
 const PRIMARY_NAV_ITEMS = [
@@ -15,9 +13,7 @@ const SECONDARY_NAV_ITEMS = [
 ];
 
 export function AppShell() {
-  const { user } = useAuth();
   const location = useLocation();
-  const initials = user?.email?.slice(0, 2).toUpperCase() || "SR";
 
   return (
     <div className="app-shell">
@@ -64,21 +60,6 @@ export function AppShell() {
           ))}
         </div>
 
-        <div className="sidebar-account">
-          {user ? (
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: "sidebar-user-button",
-                },
-              }}
-            />
-          ) : (
-            <div className="sidebar-avatar" aria-hidden="true">
-              {initials}
-            </div>
-          )}
-        </div>
       </nav>
 
       <div className="main-area">

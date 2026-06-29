@@ -24,6 +24,7 @@ import {
 import { Link } from "react-router-dom";
 import { ResumeTemplatePreview } from "../components/ResumeTemplatePreview";
 import { ResumeSectionTextEditor } from "../components/ResumeSectionTextEditor";
+import { TopbarAccount } from "../components/TopbarAccount";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
@@ -122,6 +123,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const {
     selectedTemplateId,
     setSelectedTemplateId,
+    selectedFontId,
     setTemplatePreviewDocument,
     userProfileDetails,
   } = useSettings();
@@ -361,6 +363,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             editedResumeDocumentWithProfile ?? editedResumeDocument,
             selectedTemplateId,
             editingResume.name,
+            selectedFontId,
           );
         }
         if (type === "pdf") {
@@ -368,6 +371,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             editedResumeDocumentWithProfile ?? editedResumeDocument,
             selectedTemplateId,
             editingResume.name,
+            selectedFontId,
           );
         }
       }
@@ -746,6 +750,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
       {!embedded && (
         <header className="page-topbar">
           <span className="page-topbar-title">Resumes</span>
+          <TopbarAccount />
         </header>
       )}
 
@@ -824,6 +829,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                   key={selectedTemplateId}
                   document={editedResumeDocument}
                   templateId={selectedTemplateId}
+                  fontId={selectedFontId}
                   renderContactSectionContent={renderEditableSectionContent}
                   renderSectionContent={renderEditableSectionContent}
                 />
@@ -868,6 +874,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                         previewResumeDocumentWithProfile,
                         previewTemplateId,
                         previewResume.name,
+                        selectedFontId,
                       );
                     }}
                   >
@@ -892,6 +899,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                     key={previewTemplateId}
                     document={previewResumeDocumentWithProfile}
                     templateId={previewTemplateId}
+                    fontId={selectedFontId}
                   />
                 </div>
               )}
@@ -908,6 +916,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                 key={previewTemplateId}
                 document={previewResumeDocumentWithProfile}
                 templateId={previewTemplateId}
+                fontId={selectedFontId}
               />
             </div>
           ) : null}

@@ -19,6 +19,7 @@ import {
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { TopbarAccount } from "../components/TopbarAccount";
 import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
 import { fetchJobPageText } from "../lib/fetchJobPage";
@@ -189,6 +190,7 @@ export default function OptimizerPage({
   const shouldShowResumeReview = Boolean(
     optimizedResume && activeArtifact === "resume",
   );
+  const shouldShowJobDescriptionArtifact = Boolean(reviewRunId && activeArtifact === "job-description");
   const currentReviewRun = currentRunId
     ? runs.find((run) => run.id === currentRunId) ?? null
     : null;
@@ -620,6 +622,7 @@ export default function OptimizerPage({
                 )}
               </div>
             ) : null}
+            <TopbarAccount />
           </div>
         </header>
       )}
@@ -701,7 +704,50 @@ export default function OptimizerPage({
             </div>
           )}
 
-          {jobAddMode && (!optimizedResume || !isJobReferenceCollapsed) && (
+          {shouldShowJobDescriptionArtifact && (() => {
+            const jobDescriptionSubtitle = `${jobDescription.trim().length.toLocaleString()} characters`;
+            const usePortal = Boolean(reviewToolbarHost);
+
+            return (
+              <>
+                {usePortal && reviewToolbarHost && createPortal(
+                  <div className="review-topbar">
+                    <button className="btn btn-ghost btn-sm review-back-button" type="button" onClick={handleReviewBack}>
+                      <ArrowLeft aria-hidden="true" />
+                      Back
+                    </button>
+                    <div className="review-topbar-context">
+                      <strong>Job description</strong>
+                      <span>{jobDescriptionSubtitle}</span>
+                    </div>
+                  </div>,
+                  reviewToolbarHost,
+                )}
+
+                <section className="job-cover-panel job-description-artifact-panel" aria-label="Job description">
+                  {!usePortal && (
+                    <div className="cover-letter-header">
+                      <div>
+                        <p className="section-label">Job description</p>
+                        <h3>{jobDescriptionSubtitle}</h3>
+                      </div>
+                      <button className="btn btn-secondary" type="button" onClick={handleReviewBack}>
+                        <ArrowLeft aria-hidden="true" />
+                        Back
+                      </button>
+                    </div>
+                  )}
+                  <textarea
+                    className="cover-letter-textarea job-cover-textarea job-description-artifact-textarea"
+                    value={jobDescription}
+                    readOnly
+                  />
+                </section>
+              </>
+            );
+          })()}
+
+          {jobAddMode && !shouldShowJobDescriptionArtifact && (!optimizedResume || !isJobReferenceCollapsed) && (
             <div
               className={`job-entry-panel${isJobReferenceCollapsed ? " is-collapsed" : ""}`}
               ref={jobPanelRef}

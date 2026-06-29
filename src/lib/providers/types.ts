@@ -10,8 +10,8 @@ export type ProviderInfo = {
 
 export const PROVIDERS: ProviderInfo[] = [
   { id: "openai", label: "OpenAI", model: "gpt-5.4-mini", enabled: true },
-  { id: "anthropic", label: "Anthropic", model: "claude-sonnet-4-6", enabled: false },
-  { id: "gemini", label: "Gemini", model: "gemini-2.5-pro", enabled: false },
+  { id: "anthropic", label: "Anthropic", model: "claude-sonnet-4-5", enabled: true },
+  { id: "gemini", label: "Gemini", model: "gemini-2.5-flash", enabled: true },
 ];
 
 export function getProviderInfo(id: LLMProvider): ProviderInfo {

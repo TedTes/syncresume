@@ -6,6 +6,7 @@ keep_vars = true
 
 [vars]
 APP_ORIGIN = "https://syncresume.pages.dev"
+DEFAULT_LLM_PROVIDER = "openai"
 OPENAI_MODEL = "gpt-5.4-mini"
 # Local Worker development should use `.dev.vars`.
 # Set these to your Clerk instance values in the Cloudflare dashboard.

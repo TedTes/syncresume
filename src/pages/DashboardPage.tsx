@@ -13,6 +13,7 @@ import {
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
+import { TopbarAccount } from "../components/TopbarAccount";
 import { extractJobTitle } from "../lib/jobTitle";
 import type { RunRecord } from "../lib/storage";
 
@@ -251,6 +252,7 @@ export default function DashboardPage() {
     <>
       <header className="page-topbar">
         <span className="page-topbar-title">Dashboard</span>
+        <TopbarAccount />
       </header>
 
       <main className="page-content">

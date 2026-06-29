@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { ResumeDocument, ResumeSection, ResumeSectionType } from "../../resume/schema";
+import type { ResumeFontId, ResumeFontOption } from "./fonts";
 import type { ResumeTemplateId } from "../ids";
 
 export type { ResumeTemplateId };
@@ -32,6 +33,8 @@ export type ResumeTemplateConfig = {
 export type TemplatePreviewProps = {
   document: ResumeDocument;
   template: ResumeTemplateConfig;
+  font: ResumeFontOption;
+  fontId: ResumeFontId;
   sections: ResumeSection[];
   contactSection?: ResumeSection;
   bodySections: ResumeSection[];

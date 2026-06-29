@@ -11,6 +11,11 @@ import {
   normalizeResumeTemplateId,
   type ResumeTemplateId,
 } from "../templates/registry";
+import {
+  DEFAULT_RESUME_FONT_ID,
+  normalizeResumeFontId,
+  type ResumeFontId,
+} from "../templates/shared/fonts";
 
 type OptimizationToggles = {
   autoDetectRequirements: boolean;
@@ -20,6 +25,7 @@ type OptimizationToggles = {
 
 const TOGGLES_KEY = "syncresume.settings.toggles.v1";
 const TEMPLATE_KEY = "syncresume.settings.template.v1";
+const FONT_KEY = "syncresume.settings.font.v1";
 const USER_PROFILE_KEY = "syncresume.settings.userProfile.v1";
 
 const defaultToggles: OptimizationToggles = {
@@ -43,6 +49,10 @@ function readTemplate(): ResumeTemplateId {
   return normalizeResumeTemplateId(raw);
 }
 
+function readFont(): ResumeFontId {
+  return normalizeResumeFontId(window.localStorage.getItem(FONT_KEY));
+}
+
 function readUserProfileDetails(): UserProfileDetails {
   try {
     const raw = window.localStorage.getItem(USER_PROFILE_KEY);
@@ -53,6 +63,14 @@ function readUserProfileDetails(): UserProfileDetails {
   }
 }
 
+function readProvider(): LLMProvider {
+  const provider = String(import.meta.env.VITE_LLM_PROVIDER || "").toLowerCase();
+  if (provider === "anthropic" || provider === "gemini" || provider === "openai") {
+    return provider;
+  }
+  return "openai";
+}
+
 type SettingsContextValue = {
   provider: LLMProvider;
   userProfileDetails: UserProfileDetails;
@@ -60,6 +78,8 @@ type SettingsContextValue = {
   setUserProfileField: (key: keyof UserProfileDetails, value: string) => void;
   selectedTemplateId: ResumeTemplateId;
   setSelectedTemplateId: (templateId: ResumeTemplateId) => void;
+  selectedFontId: ResumeFontId;
+  setSelectedFontId: (fontId: ResumeFontId) => void;
   templatePreviewDocument: ResumeDocument | null;
   setTemplatePreviewDocument: (document: ResumeDocument | null) => void;
   toggles: OptimizationToggles;
@@ -72,6 +92,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [selectedTemplateId, setSelectedTemplateIdState] = useState<ResumeTemplateId>(() =>
     readTemplate(),
   );
+  const [selectedFontId, setSelectedFontIdState] = useState<ResumeFontId>(() => readFont());
   const [templatePreviewDocument, setTemplatePreviewDocument] = useState<ResumeDocument | null>(null);
   const [toggles, setToggles] = useState<OptimizationToggles>(() => readToggles());
   const [userProfileDetails, setUserProfileDetailsState] = useState<UserProfileDetails>(() =>
@@ -81,6 +102,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     window.localStorage.setItem(TEMPLATE_KEY, selectedTemplateId);
   }, [selectedTemplateId]);
+
+  useEffect(() => {
+    window.localStorage.setItem(FONT_KEY, selectedFontId);
+  }, [selectedFontId]);
 
   useEffect(() => {
     window.localStorage.setItem(TOGGLES_KEY, JSON.stringify(toggles));
@@ -98,6 +123,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setSelectedTemplateIdState(normalizeResumeTemplateId(templateId) || DEFAULT_TEMPLATE_ID);
   }, []);
 
+  const setSelectedFontId = useCallback((fontId: ResumeFontId) => {
+    setSelectedFontIdState(normalizeResumeFontId(fontId) || DEFAULT_RESUME_FONT_ID);
+  }, []);
+
   const setUserProfileDetails = useCallback((details: UserProfileDetails) => {
     setUserProfileDetailsState(normalizeUserProfileDetails(details));
   }, []);
@@ -109,12 +138,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: SettingsContextValue = {
-    provider: "openai",
+    provider: readProvider(),
     userProfileDetails,
     setUserProfileDetails,
     setUserProfileField,
     selectedTemplateId,
     setSelectedTemplateId,
+    selectedFontId,
+    setSelectedFontId,
     templatePreviewDocument,
     setTemplatePreviewDocument,
     toggles,

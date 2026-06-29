@@ -3,12 +3,10 @@ import {
   CheckCircle2,
   CreditCard,
   Loader2,
-  LogOut,
-  ShieldCheck,
   UserRound,
   Zap,
 } from "lucide-react";
-import { UserButton } from "@clerk/clerk-react";
+import { TopbarAccount } from "../components/TopbarAccount";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import {
@@ -16,6 +14,7 @@ import {
   createBillingPortalSession,
 } from "../lib/cloudflare/client";
 import type { UserProfileDetails } from "../lib/userProfile";
+import { RESUME_FONT_OPTIONS, type ResumeFontId } from "../templates/shared/fonts";
 
 type ProfileSaveStatus = "saved" | "saving";
 
@@ -25,8 +24,10 @@ export default function SettingsPage() {
     setToggle,
     userProfileDetails,
     setUserProfileField,
+    selectedFontId,
+    setSelectedFontId,
   } = useSettings();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile } = useAuth();
   const [billingAction, setBillingAction] = useState<"checkout" | "portal" | null>(null);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [profileSaveStatus, setProfileSaveStatus] = useState<ProfileSaveStatus>("saved");
@@ -77,6 +78,7 @@ export default function SettingsPage() {
     <>
       <header className="page-topbar">
         <span className="page-topbar-title">Settings</span>
+        <TopbarAccount />
       </header>
 
       <main className="page-content page-content-narrow">
@@ -168,6 +170,29 @@ export default function SettingsPage() {
           </section>
 
           <section className="settings-card">
+            <p className="settings-card-title">Resume appearance</p>
+            <div className="settings-row">
+              <div>
+                <p className="settings-row-label">Default font</p>
+                <p className="settings-row-desc">
+                  Used in live previews, PDF exports, and DOCX exports unless the template default is selected.
+                </p>
+              </div>
+              <select
+                className="settings-select"
+                value={selectedFontId}
+                onChange={(event) => setSelectedFontId(event.target.value as ResumeFontId)}
+              >
+                {RESUME_FONT_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </section>
+
+          <section className="settings-card">
             <p className="settings-card-title">Optimization behaviour</p>
 
             <ToggleRow
@@ -245,29 +270,6 @@ export default function SettingsPage() {
               </div>
             </div>
             {billingError ? <p className="settings-inline-error">{billingError}</p> : null}
-            <div className="settings-row">
-              <div>
-                <p className="settings-row-label">Session</p>
-                <p className="settings-row-desc">Clerk handles sign-in; Cloudflare verifies each request.</p>
-              </div>
-              <div className="settings-row-control">
-                <UserButton />
-                <button className="btn btn-secondary btn-sm" type="button" onClick={() => void signOut()}>
-                  <LogOut aria-hidden="true" />
-                  Sign out
-                </button>
-              </div>
-            </div>
-            <div className="settings-row">
-              <div>
-                <p className="settings-row-label">Identity provider</p>
-                <p className="settings-row-desc">Frontend session token is sent only as a request bearer token.</p>
-              </div>
-              <span className="settings-readonly-value settings-provider-badge">
-                <ShieldCheck aria-hidden="true" />
-                Clerk
-              </span>
-            </div>
           </section>
         </div>
       </main>

@@ -1,4 +1,12 @@
-import { type FormEvent, type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowLeft,
   Columns2,
@@ -9,6 +17,7 @@ import {
   Plus,
   Save,
   Send,
+  Type,
   X,
 } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -45,6 +54,10 @@ import type {
 import {
   type ResumeTemplateId,
 } from "../templates/registry";
+import {
+  RESUME_FONT_OPTIONS,
+  type ResumeFontId,
+} from "../templates/shared/fonts";
 import {
   diffWords,
   type DiffToken,
@@ -136,6 +149,8 @@ export function ResumeReview({
   const {
     selectedTemplateId,
     setSelectedTemplateId,
+    selectedFontId,
+    setSelectedFontId,
     setTemplatePreviewDocument,
     userProfileDetails,
   } = useSettings();
@@ -269,7 +284,7 @@ export function ResumeReview({
         selectedAssistantSection.id,
       );
       setSaveReviewStatus("");
-      setRevisionStatus(`${selectedAssistantSection.label} updated.`);
+      setRevisionStatus("Done.");
       setAssistantInstruction("");
     } catch (error) {
       setRevisionError(openAIErrorMessage(error));
@@ -350,13 +365,13 @@ export function ResumeReview({
     });
   }
 
-  async function exportOne(action: ExportType) {
+  async function exportOne(action: ExportType, baseName: string) {
     if (action === "docx") {
-      await downloadResumeDocumentDocx(displayResumeDocument, selectedTemplateId, `${downloadBaseName}.docx`);
+      await downloadResumeDocumentDocx(displayResumeDocument, selectedTemplateId, `${baseName}.docx`, selectedFontId);
       await onExported?.(action);
     }
     if (action === "pdf") {
-      await downloadResumeDocumentPdf(displayResumeDocument, selectedTemplateId, `${downloadBaseName}.pdf`);
+      await downloadResumeDocumentPdf(displayResumeDocument, selectedTemplateId, `${baseName}.pdf`, selectedFontId);
       await onExported?.(action);
     }
     if (action === "copy") {
@@ -372,11 +387,19 @@ export function ResumeReview({
     }
 
     setExportError("");
+
+    const hasFileExport = selectedExportTypes.some((type) => type === "docx" || type === "pdf");
+    let exportBaseName = downloadBaseName;
+    if (hasFileExport) {
+      const requestedName = window.prompt("Export file name", downloadBaseName);
+      if (requestedName === null) return;
+      exportBaseName = safeDownloadBaseName(requestedName || downloadBaseName);
+    }
     setIsExporting(true);
 
     try {
       for (const action of selectedExportTypes) {
-        await exportOne(action);
+        await exportOne(action, exportBaseName);
       }
     } catch (error) {
       setExportError(error instanceof Error ? error.message : "Export failed.");
@@ -414,6 +437,8 @@ export function ResumeReview({
       onToggleCompare={() => setIsCompareMode((isOpen) => !isOpen)}
       isTemplatePanelOpen={isTemplatePanelOpen}
       onOpenTemplates={onOpenTemplates}
+      selectedFontId={selectedFontId}
+      onSelectFont={setSelectedFontId}
       canSaveReview={Boolean(onSaveReview)}
       isSavingReview={isSavingReview}
       onSaveReview={handleSaveReview}
@@ -432,6 +457,7 @@ export function ResumeReview({
         <ResultsTab
           sections={sectionComparisons}
           templateId={selectedTemplateId}
+          fontId={selectedFontId}
           selectedSectionId={selectedAssistantSection?.id ?? ""}
           isCompareMode={isCompareMode}
           onCloseCompare={() => setIsCompareMode(false)}
@@ -486,6 +512,8 @@ function ReviewTopbar({
   onToggleCompare,
   isTemplatePanelOpen,
   onOpenTemplates,
+  selectedFontId,
+  onSelectFont,
   canSaveReview,
   isSavingReview,
   onSaveReview,
@@ -502,13 +530,17 @@ function ReviewTopbar({
   onToggleCompare: () => void;
   isTemplatePanelOpen: boolean;
   onOpenTemplates?: () => void;
+  selectedFontId: ResumeFontId;
+  onSelectFont: (fontId: ResumeFontId) => void;
   canSaveReview: boolean;
   isSavingReview: boolean;
   onSaveReview: () => Promise<void>;
   onBack?: () => void;
 }) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
   const exportGroupRef = useRef<HTMLDivElement | null>(null);
+  const fontGroupRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isExportMenuOpen) return;
@@ -522,6 +554,19 @@ function ReviewTopbar({
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isExportMenuOpen]);
+
+  useEffect(() => {
+    if (!isFontMenuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!fontGroupRef.current?.contains(event.target as Node)) {
+        setIsFontMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isFontMenuOpen]);
 
   return (
     <div className="review-topbar">
@@ -549,33 +594,73 @@ function ReviewTopbar({
       </div>
       <div className="review-topbar-actions">
         <button
-          className={`btn btn-secondary btn-sm review-compare-button ${
+          className={`btn btn-secondary btn-sm review-icon-action review-compare-button ${
             isCompareMode ? "active" : ""
           }`}
           type="button"
+          aria-label={isCompareMode ? "Hide comparison" : "Compare before and after"}
           aria-pressed={isCompareMode}
+          data-tooltip={isCompareMode ? "Hide comparison" : "Compare"}
           onClick={onToggleCompare}
         >
           <Columns2 aria-hidden="true" />
-          Compare
+          <span className="review-action-label">Compare</span>
         </button>
         {onOpenTemplates && (
           <button
-            className={`btn btn-secondary btn-sm review-template-button ${
+            className={`btn btn-secondary btn-sm review-icon-action review-template-button ${
               isTemplatePanelOpen ? "active" : ""
             }`}
             type="button"
+            aria-label={isTemplatePanelOpen ? "Close templates" : "Open templates"}
             aria-pressed={isTemplatePanelOpen}
+            data-tooltip={isTemplatePanelOpen ? "Close templates" : "Template"}
             onClick={onOpenTemplates}
           >
             <LayoutTemplate aria-hidden="true" />
-            Template
+            <span className="review-action-label">Template</span>
           </button>
         )}
+        <div className="review-font-group" ref={fontGroupRef}>
+          <button
+            className={`btn btn-secondary btn-sm review-icon-action review-font-button ${
+              isFontMenuOpen ? "active" : ""
+            }`}
+            type="button"
+            aria-label="Choose resume font"
+            aria-expanded={isFontMenuOpen}
+            data-tooltip="Font"
+            onClick={() => setIsFontMenuOpen((isOpen) => !isOpen)}
+          >
+            <Type aria-hidden="true" />
+            <span className="review-action-label">Font</span>
+          </button>
+          {isFontMenuOpen && (
+            <div className="review-font-menu" aria-label="Resume fonts">
+              {RESUME_FONT_OPTIONS.map((option) => (
+                <button
+                  type="button"
+                  className={`review-font-option ${
+                    selectedFontId === option.id ? "active" : ""
+                  }`}
+                  key={option.id}
+                  onClick={() => {
+                    onSelectFont(option.id);
+                    setIsFontMenuOpen(false);
+                  }}
+                >
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="review-export-group" ref={exportGroupRef}>
           <button
-            className="btn btn-secondary btn-sm review-export-button"
+            className="btn btn-secondary btn-sm review-icon-action review-export-button"
             type="button"
+            aria-label="Export selected formats"
+            data-tooltip="Export"
             disabled={isExporting || selectedExportTypes.length === 0}
             onClick={() => void onExportSelected()}
           >
@@ -584,13 +669,14 @@ function ReviewTopbar({
             ) : (
               <Download aria-hidden="true" />
             )}
-            Export
+            <span className="review-action-label">Export</span>
           </button>
           <button
             className="btn btn-secondary btn-sm review-export-menu-button"
             type="button"
             aria-label="Choose export formats"
             aria-expanded={isExportMenuOpen}
+            data-tooltip="Formats"
             disabled={isExporting}
             onClick={() => setIsExportMenuOpen((isOpen) => !isOpen)}
           >
@@ -640,6 +726,7 @@ function ReviewTopbar({
 function ResultsTab({
   sections,
   templateId,
+  fontId,
   selectedSectionId,
   isCompareMode,
   onCloseCompare,
@@ -657,6 +744,7 @@ function ResultsTab({
 }: {
   sections: SectionComparison[];
   templateId: ResumeTemplateId;
+  fontId: ResumeFontId;
   selectedSectionId: string;
   isCompareMode: boolean;
   onCloseCompare: () => void;
@@ -755,6 +843,7 @@ function ResultsTab({
               key={`before-${templateId}`}
               document={originalDocument}
               templateId={templateId}
+              fontId={fontId}
               renderSectionContent={(section) =>
                 renderDiffSectionContent(section, comparisonById, "before")
               }
@@ -766,6 +855,7 @@ function ResultsTab({
             key={`after-${templateId}`}
             document={optimizedDocument}
             templateId={templateId}
+            fontId={fontId}
             renderSectionContent={(section) =>
               isCompareMode
                 ? renderDiffSectionContent(section, comparisonById, "after")
@@ -817,6 +907,12 @@ function InlineRevisionBar({
   onInstructionChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
 }) {
+  function handleInstructionKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  }
+
   return (
     <div className="review-inline-revision" aria-label="Inline AI revision">
       <div className="review-inline-revision-inner">
@@ -827,11 +923,12 @@ function InlineRevisionBar({
           <textarea
             ref={inputRef}
             className="review-inline-revision-input"
-            value={instruction}
+            value={isRevising ? "Submitting..." : instruction}
             rows={1}
             disabled={isRevising}
             placeholder={`Ask AI to revise the selected ${selectedSectionLabel.toLowerCase()}...`}
             onChange={(event) => onInstructionChange(event.target.value)}
+            onKeyDown={handleInstructionKeyDown}
           />
           <button
             className="btn btn-primary review-inline-revision-submit"
@@ -846,7 +943,11 @@ function InlineRevisionBar({
             {isRevising ? "Revising..." : "Revise"}
           </button>
         </form>
-        {revisionStatus && <p className="export-status-msg">{revisionStatus}</p>}
+        {revisionStatus && (
+          <p className="review-inline-revision-toast" role="status">
+            {revisionStatus}
+          </p>
+        )}
         {revisionError && <div className="inline-error">{revisionError}</div>}
       </div>
     </div>
