@@ -1,4 +1,5 @@
 import { fetchJobPageText } from "./jobPage";
+import { ALL_RESUME_TEMPLATE_IDS } from "../../src/templates/ids";
 import {
   generateCoverLetterWithProvider,
   normalizeLLMProvider,
@@ -97,35 +98,7 @@ class HttpError extends Error {
 
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
 const MIN_RESUME_TEXT_LENGTH = 20;
-const RESUME_TEMPLATE_IDS = new Set([
-  "ats-simple",
-  "classic",
-  "modern",
-  "crisp",
-  "compact",
-  "minimal",
-  "executive",
-  "leadership",
-  "editorial",
-  "academic",
-  "sidebar",
-  "portfolio",
-  "timeline",
-  "metro",
-  "technical",
-  "product",
-  "startup",
-  "split",
-  "typewriter",
-  "gradient",
-  "nordic",
-  "zen",
-  "deco",
-  "impact",
-  "stripe",
-  "frost",
-  "terra",
-]);
+const RESUME_TEMPLATE_IDS = new Set<string>(ALL_RESUME_TEMPLATE_IDS);
 const RESUME_VERSION_TYPES = new Set(["base", "tailored"]);
 const BILLING_PLAN_FREE = "Free";
 const BILLING_PLAN_PRO = "Pro";
@@ -342,7 +315,7 @@ export default {
       }
 
       if (url.pathname === "/api/fetch-job-page" && request.method === "POST") {
-        return await handleFetchJobPage(request, corsHeaders);
+        return await handleFetchJobPage(request, env, corsHeaders);
       }
 
       return json({ error: "Not found" }, { status: 404, headers: corsHeaders });
@@ -559,7 +532,12 @@ async function handleGenerateCoverLetter(
   return json({ coverLetter }, { headers });
 }
 
-async function handleFetchJobPage(request: Request, headers: Headers): Promise<Response> {
+async function handleFetchJobPage(
+  request: Request,
+  env: Env,
+  headers: Headers,
+): Promise<Response> {
+  await requireSession(request, env);
   const body = await readJson(request);
   const text = await fetchJobPageText(asNonEmptyString(body.url));
   return json({ text }, { headers });

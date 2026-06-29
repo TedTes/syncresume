@@ -1,4 +1,5 @@
 const FETCH_TIMEOUT_MS = 20000;
+const MAX_JOB_PAGE_BYTES = 1_500_000;
 
 const BLOCKED_HOSTS: Array<{ match: string; hint: string }> = [
   {
@@ -13,6 +14,10 @@ const BLOCKED_HOSTS: Array<{ match: string; hint: string }> = [
 
 export async function fetchJobPageText(rawUrl: string): Promise<string> {
   const url = parseUrl(rawUrl);
+
+  if (isBlockedInternalHostname(url.hostname)) {
+    throw new Error("That URL cannot be fetched. Paste the job description text directly.");
+  }
 
   for (const entry of BLOCKED_HOSTS) {
     if (url.hostname.includes(entry.match)) {
@@ -58,15 +63,74 @@ async function fetchHtml(url: URL): Promise<string> {
       throw new Error("Could not reach the job page. Paste the description text directly.");
     }
 
+    const contentLength = Number(response.headers.get("Content-Length") || 0);
+    if (contentLength > MAX_JOB_PAGE_BYTES) {
+      throw new Error("That page is too large to read safely. Paste the job description text directly.");
+    }
+
     const contentType = response.headers.get("Content-Type") ?? "";
     if (!contentType.includes("text/html") && !contentType.includes("text/plain")) {
       throw new Error("That URL did not return a readable job page.");
     }
 
-    return await response.text();
+    return await readTextWithLimit(response);
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function isBlockedInternalHostname(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  const ipv4Parts = host.split(".").map((part) => Number(part));
+
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "::1" ||
+    host === "0.0.0.0" ||
+    host === "metadata.google.internal" ||
+    host === "metadata" ||
+    (!host.includes(".") && !host.includes(":"))
+  ) {
+    return true;
+  }
+
+  if (ipv4Parts.length === 4 && ipv4Parts.every((part) => Number.isInteger(part))) {
+    const [first, second] = ipv4Parts;
+    return (
+      first === 10 ||
+      first === 127 ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168)
+    );
+  }
+
+  return false;
+}
+
+async function readTextWithLimit(response: Response): Promise<string> {
+  if (!response.body) return response.text();
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let text = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+
+    if (received > MAX_JOB_PAGE_BYTES) {
+      await reader.cancel();
+      throw new Error("That page is too large to read safely. Paste the job description text directly.");
+    }
+
+    text += decoder.decode(value, { stream: true });
+  }
+
+  return text + decoder.decode();
 }
 
 function extractReadableText(html: string): string {

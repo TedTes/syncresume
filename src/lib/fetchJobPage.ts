@@ -33,7 +33,6 @@ export async function fetchJobPageText(rawUrl: string): Promise<string> {
   const data = await cloudflareRequest<{ text?: string }>("/api/fetch-job-page", {
     method: "POST",
     body: { url: rawUrl },
-    auth: false,
   });
 
   if (!data.text || data.text.trim().length < 150) {
