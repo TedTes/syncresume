@@ -1,28 +1,21 @@
 import {
   AlertCircle,
-  ArrowDown,
-  ArrowUp,
+  Check,
   CheckCircle2,
   ClipboardPaste,
   Download,
   FileText,
   ListTodo,
   Loader2,
-  MessageCircle,
   PenLine,
-  Plus,
   Save,
-  Send,
-  Trash2,
   UploadCloud,
-  WandSparkles,
   X,
 } from "lucide-react";
 import {
   ChangeEvent,
   DragEvent,
   type KeyboardEvent,
-  type FormEvent,
   useEffect,
   useMemo,
   useRef,
@@ -41,12 +34,7 @@ import {
 import { extractResumeText } from "../lib/fileExtract";
 import { applyUserProfileContactFallback } from "../lib/userProfile";
 import {
-  RESUME_SECTION_TYPE_OPTIONS,
-  addResumeDocumentSection,
-  moveResumeDocumentSection,
   parseResumeDocument,
-  removeResumeDocumentSection,
-  renameResumeDocumentSection,
   serializeResumeDocument,
   updateResumeDocumentSection,
   updateResumeDocumentSectionContentKind,
@@ -54,14 +42,10 @@ import {
   type ResumeDocument,
   type ResumeSection,
   type ResumeSectionContentKind,
-  type ResumeSectionType,
 } from "../lib/resumeDocument";
 import {
   normalizeResumeTemplateId,
 } from "../templates/registry";
-import { openAIErrorMessage } from "../lib/openai";
-import { reviseResumeSectionWithProvider } from "../lib/providers/dispatch";
-import type { StructuredResume } from "../lib/resume";
 import type { ResumeFileType, ResumeRecord } from "../lib/storage";
 
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
@@ -136,7 +120,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   } = useAppData();
   const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
   const {
-    provider,
     selectedTemplateId,
     setSelectedTemplateId,
     setTemplatePreviewDocument,
@@ -169,18 +152,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const [isRenamingResume, setIsRenamingResume] = useState(false);
   const [resumeRenameError, setResumeRenameError] = useState("");
   const [selectedEditorSectionId, setSelectedEditorSectionId] = useState("");
-  const [sectionToAdd, setSectionToAdd] = useState<ResumeSectionType>("projects");
-  const [isEditorAssistantOpen, setIsEditorAssistantOpen] = useState(false);
-  const [editorAssistantInstruction, setEditorAssistantInstruction] = useState("");
-  const [editorAssistantStatus, setEditorAssistantStatus] = useState("");
-  const [editorAssistantError, setEditorAssistantError] = useState("");
-  const [isRevisingEditorSection, setIsRevisingEditorSection] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [pendingDeleteResume, setPendingDeleteResume] = useState<ResumeRecord | null>(null);
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorExportGroupRef = useRef<HTMLDivElement | null>(null);
-  const editorAssistantRef = useRef<HTMLDivElement | null>(null);
   const requiresSignIn = hasBackend && !user;
   const uploadsDisabled = isUploading || isAuthLoading || requiresSignIn;
   const previewResume = resumes.find((resume) => resume.id === previewId) ?? null;
@@ -208,14 +184,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const currentEditedResumeText = editedResumeDocument
     ? serializeResumeDocument(editedResumeDocument)
     : "";
-  const selectedEditorSection = editedResumeDocument?.sections.find(
-    (section) => section.id === selectedEditorSectionId,
-  ) ?? editedResumeDocument?.sections[0] ?? null;
-  const selectedEditorSectionIndex = editedResumeDocument && selectedEditorSection
-    ? [...editedResumeDocument.sections]
-        .sort((left, right) => left.order - right.order)
-        .findIndex((section) => section.id === selectedEditorSection.id)
-    : -1;
   const derivedBySource = resumes.reduce((groups, resume) => {
     if (resume.versionType === "tailored" && resume.sourceResumeId) {
       const sourceId = resume.sourceResumeId;
@@ -291,20 +259,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     setSelectedEditorSectionId(editedResumeDocument.sections[0]?.id ?? "");
   }, [editedResumeDocument, selectedEditorSectionId]);
 
-  useEffect(() => {
-    if (!isEditorAssistantOpen) return;
-
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (editorAssistantRef.current?.contains(target)) return;
-      setIsEditorAssistantOpen(false);
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [isEditorAssistantOpen]);
-
   function closePreview() {
     setPreviewId("");
     setPreviewLoadingId("");
@@ -320,21 +274,14 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     setSelectedTemplateId(normalizeResumeTemplateId(resume.templateId));
     setEditError("");
     setEditStatus("");
-    setEditorAssistantInstruction("");
-    setEditorAssistantStatus("");
-    setEditorAssistantError("");
   }
 
   function closeExtractedEditor() {
     setEditingResumeId("");
     setEditedResumeDocument(null);
     setIsEditorExportMenuOpen(false);
-    setIsEditorAssistantOpen(false);
     setEditError("");
     setEditStatus("");
-    setEditorAssistantInstruction("");
-    setEditorAssistantStatus("");
-    setEditorAssistantError("");
   }
 
   function updateEditedSection(sectionId: string, content: string) {
@@ -376,48 +323,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     setEditError("");
   }
 
-  function renameEditedSection(sectionId: string, title: string) {
-    if (!editedResumeDocument) return;
-
-    setEditedResumeDocument(renameResumeDocumentSection(editedResumeDocument, sectionId, title));
-    setEditStatus("");
-    setEditError("");
-  }
-
-  function addEditedSection() {
-    if (!editedResumeDocument) return;
-
-    const nextDocument = addResumeDocumentSection(editedResumeDocument, sectionToAdd);
-    setEditedResumeDocument(nextDocument);
-    setSelectedEditorSectionId(nextDocument.sections[nextDocument.sections.length - 1]?.id ?? "");
-    setEditStatus("");
-    setEditError("");
-  }
-
-  function removeEditedSection(sectionId: string) {
-    if (!editedResumeDocument || editedResumeDocument.sections.length <= 1) return;
-
-    const currentSections = [...editedResumeDocument.sections].sort((left, right) => left.order - right.order);
-    const currentIndex = currentSections.findIndex((section) => section.id === sectionId);
-    const nextDocument = removeResumeDocumentSection(editedResumeDocument, sectionId);
-    setEditedResumeDocument(nextDocument);
-    setSelectedEditorSectionId(
-      nextDocument.sections[Math.min(currentIndex, nextDocument.sections.length - 1)]?.id ?? "",
-    );
-    setEditStatus("");
-    setEditError("");
-  }
-
-  function moveEditedSection(sectionId: string, direction: -1 | 1) {
-    if (!editedResumeDocument) return;
-
-    const nextDocument = moveResumeDocumentSection(editedResumeDocument, sectionId, direction);
-    setEditedResumeDocument(nextDocument);
-    setSelectedEditorSectionId(sectionId);
-    setEditStatus("");
-    setEditError("");
-  }
-
   function renderEditableSectionContent(section: ResumeSection) {
     return (
       <ResumeSectionTextEditor
@@ -431,69 +336,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
         }
       />
     );
-  }
-
-  function documentToStructuredResume(document: ResumeDocument): StructuredResume {
-    const sectionContent = (type: ResumeSection["type"]) =>
-      document.sections.find((section) => section.type === type)?.content.trim() ?? "";
-    const splitItems = (value: string) =>
-      value
-        .split(/\n|,/)
-        .map((item) => item.replace(/^[-•]\s*/, "").trim())
-        .filter(Boolean);
-
-    return {
-      summary: sectionContent("summary"),
-      experience: document.sections
-        .filter((section) => section.type === "experience")
-        .map((section, index) => ({
-          id: section.id || `experience-${index}`,
-          title: section.title,
-          company: "",
-          location: "",
-          dates: "",
-          bullets: section.content
-            .split("\n")
-            .map((line) => line.replace(/^[-•]\s*/, "").trim())
-            .filter(Boolean),
-        })),
-      skills: splitItems(sectionContent("skills")),
-      education: document.sections
-        .filter((section) => section.type === "education")
-        .flatMap((section) => splitItems(section.content)),
-    };
-  }
-
-  async function handleEditorAssistantRevise(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!editedResumeDocument || !selectedEditorSection) return;
-
-    const instruction = editorAssistantInstruction.trim();
-    if (!instruction) {
-      setEditorAssistantError("Add a revision instruction first.");
-      return;
-    }
-
-    setIsRevisingEditorSection(true);
-    setEditorAssistantStatus("");
-    setEditorAssistantError("");
-    try {
-      const revisedText = await reviseResumeSectionWithProvider({
-        provider,
-        jobDescription: "",
-        resume: documentToStructuredResume(editedResumeDocument),
-        sectionLabel: selectedEditorSection.title,
-        sectionText: selectedEditorSection.content,
-        instruction,
-      });
-      updateEditedSection(selectedEditorSection.id, revisedText);
-      setEditorAssistantInstruction("");
-      setEditorAssistantStatus(`${selectedEditorSection.title} revised.`);
-    } catch (error) {
-      setEditorAssistantError(openAIErrorMessage(error));
-    } finally {
-      setIsRevisingEditorSection(false);
-    }
   }
 
   function toggleEditorExportType(type: EditorExportType) {
@@ -777,29 +619,51 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             <span className="resume-row-icon" aria-hidden="true">
               <FileText />
             </span>
-            <form
-              className="resume-row-info resume-rename-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void handleRenameResume(resume);
-              }}
-            >
-              <input
-                className="resume-rename-input"
-                value={renamingResumeName}
-                autoFocus
-                disabled={isRenamingResume}
-                aria-label={`Rename ${resume.name}`}
-                onChange={(event) => setRenamingResumeName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    cancelResumeRename();
-                  }
+            <span className="resume-row-info">
+              <form
+                className="run-title-edit resume-rename-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleRenameResume(resume);
                 }}
-              />
+              >
+                <input
+                  className="run-title-input resume-rename-input"
+                  value={renamingResumeName}
+                  autoFocus
+                  disabled={isRenamingResume}
+                  aria-label={`Rename ${resume.name}`}
+                  style={{
+                    width: `${Math.min(Math.max(renamingResumeName.length + 3, 18), 56)}ch`,
+                  }}
+                  onChange={(event) => setRenamingResumeName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelResumeRename();
+                    }
+                  }}
+                />
+                <button
+                  type="submit"
+                  className="run-title-edit-button"
+                  disabled={isRenamingResume}
+                  aria-label={`Save ${resume.name} name`}
+                >
+                  {isRenamingResume ? <Loader2 className="spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
+                </button>
+                <button
+                  type="button"
+                  className="run-title-edit-button cancel"
+                  aria-label="Cancel rename"
+                  disabled={isRenamingResume}
+                  onClick={cancelResumeRename}
+                >
+                  <X aria-hidden="true" />
+                </button>
+              </form>
               {resumeRenameError && <span className="resume-rename-error">{resumeRenameError}</span>}
-            </form>
+            </span>
           </div>
         ) : (
           <div
@@ -839,59 +703,39 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             </span>
           </div>
         )}
-        <div className="resume-row-actions">
-          {isRenaming ? (
-            <>
+        {!isRenaming && (
+          <div className="resume-row-actions">
+            {resume.isActive ? (
+              <span className="badge-active" aria-label="Active resume" title="Active">
+                Active
+              </span>
+            ) : (
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
-                disabled={isRenamingResume}
-                onClick={() => void handleRenameResume(resume)}
+                className="btn btn-secondary btn-sm resume-set-active"
+                aria-label={isTailored ? `Set version active: ${resume.name}` : `Set resume active: ${resume.name}`}
+                title="Set active"
+                onClick={() => setActiveResume(resume.id)}
               >
-                {isRenamingResume ? <Loader2 className="spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
-                Save
+                Set active
               </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm btn-icon-only"
-                aria-label="Cancel rename"
-                disabled={isRenamingResume}
-                onClick={cancelResumeRename}
-              >
-                <X aria-hidden="true" />
-              </button>
-            </>
-          ) : null}
-          {resume.isActive ? (
-            <span className="badge-active" aria-label="Active resume" title="Active">
-              Active
-            </span>
-          ) : (
+            )}
             <button
               type="button"
-              className="btn btn-secondary btn-sm resume-set-active"
-              aria-label={isTailored ? `Set version active: ${resume.name}` : `Set resume active: ${resume.name}`}
-              title="Set active"
-              onClick={() => setActiveResume(resume.id)}
+              className="btn btn-ghost btn-sm btn-icon-only"
+              aria-label={`Delete ${resume.name}`}
+              title="Delete"
+              disabled={deletingId === resume.id}
+              onClick={() => setPendingDeleteResume(resume)}
             >
-              Set active
+              {deletingId === resume.id ? (
+                <Loader2 className="spin" aria-hidden="true" />
+              ) : (
+                <X aria-hidden="true" />
+              )}
             </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm btn-icon-only"
-            aria-label={`Delete ${resume.name}`}
-            title="Delete"
-            disabled={deletingId === resume.id}
-            onClick={() => setPendingDeleteResume(resume)}
-          >
-            {deletingId === resume.id ? (
-              <Loader2 className="spin" aria-hidden="true" />
-            ) : (
-              <X aria-hidden="true" />
-            )}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -974,84 +818,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             </div>
           </div>
           <div className="extracted-editor-shell">
-            <div className="extracted-editor-meta">
-              <span>{currentEditedResumeText.trim().length.toLocaleString()} chars</span>
-              <span>Edit directly on the rendered resume. Template changes stay live.</span>
-            </div>
-            {editedResumeDocument && (
-              <div className="source-editor-toolbar" aria-label="Source resume section controls">
-                <div className="source-editor-toolbar-group">
-                  <label className="source-editor-field">
-                    <span>Selected section</span>
-                    <input
-                      className="source-editor-title-input"
-                      type="text"
-                      value={selectedEditorSection?.title ?? ""}
-                      disabled={!selectedEditorSection}
-                      onChange={(event) => {
-                        if (!selectedEditorSection) return;
-                        renameEditedSection(selectedEditorSection.id, event.target.value);
-                      }}
-                    />
-                  </label>
-                  <div className="source-editor-icon-actions" aria-label="Move or remove selected section">
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm btn-icon-only"
-                      aria-label="Move section up"
-                      disabled={!selectedEditorSection || selectedEditorSectionIndex <= 0}
-                      onClick={() => selectedEditorSection && moveEditedSection(selectedEditorSection.id, -1)}
-                    >
-                      <ArrowUp aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm btn-icon-only"
-                      aria-label="Move section down"
-                      disabled={
-                        !selectedEditorSection ||
-                        selectedEditorSectionIndex < 0 ||
-                        selectedEditorSectionIndex >= editedResumeDocument.sections.length - 1
-                      }
-                      onClick={() => selectedEditorSection && moveEditedSection(selectedEditorSection.id, 1)}
-                    >
-                      <ArrowDown aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm btn-icon-only"
-                      aria-label="Remove selected section"
-                      disabled={!selectedEditorSection || editedResumeDocument.sections.length <= 1}
-                      onClick={() => selectedEditorSection && removeEditedSection(selectedEditorSection.id)}
-                    >
-                      <Trash2 aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-                <div className="source-editor-toolbar-group source-editor-add-group">
-                  <label className="source-editor-field">
-                    <span>Add section</span>
-                    <select
-                      className="source-editor-select"
-                      value={sectionToAdd}
-                      onChange={(event) => setSectionToAdd(event.target.value as ResumeSectionType)}
-                    >
-                      {RESUME_SECTION_TYPE_OPTIONS
-                        .filter((option) => option.type !== "contact" && option.type !== "custom")
-                        .map((option) => (
-                          <option key={option.type} value={option.type}>
-                            {option.title}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={addEditedSection}>
-                    <Plus aria-hidden="true" />
-                    Add
-                  </button>
-                </div>
-              </div>
-            )}
             {editedResumeDocument && (
               <div className="document-editor-stage" aria-label="Editable resume document">
                 <ResumeTemplatePreview
@@ -1061,97 +827,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                   renderContactSectionContent={renderEditableSectionContent}
                   renderSectionContent={renderEditableSectionContent}
                 />
-              </div>
-            )}
-            {editedResumeDocument && (
-              <div className="review-assistant document-editor-assistant" ref={editorAssistantRef}>
-                {isEditorAssistantOpen && (
-                  <aside className="review-assistant-panel" aria-label="AI resume editor assistant">
-                    <div className="review-assistant-header">
-                      <div>
-                        <p className="section-label">Source resume assistant</p>
-                        <h3>Clean up a section</h3>
-                      </div>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        aria-label="Close assistant"
-                        onClick={() => setIsEditorAssistantOpen(false)}
-                      >
-                        <X aria-hidden="true" />
-                      </button>
-                    </div>
-
-                    <div className="assistant-section-options" aria-label="Choose resume section">
-                      {editedResumeDocument.sections.map((section) => (
-                        <button
-                          className={`assistant-section-chip ${
-                            section.id === selectedEditorSection?.id ? "active" : ""
-                          }`}
-                          disabled={isRevisingEditorSection}
-                          key={section.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedEditorSectionId(section.id);
-                            setEditorAssistantStatus("");
-                            setEditorAssistantError("");
-                          }}
-                        >
-                          {section.title}
-                        </button>
-                      ))}
-                    </div>
-
-                    <form className="assistant-chat-form" onSubmit={handleEditorAssistantRevise}>
-                      <textarea
-                        className="assistant-chat-input"
-                        value={editorAssistantInstruction}
-                        rows={4}
-                        disabled={isRevisingEditorSection}
-                        placeholder={
-                          selectedEditorSection
-                            ? `Ask AI to clean up ${selectedEditorSection.title.toLowerCase()}...`
-                            : "Choose a resume section first..."
-                        }
-                        onChange={(event) => {
-                          setEditorAssistantInstruction(event.target.value);
-                          setEditorAssistantStatus("");
-                          setEditorAssistantError("");
-                        }}
-                      />
-                      <button
-                        className="btn btn-primary"
-                        type="submit"
-                        disabled={
-                          isRevisingEditorSection ||
-                          !editorAssistantInstruction.trim() ||
-                          !selectedEditorSection
-                        }
-                      >
-                        {isRevisingEditorSection ? (
-                          <Loader2 className="spin" aria-hidden="true" />
-                        ) : (
-                          <Send aria-hidden="true" />
-                        )}
-                        {isRevisingEditorSection ? "Revising..." : "Ask AI"}
-                      </button>
-                    </form>
-
-                    {editorAssistantStatus && <p className="export-status-msg">{editorAssistantStatus}</p>}
-                    {editorAssistantError && <div className="inline-error">{editorAssistantError}</div>}
-                  </aside>
-                )}
-
-                <button
-                  type="button"
-                  className="review-assistant-fab"
-                  aria-label="Open AI resume editor assistant"
-                  aria-expanded={isEditorAssistantOpen}
-                  onClick={() => setIsEditorAssistantOpen((isOpen) => !isOpen)}
-                >
-                  {isEditorAssistantOpen ? <X aria-hidden="true" /> : <MessageCircle aria-hidden="true" />}
-                  <WandSparkles aria-hidden="true" />
-                </button>
               </div>
             )}
             {editError && <div className="inline-error">{editError}</div>}
@@ -1176,12 +851,13 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                 <>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm btn-icon-only"
+                    className="btn btn-ghost btn-sm"
                     aria-label={`Edit ${previewResume.name}`}
-                    title="Edit text"
+                    title="Edit resume"
                     onClick={() => openExtractedEditor(previewResume)}
                   >
                     <PenLine aria-hidden="true" />
+                    Edit
                   </button>
                   <button
                     type="button"
