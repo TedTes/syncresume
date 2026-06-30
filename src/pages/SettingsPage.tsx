@@ -9,6 +9,7 @@ import {
 import { TopbarAccount } from "../components/TopbarAccount";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
+import { useToastMessage } from "../context/ToastContext";
 import {
   createBillingCheckoutSession,
   createBillingPortalSession,
@@ -36,6 +37,8 @@ export default function SettingsPage() {
   const isPro = profile?.plan === "Pro";
   const canCheckout = Boolean(profile?.billing?.checkoutEnabled);
   const canOpenPortal = Boolean(profile?.billing?.portalEnabled);
+
+  useToastMessage(billingError, { kind: "error", title: "Billing failed", durationMs: 6500 });
 
   useEffect(() => {
     return () => {
@@ -269,7 +272,6 @@ export default function SettingsPage() {
                 )}
               </div>
             </div>
-            {billingError ? <p className="settings-inline-error">{billingError}</p> : null}
           </section>
         </div>
       </main>

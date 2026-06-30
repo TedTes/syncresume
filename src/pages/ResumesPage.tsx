@@ -28,6 +28,7 @@ import { TopbarAccount } from "../components/TopbarAccount";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
+import { useToastMessage } from "../context/ToastContext";
 import {
   downloadResumeDocumentDocx,
   downloadResumeDocumentPdf,
@@ -159,6 +160,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorExportGroupRef = useRef<HTMLDivElement | null>(null);
+  useToastMessage(uploadError, { kind: "error", title: "Resume action failed", durationMs: 6500 });
+  useToastMessage(previewError, { kind: "error", title: "Preview unavailable", durationMs: 6500 });
+  useToastMessage(editError, { kind: "error", title: "Resume edit failed", durationMs: 6500 });
+  useToastMessage(editStatus, { kind: "success", title: "Resume saved" });
+  useToastMessage(resumeRenameError, { kind: "error", title: "Rename failed", durationMs: 6500 });
   const requiresSignIn = hasBackend && !user;
   const uploadsDisabled = isUploading || isAuthLoading || requiresSignIn;
   const previewResume = resumes.find((resume) => resume.id === previewId) ?? null;
@@ -666,7 +672,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                   <X aria-hidden="true" />
                 </button>
               </form>
-              {resumeRenameError && <span className="resume-rename-error">{resumeRenameError}</span>}
             </span>
           </div>
         ) : (
@@ -835,8 +840,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                 />
               </div>
             )}
-            {editError && <div className="inline-error">{editError}</div>}
-            {editStatus && <div className="inline-success">{editStatus}</div>}
           </div>
         </main>
       ) : isFullPagePreview ? (
@@ -892,7 +895,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             </div>
           ) : previewError ? (
             <div className="extracted-preview-shell">
-              <div className="inline-error">{previewError}</div>
               {previewResumeDocumentWithProfile && (
                 <div className="template-fullpage-preview-shell">
                   <ResumeTemplatePreview
@@ -1084,7 +1086,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           )}
         </section>
 
-            {uploadError && <div className="inline-error" style={{ marginBottom: 16 }}>{uploadError}</div>}
           </>
         )}
 
@@ -1123,7 +1124,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             </div>
           )}
         </div>
-        {embedded && uploadError && <div className="inline-error embedded-upload-error">{uploadError}</div>}
         {embedded && uploadQueue.length > 0 && (
           <div className="upload-queue embedded-upload-queue" aria-live="polite">
             {uploadQueue.map((item) => (

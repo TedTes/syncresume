@@ -1,5 +1,4 @@
 import {
-  AlertCircle,
   AlertTriangle,
   ArrowLeft,
   Check,
@@ -22,6 +21,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { TopbarAccount } from "../components/TopbarAccount";
 import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
+import { useToastMessage } from "../context/ToastContext";
 import { fetchJobPageText } from "../lib/fetchJobPage";
 import { extractJobTitle } from "../lib/jobTitle";
 import { openAIErrorMessage } from "../lib/openai";
@@ -131,6 +131,13 @@ export default function OptimizerPage({
   const jobPanelRef = useRef<HTMLDivElement | null>(null);
   const coverLetterPanelRef = useRef<HTMLElement | null>(null);
   const reviewPanelRef = useRef<HTMLDivElement | null>(null);
+
+  useToastMessage(fetchJDError, { kind: "error", title: "Job page failed", durationMs: 6500 });
+  useToastMessage(coverLetterStatus, { kind: "success", title: "Cover letter" });
+  useToastMessage(coverLetterError, { kind: "error", title: "Cover letter failed", durationMs: 6500 });
+  useToastMessage(optimizeError, { kind: "error", title: "Optimization failed", durationMs: 6500 });
+  useToastMessage(versionRenameError, { kind: "error", title: "Rename failed", durationMs: 6500 });
+  useToastMessage(versionDeleteError, { kind: "error", title: "Delete failed", durationMs: 6500 });
 
   const hasJD = jobDescription.trim().length > 0;
   const canOptimize = hasJD && Boolean(activeResume) && !isOptimizing;
@@ -928,12 +935,6 @@ export default function OptimizerPage({
                             {isFetchingJD ? "Fetching…" : "Fetch"}
                           </button>
                         </div>
-                        {fetchJDError && (
-                          <div className="inline-error">
-                            <AlertCircle aria-hidden="true" />
-                            {fetchJDError}
-                          </div>
-                        )}
                         {jobDescription && (
                           <>
                             <textarea
@@ -1082,15 +1083,11 @@ export default function OptimizerPage({
                     placeholder="Write your cover letter here, or use Generate to draft one from the selected resume and job."
                     spellCheck
                   />
-
-                  {coverLetterStatus && <p className="export-status-msg">{coverLetterStatus}</p>}
-                  {coverLetterError && <div className="inline-error">{coverLetterError}</div>}
                 </section>
               </>
             );
           })()}
 
-          {optimizeError && <div className="inline-error">{optimizeError}</div>}
           {isLoadingSavedReview && (
             <div className="review-loading">
               <Loader2 className="spin" aria-hidden="true" />
@@ -1174,9 +1171,6 @@ export default function OptimizerPage({
                                     <X aria-hidden="true" />
                                   </button>
                                 </form>
-                                {versionRenameError && (
-                                  <span className="workspace-version-error">{versionRenameError}</span>
-                                )}
                               </>
                             ) : (
                               <>
@@ -1352,7 +1346,6 @@ export default function OptimizerPage({
               Delete “{pendingDeleteVersion.name}”. This removes the tailored resume version
               from the workspace.
             </p>
-            {versionDeleteError && <div className="inline-error">{versionDeleteError}</div>}
             <div className="confirm-modal-actions">
               <button
                 type="button"

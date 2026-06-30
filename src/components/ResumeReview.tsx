@@ -29,6 +29,7 @@ import {
 } from "../lib/exportResume";
 import { ResumeTemplatePreview } from "./ResumeTemplatePreview";
 import { useSettings } from "../context/SettingsContext";
+import { useToastMessage } from "../context/ToastContext";
 import { openAIErrorMessage } from "../lib/openai";
 import { reviseResumeSectionWithProvider } from "../lib/providers/dispatch";
 import type { LLMProvider } from "../lib/providers/types";
@@ -225,6 +226,12 @@ export function ResumeReview({
     () => getAvailableAddSectionTitles(resumeDocument.sections),
     [resumeDocument.sections],
   );
+
+  useToastMessage(revisionStatus, { kind: "success", title: "Revision complete" });
+  useToastMessage(revisionError, { kind: "error", title: "Revision failed", durationMs: 6500 });
+  useToastMessage(exportError, { kind: "error", title: "Export failed", durationMs: 6500 });
+  useToastMessage(saveReviewStatus, { kind: "success", title: "Saved" });
+  useToastMessage(saveReviewError, { kind: "error", title: "Save failed", durationMs: 6500 });
 
   useEffect(() => {
     setTemplatePreviewDocument(displayResumeDocument);
@@ -479,8 +486,6 @@ export function ResumeReview({
           instruction={assistantInstruction}
           inputRef={assistantInputRef}
           isRevising={Boolean(revisingSectionId)}
-          revisionStatus={revisionStatus}
-          revisionError={revisionError}
           onInstructionChange={(value) => {
             setAssistantInstruction(value);
             setRevisionStatus("");
@@ -488,12 +493,6 @@ export function ResumeReview({
           }}
           onSubmit={handleAssistantRevise}
         />
-
-        <StatusMessages
-          exportError={exportError}
-        />
-        {saveReviewStatus && <p className="export-status-msg">{saveReviewStatus}</p>}
-        {saveReviewError && <div className="inline-error">{saveReviewError}</div>}
       </div>
     </section>
   );
@@ -890,8 +889,6 @@ function InlineRevisionBar({
   instruction,
   inputRef,
   isRevising,
-  revisionStatus,
-  revisionError,
   onInstructionChange,
   onSubmit,
 }: {
@@ -899,8 +896,6 @@ function InlineRevisionBar({
   instruction: string;
   inputRef: RefObject<HTMLTextAreaElement | null>;
   isRevising: boolean;
-  revisionStatus: string;
-  revisionError: string;
   onInstructionChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
 }) {
@@ -937,22 +932,8 @@ function InlineRevisionBar({
             {isRevising ? "Revising..." : "Revise"}
           </button>
         </form>
-        {revisionStatus && (
-          <p className="review-inline-revision-toast" role="status">
-            {revisionStatus}
-          </p>
-        )}
-        {revisionError && <div className="inline-error">{revisionError}</div>}
       </div>
     </div>
-  );
-}
-
-function StatusMessages({ exportError }: { exportError: string }) {
-  return (
-    <>
-      {exportError && <div className="inline-error">{exportError}</div>}
-    </>
   );
 }
 

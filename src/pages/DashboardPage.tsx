@@ -13,6 +13,7 @@ import {
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppDataContext";
+import { useToastMessage } from "../context/ToastContext";
 import { TopbarAccount } from "../components/TopbarAccount";
 import { extractJobTitle } from "../lib/jobTitle";
 import type { RunRecord } from "../lib/storage";
@@ -79,6 +80,10 @@ export default function DashboardPage() {
   const [pendingDeleteRun, setPendingDeleteRun] = useState<RunRecord | null>(null);
   const [runDetails, setRunDetails] = useState<Record<string, RunRecord>>({});
   const [detailsError, setDetailsError] = useState<Record<string, string>>({});
+  const detailErrorMessage = Object.values(detailsError)[0] ?? null;
+
+  useToastMessage(renameError, { kind: "error", title: "Rename failed", durationMs: 6500 });
+  useToastMessage(detailErrorMessage, { kind: "error", title: "Application failed", durationMs: 6500 });
 
   const runItems = runs.map((run) => ({
     run,
@@ -299,7 +304,6 @@ export default function DashboardPage() {
               const isExpanded = expandedRunId === run.id;
               const details = runDetails[run.id] ?? run;
               const isLoadingDetails = loadingRunId === run.id;
-              const detailError = detailsError[run.id];
               const coverLetterText = details.coverLetterText?.trim() ?? "";
               const applicationArtifacts = [
                 {
@@ -397,9 +401,6 @@ export default function DashboardPage() {
                         )}
                         {isBestRun && <span className="run-inline-pill best">Best</span>}
                       </div>
-                      {editingRunId === run.id && renameError ? (
-                        <span className="run-rename-error">{renameError}</span>
-                      ) : null}
                       <span className="run-meta">
                         {formatDate(run.createdAt)}
                         {duplicateCount > 1 ? `, ${formatTime(run.createdAt)}` : ""} · {run.resumeName}
@@ -436,7 +437,6 @@ export default function DashboardPage() {
                   >
                     <div className="application-card-body-inner">
                       <div className="application-card-body">
-                        {detailError ? <div className="inline-error">{detailError}</div> : null}
                         <div className="application-artifact-list" aria-label="Application files">
                           {applicationArtifacts.map((artifact) => {
                             const Icon = artifact.icon;
