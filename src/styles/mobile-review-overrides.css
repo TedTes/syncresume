@@ -1,0 +1,340 @@
+/* Final mobile review hardening.
+   These rules intentionally live late in the file so template-specific styles cannot
+   force print-width layouts into narrow app viewports. */
+@media (max-width: 900px) {
+  .app-shell {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .main-area {
+    min-width: 0;
+    max-width: calc(100vw - var(--sidebar-width));
+    overflow-x: hidden;
+  }
+
+  .workspace-flow:has(.review-workspace),
+  .saved-application-review:has(.review-workspace) {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-inline: clamp(8px, 2.4vw, 14px);
+    overflow-x: hidden;
+  }
+
+
+
+  .review-toolbar-slot,
+  .review-toolbar-slot .review-topbar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .review-toolbar-slot .review-topbar {
+    gap: clamp(8px, 1.6vw, 12px);
+    padding-inline: clamp(8px, 1.8vw, 12px);
+  }
+
+  .review-topbar-context {
+    min-width: 0;
+  }
+
+  .review-topbar-actions {
+    min-width: 0;
+    max-width: 100%;
+    gap: clamp(6px, 1.3vw, 9px);
+    padding-inline: 2px 4px;
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: none;
+  }
+
+  .review-topbar-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .template-comparison-grid,
+  .template-comparison-grid:not(.is-single-pane),
+  .template-comparison-grid.is-single-pane,
+  .template-comparison-grid.is-optimized-only,
+  .template-comparison-grid.is-compare-mode.is-single-pane {
+    box-sizing: border-box;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-inline: clamp(12px, 2.8vw, 18px);
+    overflow-x: hidden;
+  }
+
+  .template-comparison-pane {
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .template-comparison-pane .resume-template-font-scope {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: min(816px, calc(100% - 2px));
+    min-width: 0;
+  }
+
+  .template-comparison-pane .resume-template-preview,
+  .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin-inline: auto;
+    zoom: 1 !important;
+    overflow-x: hidden;
+  }
+
+  .template-comparison-pane .resume-template-preview *,
+  .template-comparison-pane .resume-template-preview :where(p, li, span, strong, em, textarea, input, .template-section-body, .contact-detail-list, .contact-detail-item) {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .template-comparison-pane .document-section-textarea,
+  .template-comparison-pane .resume-section-text-editor {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .main-area {
+    width: calc(100vw - var(--sidebar-width));
+    max-width: calc(100vw - var(--sidebar-width));
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .page-topbar.workspace-topbar.review-mode {
+    min-width: 0;
+    padding: 5px 8px;
+  }
+
+  .review-toolbar-slot {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .review-toolbar-slot .review-topbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .workspace-flow:has(.review-workspace) {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 10px 10px 8px;
+    overflow-x: hidden;
+  }
+
+  .review-workspace,
+  .review-workspace .tab-content,
+  .review-workspace .results-stage,
+  .review-workspace .results-template-stage {
+    /* box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden; */
+  }
+  .review-topbar-actions {
+    max-width: calc(100vw - var(--sidebar-width) - 58px);
+  }
+
+  .template-comparison-grid,
+  .template-comparison-grid:not(.is-single-pane),
+  .template-comparison-grid.is-single-pane,
+  .template-comparison-grid.is-optimized-only,
+  .template-comparison-grid.is-compare-mode.is-single-pane {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 8px 12px 8px 10px;
+    overflow-x: hidden;
+  }
+
+  .template-comparison-pane {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  .template-comparison-pane .resume-template-font-scope {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .template-comparison-pane .resume-template-preview,
+  .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0 auto;
+    padding: 18px 14px;
+    overflow: hidden;
+    zoom: 1;
+  }
+
+  .template-comparison-pane .resume-template-preview,
+  .template-comparison-pane .resume-template-preview :where(p, li, span, strong, em, textarea, input) {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .template-comparison-pane .resume-template-preview :where(.template-contact p, .contact-detail-list, .contact-detail-item, .template-section-body, .template-section p, .template-section li, .document-section-textarea) {
+    font-size: clamp(0.64rem, 3.2vw, 0.78rem);
+    line-height: 1.34;
+  }
+
+  .template-comparison-pane .resume-template-preview :where(h1, .template-contact h1) {
+    font-size: clamp(0.92rem, 5vw, 1.12rem);
+    line-height: 1.12;
+  }
+
+  .template-comparison-pane .resume-template-preview :where(h2, .template-section h2) {
+    font-size: clamp(0.58rem, 2.9vw, 0.7rem);
+    line-height: 1.18;
+  }
+
+  .template-comparison-pane .template-labeled-line {
+    display: block;
+  }
+
+  .template-comparison-pane :where(.split-body, .template-technical-grid) {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+
+  .template-comparison-pane :where(.template-sidebar) {
+    display: grid;
+    grid-template-columns: 1fr !important;
+  }
+
+  .template-comparison-pane :where(.template-sidebar-rail, .template-sidebar-main, .split-left, .split-right) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .review-editable-section-shell {
+    padding-right: 20px;
+  }
+
+  .resume-section-text-editor .document-section-textarea {
+    padding-right: 52px;
+  }
+
+  .resume-section-format-toolbar {
+    top: 3px;
+    right: 3px;
+    padding: 1px;
+  }
+
+  .resume-section-format-toolbar button {
+    width: 21px;
+    height: 20px;
+  }
+
+  .review-inline-add-section {
+    margin-top: 6px;
+  }
+
+  .review-inline-add-panel {
+    padding: 8px;
+  }
+
+  .review-inline-add-fields {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .review-inline-add-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .review-inline-add-controls .btn {
+    width: 100%;
+  }
+
+}
+
+@media (max-width: 380px) {
+  :root {
+    --sidebar-width: 34px;
+  }
+
+  .sidebar {
+    width: var(--sidebar-width);
+  }
+
+  .sidebar-brand-mark {
+    width: 24px;
+    height: 24px;
+  }
+
+  .sidebar-nav-item {
+    width: 30px;
+    min-height: 36px;
+  }
+
+  .sidebar-nav-item svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .workspace-flow:has(.review-workspace) {
+    padding-inline: 6px 8px;
+  }
+
+  .template-comparison-grid,
+  .template-comparison-grid:not(.is-single-pane),
+  .template-comparison-grid.is-single-pane,
+  .template-comparison-grid.is-optimized-only,
+  .template-comparison-grid.is-compare-mode.is-single-pane {
+    padding: 6px;
+    padding-right: 8px;
+  }
+
+  .template-comparison-pane .resume-template-preview,
+  .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
+    padding: 16px 12px;
+  }
+
+
+
+
+}

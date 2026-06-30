@@ -476,7 +476,6 @@ export function ResumeReview({
 
         <InlineRevisionBar
           selectedSectionId={selectedAssistantSection?.id ?? ""}
-          selectedSectionLabel={selectedAssistantSection?.label ?? "section"}
           instruction={assistantInstruction}
           inputRef={assistantInputRef}
           isRevising={Boolean(revisingSectionId)}
@@ -888,7 +887,6 @@ function ResultsTab({
 
 function InlineRevisionBar({
   selectedSectionId,
-  selectedSectionLabel,
   instruction,
   inputRef,
   isRevising,
@@ -898,7 +896,6 @@ function InlineRevisionBar({
   onSubmit,
 }: {
   selectedSectionId: string;
-  selectedSectionLabel: string;
   instruction: string;
   inputRef: RefObject<HTMLTextAreaElement | null>;
   isRevising: boolean;
@@ -915,10 +912,7 @@ function InlineRevisionBar({
 
   return (
     <div className="review-inline-revision" aria-label="Inline AI revision">
-      <div className="review-inline-revision-inner">
-        <div className="review-inline-revision-hint">
-          <span>Click any section above to edit directly, or ask AI below.</span>
-        </div>
+      <div className="review-inline-revision-card">
         <form className="review-inline-revision-form" onSubmit={onSubmit}>
           <textarea
             ref={inputRef}
@@ -926,7 +920,7 @@ function InlineRevisionBar({
             value={isRevising ? "Submitting..." : instruction}
             rows={1}
             disabled={isRevising}
-            placeholder={`Ask AI to revise the selected ${selectedSectionLabel.toLowerCase()}...`}
+            placeholder="Click any section above to edit directly, or ask AI"
             onChange={(event) => onInstructionChange(event.target.value)}
             onKeyDown={handleInstructionKeyDown}
           />

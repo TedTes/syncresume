@@ -762,7 +762,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           <div className="pdf-fullpage-header">
             <button type="button" className="btn btn-ghost btn-sm" onClick={closeExtractedEditor}>
               <X aria-hidden="true" />
-              Close
+              <span className="pdf-action-label">Close</span>
             </button>
             <span className="pdf-fullpage-name">{editingResume.name} · extracted text</span>
             <div className="pdf-fullpage-actions">
@@ -774,7 +774,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                   onClick={() => void handleExportEditedResume()}
                 >
                   <Download aria-hidden="true" />
-                  Export
+                  <span className="pdf-action-label">Export</span>
                 </button>
                 <button
                   type="button"
@@ -818,7 +818,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                 ) : (
                   <Save aria-hidden="true" />
                 )}
-                Save
+                <span className="pdf-action-label">Save</span>
               </button>
             </div>
           </div>
@@ -847,7 +847,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           <div className="pdf-fullpage-header">
             <button type="button" className="btn btn-ghost btn-sm" onClick={closePreview}>
               <X aria-hidden="true" />
-              Close
+              <span className="pdf-action-label">Close</span>
             </button>
             <span className="pdf-fullpage-name">
               {filePreview?.name ?? previewResume?.name ?? (previewError ? "Preview unavailable" : "Loading preview…")}
@@ -863,7 +863,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                     onClick={() => openExtractedEditor(previewResume)}
                   >
                     <PenLine aria-hidden="true" />
-                    Edit
+                    <span className="pdf-action-label">Edit</span>
                   </button>
                   <button
                     type="button"
@@ -879,7 +879,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                     }}
                   >
                     <Download aria-hidden="true" />
-                    Export
+                    <span className="pdf-action-label">Export</span>
                   </button>
                 </>
               )}

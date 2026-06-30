@@ -1,0 +1,364 @@
+/* ============ App shell: sidebar + main area ============ */
+.app-shell {
+  --template-rail-width: 0px;
+  display: flex;
+  min-height: 100vh;
+}
+
+
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 18px 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+
+.sidebar-brand-mark svg {
+  width: 17px;
+  height: 21px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 66px;
+  min-height: 54px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+
+.sidebar-nav-item svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-nav-item span {
+  max-width: 58px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: currentColor;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.sidebar-nav-item:hover {
+  color: var(--ink);
+  background: var(--surface-hover);
+}
+
+.sidebar-nav-item.active {
+  color: var(--accent-strong);
+  background: var(--surface-raised);
+  border-color: var(--border);
+}
+
+.topbar-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.topbar-account {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  min-height: 36px;
+  flex-shrink: 0;
+}
+
+.topbar-user-button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+}
+
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Per-page topbar */
+.page-topbar {
+  --page-topbar-height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: var(--page-topbar-height);
+  padding: 0 24px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.page-topbar-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.page-topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-topbar.review-mode {
+  justify-content: stretch;
+}
+
+.review-toolbar-slot {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: visible;
+}
+
+.workspace-outer {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  /* clip panel slide animation without breaking sticky positioning */
+  overflow: clip;
+}
+
+.workspace-flow {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 24px clamp(18px, 3vw, 40px) 42px;
+}
+
+.workspace-outer.template-panel-open .workspace-flow {
+  max-width: none;
+}
+
+.workspace-flow:has(.review-workspace) {
+  padding: 0 16px 16px;
+  max-width: none;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workspace-job-section {
+  padding: 0;
+}
+
+.workspace-job-section .input-col {
+  max-width: none;
+}
+
+.workspace-flow > .page-content,
+.workspace-flow > .workspace-resumes-anchor > .page-content {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 0;
+}
+
+.saved-application-review {
+  position: fixed;
+  inset: 56px 0 0 var(--sidebar-width);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  padding: 12px 18px 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+}
+
+.saved-application-review:has(.review-workspace) {
+  overflow: hidden;
+}
+
+.saved-application-review > .input-col {
+  flex: 0 0 auto;
+}
+
+.saved-application-review .review-panel-anchor {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.saved-application-review .review-workspace {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.saved-application-review .tab-content,
+.saved-application-review .results-template-stage {
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.saved-application-review .template-comparison-grid {
+  flex: 1 1 auto;
+  height: auto;
+  max-height: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workspace-flow > .workspace-resumes-anchor {
+  flex: 0 0 auto;
+}
+
+.workspace-resumes-anchor {
+  scroll-margin-top: 72px;
+}
+
+.workspace-resume-section {
+  padding-top: 0;
+}
+
+.resume-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.resume-pill:hover {
+  background: var(--surface-hover);
+}
+
+.resume-pill svg {
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+.resume-pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  color: var(--ink);
+  background: var(--surface-hover);
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 5px;
+}
+
+.status-badge svg {
+  width: 13px;
+  height: 13px;
+}
+
+.status-badge.ready {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.status-badge.processing {
+  background: var(--accent-dim);
+  color: var(--accent-strong);
+}
+
+.page-content {
+  flex: 1;
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+}
