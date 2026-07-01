@@ -284,13 +284,13 @@
 .review-editable-section-shell {
   position: relative;
   min-width: 0;
-  padding-right: 24px;
+  padding-right: 28px;
 }
 
 .review-inline-delete-section {
   position: absolute;
   top: -2px;
-  right: -2px;
+  right: 4px;
   z-index: 2;
   display: inline-grid;
   place-items: center;
@@ -432,34 +432,7 @@
   outline: 3px solid rgba(16, 185, 129, 0.12);
 }
 
-.review-inline-revision {
-  box-sizing: border-box;
-  flex: 0 0 auto;
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  padding: 0 clamp(18px, 3vw, 32px) 16px;
-  background:
-    radial-gradient(circle at 50% 0, rgba(255, 255, 255, 0.035), transparent 34%),
-    #20201f;
-  overflow-x: hidden;
-}
 
-.review-inline-revision-card {
-  box-sizing: border-box;
-  width: min(720px, 100%);
-  max-width: 100%;
-  min-width: 0;
-  margin: 0 auto;
-  padding: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-top: 0;
-  border-radius: 0 0 8px 8px;
-  background: #f7f7f4;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
-}
 
 .review-inline-revision-form {
   box-sizing: border-box;
@@ -468,6 +441,7 @@
   gap: 8px;
   width: 100%;
   min-width: 0;
+  padding: 1px;
 }
 
 .review-inline-revision-input {
@@ -502,6 +476,7 @@
   box-sizing: border-box;
   min-width: 108px;
   min-height: 40px;
+  max-width: 100%;
   white-space: nowrap;
 }
 
@@ -509,7 +484,7 @@
 
 
   .review-editable-section-shell {
-    padding-right: 28px;
+    padding-right: 30px;
   }
 
   .review-inline-delete-section {
@@ -526,14 +501,7 @@
     grid-template-columns: 1fr;
   }
 
-  .review-inline-revision {
-    padding: 0 clamp(12px, 3vw, 18px) 12px;
-  }
 
-  .review-inline-revision-card {
-    width: min(680px, 100%);
-    padding: 10px;
-  }
 
   .review-inline-revision-form {
     grid-template-columns: 1fr;
@@ -552,14 +520,7 @@
 }
 
 @media (max-width: 420px) {
-  .review-inline-revision {
-    padding: 0 10px 10px;
-  }
 
-  .review-inline-revision-card {
-    width: 100%;
-    padding: 8px;
-  }
 
   .review-inline-revision-input {
     padding: 9px 10px;

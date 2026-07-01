@@ -1,6 +1,7 @@
 import {
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
   type RefObject,
   useEffect,
   useMemo,
@@ -479,19 +480,20 @@ export function ResumeReview({
           onAddSection={handleAddSection}
           onOpenAddSection={setAddSectionAfterId}
           onCloseAddSection={() => setAddSectionAfterId(null)}
-        />
-
-        <InlineRevisionBar
-          selectedSectionId={selectedAssistantSection?.id ?? ""}
-          instruction={assistantInstruction}
-          inputRef={assistantInputRef}
-          isRevising={Boolean(revisingSectionId)}
-          onInstructionChange={(value) => {
-            setAssistantInstruction(value);
-            setRevisionStatus("");
-            setRevisionError("");
-          }}
-          onSubmit={handleAssistantRevise}
+          revisionBar={
+            <InlineRevisionBar
+              selectedSectionId={selectedAssistantSection?.id ?? ""}
+              instruction={assistantInstruction}
+              inputRef={assistantInputRef}
+              isRevising={Boolean(revisingSectionId)}
+              onInstructionChange={(value) => {
+                setAssistantInstruction(value);
+                setRevisionStatus("");
+                setRevisionError("");
+              }}
+              onSubmit={handleAssistantRevise}
+            />
+          }
         />
       </div>
     </section>
@@ -739,6 +741,7 @@ function ResultsTab({
   onAddSection,
   onOpenAddSection,
   onCloseAddSection,
+  revisionBar,
 }: {
   sections: SectionComparison[];
   templateId: ResumeTemplateId;
@@ -769,6 +772,7 @@ function ResultsTab({
   ) => void;
   onOpenAddSection: (afterSectionId: string) => void;
   onCloseAddSection: () => void;
+  revisionBar?: ReactNode;
 }) {
   const comparisonRef = useRef<HTMLDivElement | null>(null);
   const [isSinglePane, setIsSinglePane] = useState(false);
@@ -837,47 +841,52 @@ function ResultsTab({
       >
         {isCompareMode && (
           <div className="template-comparison-pane template-comparison-before">
-            <ResumeTemplatePreview
-              key={`before-${templateId}`}
-              document={originalDocument}
-              templateId={templateId}
-              fontId={fontId}
-              renderSectionContent={(section) =>
-                renderDiffSectionContent(section, comparisonById, "before")
-              }
-            />
+            <div className="template-comparison-document">
+              <ResumeTemplatePreview
+                key={`before-${templateId}`}
+                document={originalDocument}
+                templateId={templateId}
+                fontId={fontId}
+                renderSectionContent={(section) =>
+                  renderDiffSectionContent(section, comparisonById, "before")
+                }
+              />
+            </div>
           </div>
         )}
         <div className="template-comparison-pane template-comparison-after">
-          <ResumeTemplatePreview
-            key={`after-${templateId}`}
-            document={optimizedDocument}
-            templateId={templateId}
-            fontId={fontId}
-            renderSectionContent={(section) =>
-              isCompareMode
-                ? renderDiffSectionContent(section, comparisonById, "after")
-                : renderEditableAfterSectionContent(
-                    section,
-                    comparisonById,
-                    selectedSectionId,
-                    onSelectAfterSection,
-                    onAfterSectionChange,
-                    onAfterSectionContentKindChange,
-                    onAfterSectionFormatChange,
-                    canRemoveAfterSection,
-                    onRemoveAfterSection,
-                    {
-                      availableSectionTitles: availableAddSectionTitles,
-                      isAddSectionOpen: addSectionAfterId === section.id,
-                      onAddSection: (title, content, contentKind) =>
-                        onAddSection(section.id, title, content, contentKind),
-                      onOpenAddSection: () => onOpenAddSection(section.id),
-                      onCloseAddSection,
-                    },
-                  )
-            }
-          />
+          <div className="template-comparison-document">
+            <ResumeTemplatePreview
+              key={`after-${templateId}`}
+              document={optimizedDocument}
+              templateId={templateId}
+              fontId={fontId}
+              afterPreviewContent={!isCompareMode ? revisionBar : undefined}
+              renderSectionContent={(section) =>
+                isCompareMode
+                  ? renderDiffSectionContent(section, comparisonById, "after")
+                  : renderEditableAfterSectionContent(
+                      section,
+                      comparisonById,
+                      selectedSectionId,
+                      onSelectAfterSection,
+                      onAfterSectionChange,
+                      onAfterSectionContentKindChange,
+                      onAfterSectionFormatChange,
+                      canRemoveAfterSection,
+                      onRemoveAfterSection,
+                      {
+                        availableSectionTitles: availableAddSectionTitles,
+                        isAddSectionOpen: addSectionAfterId === section.id,
+                        onAddSection: (title, content, contentKind) =>
+                          onAddSection(section.id, title, content, contentKind),
+                        onOpenAddSection: () => onOpenAddSection(section.id),
+                        onCloseAddSection,
+                      },
+                    )
+              }
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -906,33 +915,31 @@ function InlineRevisionBar({
   }
 
   return (
-    <div className="review-inline-revision" aria-label="Inline AI revision">
-      <div className="review-inline-revision-card">
-        <form className="review-inline-revision-form" onSubmit={onSubmit}>
-          <textarea
-            ref={inputRef}
-            className="review-inline-revision-input"
-            value={isRevising ? "Submitting..." : instruction}
-            rows={1}
-            disabled={isRevising}
-            placeholder="Click any section above to edit directly, or ask AI"
-            onChange={(event) => onInstructionChange(event.target.value)}
-            onKeyDown={handleInstructionKeyDown}
-          />
-          <button
-            className="btn btn-primary review-inline-revision-submit"
-            type="submit"
-            disabled={isRevising || !instruction.trim() || !selectedSectionId}
-          >
-            {isRevising ? (
-              <Loader2 className="spin" aria-hidden="true" />
-            ) : (
-              <Send aria-hidden="true" />
-            )}
-            {isRevising ? "Revising..." : "Revise"}
-          </button>
-        </form>
-      </div>
+    <div className="review-inline-revision-card">
+      <form className="review-inline-revision-form" onSubmit={onSubmit}>
+        <textarea
+          ref={inputRef}
+          className="review-inline-revision-input"
+          value={isRevising ? "Submitting..." : instruction}
+          rows={1}
+          disabled={isRevising}
+          placeholder="Click any section above to edit directly, or ask AI"
+          onChange={(event) => onInstructionChange(event.target.value)}
+          onKeyDown={handleInstructionKeyDown}
+        />
+        <button
+          className="btn btn-primary review-inline-revision-submit"
+          type="submit"
+          disabled={isRevising || !instruction.trim() || !selectedSectionId}
+        >
+          {isRevising ? (
+            <Loader2 className="spin" aria-hidden="true" />
+          ) : (
+            <Send aria-hidden="true" />
+          )}
+          {isRevising ? "Revising..." : "Revise"}
+        </button>
+      </form>
     </div>
   );
 }

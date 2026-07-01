@@ -13,7 +13,7 @@
     overflow-x: hidden;
   }
 
-  .workspace-flow:has(.review-workspace),
+
   .saved-application-review:has(.review-workspace) {
     box-sizing: border-box;
     width: 100%;
@@ -22,8 +22,6 @@
     padding-inline: clamp(8px, 2.4vw, 14px);
     overflow-x: hidden;
   }
-
-
 
   .review-toolbar-slot,
   .review-toolbar-slot .review-topbar {
@@ -61,11 +59,29 @@
   .template-comparison-grid.is-compare-mode.is-single-pane {
     box-sizing: border-box;
     grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    padding-inline: clamp(12px, 2.8vw, 18px);
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
     overflow-x: hidden;
+    padding: 10px clamp(10px, 2.6vw, 16px) 12px;
+  }
+
+  .template-comparison-grid.is-single-pane .template-comparison-before {
+    display: none;
+  }
+
+  .template-comparison-grid.is-compare-mode.is-single-pane {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .template-comparison-grid.is-compare-mode.is-single-pane .template-comparison-before {
+    display: block;
   }
 
   .template-comparison-pane {
@@ -75,24 +91,28 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
+    padding-inline: 4px;
     overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable both-edges;
   }
 
-  .template-comparison-pane .resume-template-font-scope {
+
+  .template-comparison-document {
     box-sizing: border-box;
-    width: 100%;
-    max-width: min(816px, calc(100% - 2px));
+    width: min(816px, calc(100% - 2px));
+    max-width: 100%;
     min-width: 0;
   }
 
   .template-comparison-pane .resume-template-preview,
   .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
     box-sizing: border-box;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     margin-inline: auto;
-    zoom: 1 !important;
+    zoom: 1;
     overflow-x: hidden;
   }
 
@@ -146,25 +166,19 @@
     min-width: 0;
   }
 
-  .workspace-flow:has(.review-workspace) {
-    width: 100%;
-    max-width: 100%;
-    padding: 0 10px 10px 8px;
-    overflow-x: hidden;
+  .review-topbar-actions {
+    max-width: calc(100vw - var(--sidebar-width) - 58px);
   }
 
   .review-workspace,
   .review-workspace .tab-content,
   .review-workspace .results-stage,
   .review-workspace .results-template-stage {
-    /* box-sizing: border-box;
+    box-sizing: border-box;
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    overflow-x: hidden; */
-  }
-  .review-topbar-actions {
-    max-width: calc(100vw - var(--sidebar-width) - 58px);
+    overflow-x: hidden;
   }
 
   .template-comparison-grid,
@@ -172,11 +186,7 @@
   .template-comparison-grid.is-single-pane,
   .template-comparison-grid.is-optimized-only,
   .template-comparison-grid.is-compare-mode.is-single-pane {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    padding: 8px 12px 8px 10px;
-    overflow-x: hidden;
+    padding: 8px clamp(8px, 2.8vw, 12px) 10px;
   }
 
   .template-comparison-pane {
@@ -185,15 +195,10 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    padding: 0;
+    padding-inline: 4px;
     overflow-x: hidden;
   }
 
-  .template-comparison-pane .resume-template-font-scope {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-  }
 
   .template-comparison-pane .resume-template-preview,
   .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
@@ -201,10 +206,8 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    margin: 0 auto;
+    margin-inline: auto;
     padding: 18px 14px;
-    overflow: hidden;
-    zoom: 1;
   }
 
   .template-comparison-pane .resume-template-preview,
@@ -290,6 +293,11 @@
     width: 100%;
   }
 
+  .template-comparison-document {
+    width: calc(100% - 2px);
+    max-width: 100%;
+  }
+
 }
 
 @media (max-width: 380px) {
@@ -316,17 +324,17 @@
     height: 15px;
   }
 
-  .workspace-flow:has(.review-workspace) {
-    padding-inline: 6px 8px;
-  }
-
   .template-comparison-grid,
   .template-comparison-grid:not(.is-single-pane),
   .template-comparison-grid.is-single-pane,
   .template-comparison-grid.is-optimized-only,
   .template-comparison-grid.is-compare-mode.is-single-pane {
-    padding: 6px;
-    padding-right: 8px;
+    padding: 6px 8px 8px;
+  }
+
+  .template-comparison-document {
+    width: calc(100% - 2px);
+    max-width: 100%;
   }
 
   .template-comparison-pane .resume-template-preview,
@@ -334,7 +342,24 @@
     padding: 16px 12px;
   }
 
+}
 
+@media (max-width: 900px) {
+  .saved-application-review:has(.review-workspace) {
+    overflow-y: auto;
+  }
 
-
+  .saved-application-review .review-workspace,
+  .saved-application-review .tab-content,
+  .saved-application-review .results-stage,
+  .saved-application-review .results-template-stage,
+  .saved-application-review .template-comparison-grid,
+  .saved-application-review .template-comparison-grid.is-optimized-only,
+  .saved-application-review .template-comparison-grid.is-compare-mode.is-single-pane,
+  .saved-application-review .template-comparison-pane {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
 }

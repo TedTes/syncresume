@@ -342,11 +342,12 @@
 }
 
 .tab-content {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   height: 100%;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
   padding: 0;
 }
@@ -363,28 +364,26 @@
 }
 
 .template-comparison-grid {
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
-  gap: 4px;
-  height: max(460px, calc(100vh - 222px));
-  max-height: calc(100vh - 222px);
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
   min-height: 0;
+  max-height: 100%;
   overflow: hidden;
-  padding: 0 32px 16px 18px;
+  padding: 12px clamp(14px, 2vw, 32px) 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   background:
     radial-gradient(circle at 50% 0, rgba(255, 255, 255, 0.04), transparent 34%),
     #20201f;
-  min-width: 0;
-  width: 100%;
 }
 
 .template-comparison-grid.is-single-pane {
   grid-template-columns: minmax(0, 1fr);
-  height: max(460px, calc(100vh - 256px));
-  max-height: calc(100vh - 256px);
-  padding-right: 24px;
 }
 
 .template-comparison-grid.is-single-pane .template-comparison-before {
@@ -395,11 +394,11 @@
   grid-template-columns: minmax(0, 1fr);
   height: 100%;
   max-height: none;
-  padding: 12px 32px 16px;
+  padding-inline: clamp(14px, 2.4vw, 32px);
 }
 
 .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
-  zoom: 0.88;
+  zoom: 1;
 }
 
 .template-comparison-grid.is-compare-mode.is-single-pane {
@@ -415,30 +414,62 @@
 
 .template-comparison-pane {
   position: relative;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   height: 100%;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-gutter: stable;
+  padding-inline: 6px;
+  scrollbar-gutter: stable both-edges;
   background: transparent;
   overscroll-behavior: contain;
   scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
 }
 
 .template-comparison-pane .resume-template-preview {
-  /* Render at the template's natural 816px width, then zoom to fit the pane.
-     Centering via margin; pane scrolls vertically. */
+  box-sizing: border-box;
   display: block;
-  width: 816px;
-  max-width: 816px;
-  zoom: 0.78;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  zoom: 1;
   height: auto;
   margin: 0 auto;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 6px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+}
+
+.template-comparison-document {
+  box-sizing: border-box;
+  display: flex;
+  width: min(816px, calc(100% - 2px));
+  max-width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  flex-direction: column;
+}
+
+.template-comparison-document .resume-template-font-scope,
+.template-comparison-document .resume-template-preview {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.template-comparison-document .resume-template-font-scope {
+  display: flex;
+  flex-direction: column;
+}
+
+.template-comparison-document .resume-template-preview {
+  flex: 0 0 auto;
 }
 
 .template-comparison-pane .template-labeled-line {
@@ -520,8 +551,7 @@
 
 .workspace-outer.template-panel-open .results-template-stage .template-comparison-after .resume-template-preview,
 .review-workspace.template-panel-open .results-template-stage .template-comparison-after .resume-template-preview {
-  flex-basis: 860px;
-  width: min(100%, 860px);
+  width: 100%;
 }
 
 .review-workspace.template-panel-open {
@@ -531,23 +561,57 @@
 
 .review-workspace.template-panel-open .tab-content,
 .review-workspace.template-panel-open .results-template-stage {
-  flex: 0 0 auto;
-  height: auto;
-  overflow: visible;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .review-workspace.template-panel-open .results-template-stage .template-comparison-grid.is-optimized-only {
-  height: auto;
-  max-height: none;
+  height: 100%;
+  max-height: 100%;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
   padding-bottom: 8px;
 }
 
 .review-workspace.template-panel-open .results-template-stage .template-comparison-grid.is-optimized-only .template-comparison-pane {
-  height: auto;
-  max-height: min(560px, calc(100vh - 232px));
+  height: 100%;
+  max-height: 100%;
   overflow-y: auto;
+}
+
+.saved-application-review:has(.review-workspace) {
+  overflow-y: auto;
+}
+
+.saved-application-review .review-panel-anchor {
+  display: block;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.saved-application-review .review-workspace {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.saved-application-review .tab-content,
+.saved-application-review .results-stage,
+.saved-application-review .results-template-stage,
+.saved-application-review .template-comparison-grid {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  overflow: visible;
+}
+
+.saved-application-review .template-comparison-pane {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  overflow: visible;
 }
 
 

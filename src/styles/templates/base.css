@@ -1,4 +1,5 @@
 .resume-template-preview {
+  box-sizing: border-box;
   flex: 1;
   min-height: 520px;
   padding: 34px 38px;

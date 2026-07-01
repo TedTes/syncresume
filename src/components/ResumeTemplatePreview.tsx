@@ -16,6 +16,7 @@ type ResumeTemplatePreviewProps = {
   document: ResumeDocument;
   templateId: ResumeTemplateId;
   fontId?: ResumeFontId;
+  afterPreviewContent?: ReactNode;
   renderContactSectionContent?: (section: ResumeSection) => ReactNode;
   renderSectionContent?: (section: ResumeSection) => ReactNode;
 };
@@ -24,6 +25,7 @@ export function ResumeTemplatePreview({
   document,
   templateId,
   fontId = DEFAULT_RESUME_FONT_ID,
+  afterPreviewContent,
   renderContactSectionContent,
   renderSectionContent,
 }: ResumeTemplatePreviewProps) {
@@ -57,6 +59,7 @@ export function ResumeTemplatePreview({
           bodySections={bodySections}
           renderSectionContent={renderSectionContent}
         />
+        {afterPreviewContent}
       </div>
     </TemplateRenderProvider>
   );
