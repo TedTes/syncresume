@@ -34,10 +34,12 @@ import {
   downloadResumeDocumentPdf,
 } from "../lib/exportResume";
 import { extractResumeText } from "../lib/fileExtract";
+import { structureResumeWithProvider } from "../lib/providers/dispatch";
 import { applyUserProfileContactFallback } from "../lib/userProfile";
 import {
   parseResumeDocument,
   serializeResumeDocument,
+  structuredResumeToDocument,
   updateResumeDocumentSection,
   updateResumeDocumentSectionContentKind,
   withFallbackContactSection,
@@ -122,6 +124,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   } = useAppData();
   const { isConfigured: hasBackend, isLoading: isAuthLoading, user } = useAuth();
   const {
+    provider,
     selectedTemplateId,
     setSelectedTemplateId,
     selectedFontId,
@@ -393,6 +396,22 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     setIsDraggingOver(false);
   }
 
+  async function structureResumeForSave(resumeText: string, resumeName: string): Promise<string> {
+    const structured = await structureResumeWithProvider({
+      provider,
+      resumeName,
+      resumeText,
+    });
+    const document = structuredResumeToDocument(structured.resume, resumeName);
+    const structuredText = serializeResumeDocument(document).trim() || structured.text.trim();
+
+    if (structuredText.length < 20) {
+      throw new Error("The model did not return enough structured resume content.");
+    }
+
+    return structuredText;
+  }
+
   async function handleFiles(files: FileList | File[]) {
     if (requiresSignIn) {
       setUploadError("Sign in before uploading resumes.");
@@ -424,15 +443,17 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
         const fileType = fileTypeFromName(file.name);
         updateUploadItem(itemId, { status: "extracting", message: "Extracting text" });
         const extracted = await extractResumeText(file);
+        updateUploadItem(itemId, { status: "extracting", message: "Structuring sections with AI" });
+        const structuredText = await structureResumeForSave(extracted.text, extracted.name);
         updateUploadItem(itemId, {
           status: "uploading",
-          message: `${extracted.characterCount.toLocaleString()} characters extracted`,
+          message: `${structuredText.length.toLocaleString()} structured characters`,
         });
         await addResume({
           name: extracted.name,
           fileType,
-          text: extracted.text,
-          characterCount: extracted.characterCount,
+          text: structuredText,
+          characterCount: structuredText.length,
           templateId: selectedTemplateId,
           file,
         });
@@ -563,11 +584,13 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     setIsSavingTextResume(true);
     setUploadError("");
     try {
+      const resumeName = textResumeName.trim() || "Pasted Resume.txt";
+      const structuredText = await structureResumeForSave(normalizedText, resumeName);
       await addResume({
-        name: textResumeName.trim() || "Pasted Resume.txt",
+        name: resumeName,
         fileType: "text",
-        text: normalizedText,
-        characterCount: normalizedText.length,
+        text: structuredText,
+        characterCount: structuredText.length,
         templateId: selectedTemplateId,
       });
       setTextResumeName("");

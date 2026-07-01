@@ -24,11 +24,27 @@ type OptimizeEdgeResponse = {
   run?: RunRecord | null;
 };
 
+type StructureResumeArgs = {
+  provider: LLMProvider;
+  resumeText: string;
+  resumeName?: string;
+};
+
+type StructureResumeEdgeResponse = {
+  resume?: unknown;
+  text?: string;
+};
+
 export type OptimizeProviderResult = {
   resume: StructuredResume;
   score: number;
   run?: RunRecord;
   persisted: boolean;
+};
+
+export type StructureResumeProviderResult = {
+  resume: StructuredResume;
+  text: string;
 };
 
 export async function optimizeResumeWithProvider({
@@ -68,6 +84,33 @@ export async function optimizeResumeWithProvider({
     run: data.run ?? undefined,
     persisted: true,
   };
+}
+
+export async function structureResumeWithProvider({
+  provider,
+  resumeText,
+  resumeName,
+}: StructureResumeArgs): Promise<StructureResumeProviderResult> {
+  if (!hasCloudflareConfig()) {
+    throw new Error("Cloudflare API is not configured. Set VITE_CLOUDFLARE_API_URL.");
+  }
+
+  const data = await cloudflareRequest<StructureResumeEdgeResponse>("/api/resumes/structure", {
+    method: "POST",
+    body: {
+      provider,
+      resumeName,
+      resumeText,
+    },
+  });
+  const resume = normalizeStructuredResume(data.resume);
+  const text = data.text?.trim() || resumeToPlainText(resume);
+
+  if (!text) {
+    throw new Error("The backend returned an empty structured resume.");
+  }
+
+  return { resume, text };
 }
 
 type ReviseArgs = {

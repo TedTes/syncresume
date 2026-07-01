@@ -115,10 +115,9 @@ export function normalizeStructuredResume(input: unknown): StructuredResume {
 }
 
 export function resumeToPlainText(resume: StructuredResume): string {
-  if (resume.sections?.length) {
-    return resume.sections
-      .slice()
-      .sort((left, right) => left.order - right.order)
+  const sections = structuredResumeSectionsWithCanonicalFallbacks(resume);
+  if (sections.length) {
+    return sections
       .map((section) => {
         const title = section.title.trim();
         const content = section.content.trim();
@@ -166,6 +165,120 @@ export function resumeToPlainText(resume: StructuredResume): string {
   }
 
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export function structuredResumeSectionsWithCanonicalFallbacks(
+  resume: StructuredResume,
+): StructuredResumeSection[] {
+  const sections = (resume.sections ?? [])
+    .slice()
+    .sort((left, right) => left.order - right.order)
+    .map((section, index) => ({ ...section, order: index }));
+  const nextSections = [...sections];
+
+  if (!hasCanonicalSection(nextSections, "summary") && resume.summary.trim()) {
+    nextSections.push(makeCanonicalSection("summary", "Summary", resume.summary.trim(), "paragraph"));
+  }
+
+  const experienceContent = resume.experience.map(experienceRoleToText).filter(Boolean).join("\n\n");
+  if (experienceContent.trim()) {
+    upsertCanonicalSection(
+      nextSections,
+      "experience",
+      "Professional Experience",
+      experienceContent,
+      "paragraph",
+    );
+  }
+
+  if (!hasCanonicalSection(nextSections, "skills") && resume.skills.length > 0) {
+    nextSections.push(makeCanonicalSection("skills", "Skills", resume.skills.join(", "), "paragraph"));
+  }
+
+  if (!hasCanonicalSection(nextSections, "education") && resume.education.length > 0) {
+    nextSections.push(makeCanonicalSection("education", "Education", resume.education.join("\n"), "paragraph"));
+  }
+
+  return nextSections
+    .filter((section) => section.title.trim() || section.content.trim())
+    .map((section, index) => ({ ...section, order: index }));
+}
+
+function makeCanonicalSection(
+  type: string,
+  title: string,
+  content: string,
+  contentKind: "paragraph" | "bullets",
+): StructuredResumeSection {
+  return {
+    id: `${type}-fallback`,
+    type,
+    title,
+    content,
+    contentKind,
+    order: Number.MAX_SAFE_INTEGER,
+  };
+}
+
+function upsertCanonicalSection(
+  sections: StructuredResumeSection[],
+  type: string,
+  title: string,
+  content: string,
+  contentKind: "paragraph" | "bullets",
+): void {
+  const existingIndex = sections.findIndex((section) => sectionMatchesCanonicalType(section, type));
+  const canonicalSection = makeCanonicalSection(type, title, content, contentKind);
+
+  if (existingIndex < 0) {
+    sections.push(canonicalSection);
+    return;
+  }
+
+  const existingSection = sections[existingIndex];
+  sections[existingIndex] = {
+    ...existingSection,
+    type,
+    title: existingSection.title.trim() || title,
+    content,
+    contentKind,
+  };
+
+  for (let index = sections.length - 1; index > existingIndex; index -= 1) {
+    if (sectionMatchesCanonicalType(sections[index], type)) {
+      sections.splice(index, 1);
+    }
+  }
+}
+
+function hasCanonicalSection(sections: StructuredResumeSection[], type: string): boolean {
+  return sections.some((section) => section.content.trim() && sectionMatchesCanonicalType(section, type));
+}
+
+function sectionMatchesCanonicalType(section: StructuredResumeSection, type: string): boolean {
+  const normalizedType = section.type.toLowerCase().trim();
+  const normalizedTitle = normalizeCanonicalTitle(section.title);
+
+  if (normalizedType === type) return true;
+
+  if (type === "summary") {
+    return /\b(summary|profile|objective)\b/.test(normalizedTitle);
+  }
+  if (type === "experience") {
+    return /\b(experience|employment|work history|career history)\b/.test(normalizedTitle);
+  }
+  if (type === "skills") {
+    return /\b(skills|competencies|technologies|tech stack|expertise)\b/.test(normalizedTitle);
+  }
+  if (type === "education") {
+    return /\b(education|degree|academic)\b/.test(normalizedTitle);
+  }
+
+  return false;
+}
+
+function normalizeCanonicalTitle(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 export function parseResumeJson(raw: string): StructuredResume {
@@ -333,14 +446,16 @@ export function sectionText(resume: StructuredResume, sectionId: string): string
 }
 
 export function experienceRoleToText(role: ExperienceRole): string {
+  const heading = [role.title, role.company, role.location, role.dates]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" | ");
+
   return [
-    `Title: ${role.title}`,
-    `Company: ${role.company}`,
-    `Location: ${role.location}`,
-    `Dates: ${role.dates}`,
+    heading,
     ...role.bullets.map((bullet) => `- ${bullet}`),
   ]
-    .filter((line) => line.replace(/^[A-Za-z]+:\s*/, "").trim())
+    .filter((line) => line.trim())
     .join("\n");
 }
 
@@ -429,6 +544,7 @@ function parseExperienceRoleText(value: string, fallback: ExperienceRole): Exper
     .filter(Boolean);
   const nextRole = { ...fallback, bullets: [] as string[] };
   const bulletLines: string[] = [];
+  let consumedHeading = false;
 
   for (const line of lines) {
     const fieldMatch = line.match(/^(title|company|location|dates):\s*(.*)$/i);
@@ -446,6 +562,9 @@ function parseExperienceRoleText(value: string, fallback: ExperienceRole): Exper
       if (field.toLowerCase() === "dates") {
         nextRole.dates = fieldValue.trim();
       }
+    } else if (!consumedHeading && !/^\s*[-*•]/.test(line)) {
+      parseExperienceHeadingLine(line, nextRole);
+      consumedHeading = true;
     } else {
       bulletLines.push(line);
     }
@@ -453,6 +572,33 @@ function parseExperienceRoleText(value: string, fallback: ExperienceRole): Exper
 
   nextRole.bullets = bulletLines.length > 0 ? linesToBullets(bulletLines.join("\n")) : fallback.bullets;
   return nextRole;
+}
+
+function parseExperienceHeadingLine(line: string, role: ExperienceRole): void {
+  const parts = line
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) return;
+
+  if (parts.length === 1) {
+    role.title = parts[0];
+    return;
+  }
+
+  role.title = parts[0];
+  role.dates = parts[parts.length - 1];
+
+  if (parts.length === 3) {
+    role.company = parts[1];
+    return;
+  }
+
+  if (parts.length >= 4) {
+    role.company = parts[1];
+    role.location = parts.slice(2, -1).join(" | ");
+  }
 }
 
 function parseExperienceSectionText(value: string, fallbackRoles: ExperienceRole[]): ExperienceRole[] {

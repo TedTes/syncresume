@@ -1,4 +1,4 @@
-import type { StructuredResume } from "./resume";
+import { structuredResumeSectionsWithCanonicalFallbacks, type StructuredResume } from "./resume";
 
 export type ResumeSectionType =
   | "contact"
@@ -115,7 +115,12 @@ const KNOWN_RESUME_HEADINGS: { heading: string; type: ResumeSectionType }[] = [
 
 KNOWN_RESUME_HEADINGS.sort((a, b) => b.heading.length - a.heading.length);
 
-const INLINE_AMBIGUOUS_HEADINGS = new Set(["PROFILE"]);
+type ResumeHeadingMatch = {
+  index: number;
+  heading: string;
+  contentStart: number;
+  metadata: { heading: string; type: ResumeSectionType };
+};
 
 export function inferResumeSectionTypeFromTitle(title: string): ResumeSectionType {
   const normalizedTitle = normalizeResumeSectionTitle(title);
@@ -133,10 +138,11 @@ export function inferResumeSectionContentKind(
   title = "",
   content = "",
 ): ResumeSectionContentKind {
-  if (isBulletDominantContent(content)) return "bullets";
-
   const inferredType = title ? inferResumeSectionTypeFromTitle(title) : sectionType;
   const effectiveType = inferredType === "custom" ? sectionType : inferredType;
+
+  if (hasMixedTextAndBulletContent(content)) return "paragraph";
+  if (isBulletListContent(content)) return "bullets";
 
   if (
     effectiveType === "projects" ||
@@ -323,14 +329,15 @@ export function structuredResumeToDocument(
   resume: StructuredResume,
   title = "Optimized resume",
 ): ResumeDocument {
-  if (resume.sections?.length) {
+  const structuredSections = structuredResumeSectionsWithCanonicalFallbacks(resume);
+  if (structuredSections.length) {
     return {
-      id: `structured-${hashText(JSON.stringify(resume.sections))}`,
+      id: `structured-${hashText(JSON.stringify(structuredSections))}`,
       title,
       sections: normalizeResumeDocumentOrder({
         id: "tmp",
         title,
-        sections: resume.sections
+        sections: structuredSections
           .map((section, index): ResumeSection => {
             const sectionType = normalizeSectionType(section.type);
             const title = section.title || "Section";
@@ -430,15 +437,29 @@ function serializeSectionContent(section: ResumeSection): string {
   return normalizeSectionContentForKind(section.content, "bullets");
 }
 
-function isBulletDominantContent(value: string): boolean {
+function hasMixedTextAndBulletContent(value: string): boolean {
   const lines = value
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
   if (lines.length < 2) return false;
 
-  const bulletLines = lines.filter((line) => /^[-*•]\s+/.test(line)).length;
-  return bulletLines >= 2 && bulletLines / lines.length >= 0.5;
+  const bulletLines = lines.filter(isBulletLine).length;
+  return bulletLines > 0 && bulletLines < lines.length;
+}
+
+function isBulletListContent(value: string): boolean {
+  const lines = value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length < 2) return false;
+
+  return lines.every(isBulletLine);
+}
+
+function isBulletLine(line: string): boolean {
+  return /^[-*•]\s+/.test(line);
 }
 
 export function sectionTextareaRows(content: string): number {
@@ -471,31 +492,26 @@ function normalizeResumeDocumentOrder(document: ResumeDocument): ResumeDocument 
 
 function parseResumeSections(text: string): ResumeSection[] {
   if (!text) return [];
+  const sectionText = normalizeInlineSectionHeadingBoundaries(text);
 
-  const headingPattern = new RegExp(
-    `\\b(${KNOWN_RESUME_HEADINGS.map(({ heading }) => escapeRegExp(heading)).join("|")})\\b:?`,
-    "gi",
-  );
-  const matches = Array.from(text.matchAll(headingPattern)).filter((match) =>
-    isLikelyResumeHeading(match, text),
-  );
+  const matches = findResumeHeadingMatches(sectionText);
 
   if (matches.length === 0) {
     return [
       {
-      id: "resume-0",
-      type: "custom",
-      title: "Extracted Resume",
-      content: formatSectionContent(text),
-      contentKind: "paragraph",
-      order: 0,
-    },
+        id: "resume-0",
+        type: "custom",
+        title: "Extracted Resume",
+        content: formatSectionContent(sectionText),
+        contentKind: "paragraph",
+        order: 0,
+      },
     ];
   }
 
   const sections: ResumeSection[] = [];
-  const firstHeadingStart = matches[0].index ?? 0;
-  const contactText = text.slice(0, firstHeadingStart).trim();
+  const firstHeadingStart = matches[0].index;
+  const contactText = sectionText.slice(0, firstHeadingStart).trim();
   if (contactText) {
     sections.push({
       id: "contact-0",
@@ -507,21 +523,20 @@ function parseResumeSections(text: string): ResumeSection[] {
     });
   }
 
-  matches.forEach((match) => {
-    const headingStart = match.index ?? 0;
-    const heading = (match[1] ?? "Section").toUpperCase();
-    const headingEnd = headingStart + match[0].length;
-    const nextHeadingStart = matches.find((candidate) => (candidate.index ?? 0) > headingStart)?.index ?? text.length;
-    const metadata = KNOWN_RESUME_HEADINGS.find((item) => item.heading === heading);
-    const content = formatSectionContent(text.slice(headingEnd, nextHeadingStart), metadata?.type);
+  matches.forEach((match, index) => {
+    const nextHeadingStart = matches[index + 1]?.index ?? sectionText.length;
+    const content = formatSectionContent(
+      sectionText.slice(match.contentStart, nextHeadingStart),
+      match.metadata.type,
+    );
     if (!content) return;
 
     sections.push({
-      id: `${heading.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${sections.length}`,
-      type: metadata?.type ?? "custom",
-      title: headingLabel(heading),
+      id: `${match.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${sections.length}`,
+      type: match.metadata.type,
+      title: headingLabel(match.heading),
       content,
-      contentKind: inferResumeSectionContentKind(metadata?.type ?? "custom", heading, content),
+      contentKind: inferResumeSectionContentKind(match.metadata.type, match.heading, content),
       order: sections.length,
     });
   });
@@ -529,25 +544,74 @@ function parseResumeSections(text: string): ResumeSection[] {
   return sections;
 }
 
-function isLikelyResumeHeading(match: RegExpMatchArray, text: string): boolean {
-  const start = match.index ?? 0;
-  const rawMatch = match[0] ?? "";
-  const heading = match[1] ?? "";
-  const before = text[start - 1] ?? "\n";
-  const after = text.slice(start + heading.length, start + heading.length + 36);
-  const sourceHeading = text.slice(start, start + heading.length);
-  const startsLine = start === 0 || /[\n\r]/.test(before);
-  const hasColon = rawMatch.endsWith(":");
-  const isUppercaseHeading = sourceHeading === sourceHeading.toUpperCase();
-  const normalizedHeading = heading.toUpperCase();
+function findResumeHeadingMatches(text: string): ResumeHeadingMatch[] {
+  const matches: ResumeHeadingMatch[] = [];
+  let lineStart = 0;
 
-  if (/[A-Za-z0-9]/.test(before)) return false;
-  if (isCompositeSkillLabel(normalizedHeading, after)) return false;
-  if (!startsLine && !hasColon && INLINE_AMBIGUOUS_HEADINGS.has(normalizedHeading)) {
-    return false;
+  for (const line of text.split("\n")) {
+    const match = findResumeHeadingInLine(line, lineStart);
+    if (match) matches.push(match);
+    lineStart += line.length + 1;
   }
 
-  return startsLine || hasColon || isUppercaseHeading;
+  return matches;
+}
+
+function normalizeInlineSectionHeadingBoundaries(text: string): string {
+  const headingPattern = new RegExp(
+    `(\\s+)(${KNOWN_RESUME_HEADINGS.map(({ heading }) => escapeRegExp(heading)).join("|")})(:?)(?=\\s|$)`,
+    "g",
+  );
+
+  return text.replace(headingPattern, (match, whitespace: string, heading: string, colon: string, offset: number) => {
+    if (whitespace.includes("\n")) return match;
+
+    const afterHeading = text.slice(
+      offset + whitespace.length + heading.length + colon.length,
+      offset + whitespace.length + heading.length + colon.length + 36,
+    );
+    if (isCompositeSkillLabel(heading, `${colon}${afterHeading}`)) return match;
+
+    return `\n${heading}${colon}`;
+  });
+}
+
+function findResumeHeadingInLine(line: string, lineStart: number): ResumeHeadingMatch | null {
+  const leadingWhitespaceLength = line.match(/^\s*/)?.[0].length ?? 0;
+  const trimmedLine = line.slice(leadingWhitespaceLength);
+  if (!trimmedLine) return null;
+
+  for (const metadata of KNOWN_RESUME_HEADINGS) {
+    const heading = metadata.heading;
+    const sourceHeading = trimmedLine.slice(0, heading.length);
+    if (sourceHeading.toUpperCase() !== heading) continue;
+
+    const afterHeading = trimmedLine.slice(heading.length);
+    if (!isSectionHeadingBoundary(afterHeading)) continue;
+    if (isCompositeSkillLabel(heading, afterHeading)) continue;
+
+    const separator = afterHeading.match(/^\s*:?\s*/)?.[0] ?? "";
+    const contentStart = lineStart + leadingWhitespaceLength + heading.length + separator.length;
+    const inlineContent = line.slice(contentStart - lineStart).trim();
+    const hasColon = /^\s*:/.test(afterHeading);
+    const isUppercaseHeading = sourceHeading === sourceHeading.toUpperCase();
+    const isStandaloneHeading = inlineContent.length === 0;
+
+    if (!isStandaloneHeading && !hasColon && !isUppercaseHeading) continue;
+
+    return {
+      index: lineStart + leadingWhitespaceLength,
+      heading,
+      contentStart,
+      metadata,
+    };
+  }
+
+  return null;
+}
+
+function isSectionHeadingBoundary(afterHeading: string): boolean {
+  return afterHeading.length === 0 || /^[\s:]/.test(afterHeading);
 }
 
 function isCompositeSkillLabel(heading: string, afterHeading: string): boolean {
