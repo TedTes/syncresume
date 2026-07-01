@@ -1,5 +1,5 @@
 import { AlignLeft, List } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
+import { type ReactNode, useLayoutEffect, useRef } from "react";
 import type { ResumeSection, ResumeSectionContentKind } from "../resume/schema";
 
 type ResumeSectionTextEditorProps = {
@@ -11,6 +11,7 @@ type ResumeSectionTextEditorProps = {
   onContentChange: (content: string) => void;
   onContentKindChange?: (contentKind: ResumeSectionContentKind) => void;
   onContentAndKindChange?: (content: string, contentKind: ResumeSectionContentKind) => void;
+  toolbarAction?: ReactNode;
 };
 
 export function ResumeSectionTextEditor({
@@ -22,6 +23,7 @@ export function ResumeSectionTextEditor({
   onContentChange,
   onContentKindChange,
   onContentAndKindChange,
+  toolbarAction,
 }: ResumeSectionTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const contentKind = section.contentKind ?? "paragraph";
@@ -93,31 +95,38 @@ export function ResumeSectionTextEditor({
 
   return (
     <div
-      className={`resume-section-text-editor ${isSelected ? "is-selected" : ""} ${className}`.trim()}
+      className={`resume-section-text-editor ${isSelected ? "is-selected" : ""} ${
+        toolbarAction ? "has-toolbar-action" : ""
+      } ${className}`.trim()}
       data-content-kind={contentKind}
     >
-      {onContentKindChange && (
+      {(onContentKindChange || toolbarAction) && (
         <div className="resume-section-format-toolbar" role="group" aria-label={`${section.title} format`}>
-          <button
-            className={contentKind === "paragraph" ? "active" : ""}
-            type="button"
-            title="Paragraph"
-            aria-label={`Format ${section.title} as paragraph`}
-            aria-pressed={contentKind === "paragraph"}
-            onClick={() => applyContentKind("paragraph")}
-          >
-            <AlignLeft aria-hidden="true" />
-          </button>
-          <button
-            className={contentKind === "bullets" ? "active" : ""}
-            type="button"
-            title="Bullet list"
-            aria-label={`Format ${section.title} as bullet list`}
-            aria-pressed={contentKind === "bullets"}
-            onClick={() => applyContentKind("bullets")}
-          >
-            <List aria-hidden="true" />
-          </button>
+          {onContentKindChange && (
+            <>
+              <button
+                className={contentKind === "paragraph" ? "active" : ""}
+                type="button"
+                title="Paragraph"
+                aria-label={`Format ${section.title} as paragraph`}
+                aria-pressed={contentKind === "paragraph"}
+                onClick={() => applyContentKind("paragraph")}
+              >
+                <AlignLeft aria-hidden="true" />
+              </button>
+              <button
+                className={contentKind === "bullets" ? "active" : ""}
+                type="button"
+                title="Bullet list"
+                aria-label={`Format ${section.title} as bullet list`}
+                aria-pressed={contentKind === "bullets"}
+                onClick={() => applyContentKind("bullets")}
+              >
+                <List aria-hidden="true" />
+              </button>
+            </>
+          )}
+          {toolbarAction}
         </div>
       )}
       <textarea

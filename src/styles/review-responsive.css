@@ -423,12 +423,12 @@
     min-width: 0;
   }
 
-  .review-editable-section-shell {
-    padding-right: 20px;
-  }
-
   .resume-section-text-editor .document-section-textarea {
     padding-right: 52px;
+  }
+
+  .resume-section-text-editor.has-toolbar-action .document-section-textarea {
+    padding-right: 76px;
   }
 
   .resume-section-format-toolbar {

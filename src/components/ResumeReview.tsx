@@ -1087,20 +1087,6 @@ function renderEditableAfterSectionContent(
 
   return (
     <div className="review-editable-section-shell">
-      {canRemoveAfterSection && (
-        <button
-          className="review-inline-delete-section"
-          type="button"
-          aria-label={`Delete ${section.title}`}
-          title={`Delete ${section.title}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemoveAfterSection(section.id);
-          }}
-        >
-          <X aria-hidden="true" />
-        </button>
-      )}
       <ResumeSectionTextEditor
         section={section}
         isSelected={section.id === selectedSectionId}
@@ -1111,6 +1097,22 @@ function renderEditableAfterSectionContent(
         }
         onContentAndKindChange={(content, contentKind) =>
           onAfterSectionFormatChange(section.id, content, contentKind)
+        }
+        toolbarAction={
+          canRemoveAfterSection ? (
+            <button
+              className="resume-section-format-delete"
+              type="button"
+              aria-label={`Delete ${section.title}`}
+              title={`Delete ${section.title}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemoveAfterSection(section.id);
+              }}
+            >
+              <X aria-hidden="true" />
+            </button>
+          ) : null
         }
         textareaClassName="review-document-textarea"
       />

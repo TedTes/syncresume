@@ -449,7 +449,7 @@
 .template-comparison-document {
   box-sizing: border-box;
   display: flex;
-  width: min(816px, calc(100% - 2px));
+  width: min(880px, calc(100% - 2px));
   max-width: 100%;
   min-width: 0;
   margin: 0 auto;
