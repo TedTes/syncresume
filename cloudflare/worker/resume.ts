@@ -132,10 +132,9 @@ export function parseResumeJson(raw: string): StructuredResume {
 }
 
 export function resumeToPlainText(resume: StructuredResume): string {
-  if (resume.sections?.length) {
-    return resume.sections
-      .slice()
-      .sort((left, right) => left.order - right.order)
+  const sections = structuredResumeSectionsWithCanonicalFallbacks(resume);
+  if (sections.length) {
+    return sections
       .map((section) => {
         const title = section.title.trim();
         const content = section.content.trim();
@@ -179,6 +178,134 @@ export function resumeToPlainText(resume: StructuredResume): string {
   }
 
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export function structuredResumeSectionsWithCanonicalFallbacks(
+  resume: StructuredResume,
+): StructuredResumeSection[] {
+  const sections = (resume.sections ?? [])
+    .slice()
+    .sort((left, right) => left.order - right.order)
+    .map((section, index) => ({ ...section, order: index }));
+  const nextSections = [...sections];
+
+  if (!hasCanonicalSection(nextSections, "summary") && resume.summary.trim()) {
+    nextSections.push(makeCanonicalSection("summary", "Summary", resume.summary.trim(), "paragraph"));
+  }
+
+  const experienceContent = resume.experience.map(experienceRoleToText).filter(Boolean).join("\n\n");
+  if (experienceContent.trim()) {
+    upsertCanonicalSection(
+      nextSections,
+      "experience",
+      "Professional Experience",
+      experienceContent,
+      "paragraph",
+    );
+  }
+
+  if (!hasCanonicalSection(nextSections, "skills") && resume.skills.length > 0) {
+    nextSections.push(makeCanonicalSection("skills", "Skills", resume.skills.join(", "), "paragraph"));
+  }
+
+  if (!hasCanonicalSection(nextSections, "education") && resume.education.length > 0) {
+    nextSections.push(makeCanonicalSection("education", "Education", resume.education.join("\n"), "paragraph"));
+  }
+
+  return nextSections
+    .filter((section) => section.title.trim() || section.content.trim())
+    .map((section, index) => ({ ...section, order: index }));
+}
+
+function makeCanonicalSection(
+  type: string,
+  title: string,
+  content: string,
+  contentKind: "paragraph" | "bullets",
+): StructuredResumeSection {
+  return {
+    id: `${type}-fallback`,
+    type,
+    title,
+    content,
+    contentKind,
+    order: Number.MAX_SAFE_INTEGER,
+  };
+}
+
+function upsertCanonicalSection(
+  sections: StructuredResumeSection[],
+  type: string,
+  title: string,
+  content: string,
+  contentKind: "paragraph" | "bullets",
+): void {
+  const existingIndex = sections.findIndex((section) => sectionMatchesCanonicalType(section, type));
+  const canonicalSection = makeCanonicalSection(type, title, content, contentKind);
+
+  if (existingIndex < 0) {
+    sections.push(canonicalSection);
+    return;
+  }
+
+  const existingSection = sections[existingIndex];
+  sections[existingIndex] = {
+    ...existingSection,
+    type,
+    title: existingSection.title.trim() || title,
+    content,
+    contentKind,
+  };
+
+  for (let index = sections.length - 1; index > existingIndex; index -= 1) {
+    if (sectionMatchesCanonicalType(sections[index], type)) {
+      sections.splice(index, 1);
+    }
+  }
+}
+
+function hasCanonicalSection(sections: StructuredResumeSection[], type: string): boolean {
+  return sections.some((section) => section.content.trim() && sectionMatchesCanonicalType(section, type));
+}
+
+function sectionMatchesCanonicalType(section: StructuredResumeSection, type: string): boolean {
+  const normalizedType = section.type.toLowerCase().trim();
+  const normalizedTitle = normalizeCanonicalTitle(section.title);
+
+  if (normalizedType === type) return true;
+
+  if (type === "summary") {
+    return /\b(summary|profile|objective)\b/.test(normalizedTitle);
+  }
+  if (type === "experience") {
+    return /\b(experience|employment|work history|career history)\b/.test(normalizedTitle);
+  }
+  if (type === "skills") {
+    return /\b(skills|competencies|technologies|tech stack|expertise)\b/.test(normalizedTitle);
+  }
+  if (type === "education") {
+    return /\b(education|degree|academic)\b/.test(normalizedTitle);
+  }
+
+  return false;
+}
+
+function normalizeCanonicalTitle(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function experienceRoleToText(role: ExperienceRole): string {
+  const heading = [role.title, role.company, role.location, role.dates]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" | ");
+
+  return [
+    heading,
+    ...role.bullets.map((bullet) => `- ${bullet}`),
+  ]
+    .filter((line) => line.trim())
+    .join("\n");
 }
 
 export function buildResumeReviewSnapshot({

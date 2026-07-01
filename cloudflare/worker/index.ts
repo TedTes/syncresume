@@ -5,6 +5,7 @@ import {
   optimizeResumeWithProvider,
   resolveLLMProvider,
   reviseSectionWithProvider,
+  structureResumeWithProvider,
 } from "./llm/dispatch";
 import {
   buildResumeReviewSnapshot,
@@ -68,7 +69,7 @@ type RunRow = {
   created_at: string;
 };
 
-type AiActionType = "optimize_resume" | "revise_section" | "cover_letter";
+type AiActionType = "optimize_resume" | "structure_resume" | "revise_section" | "cover_letter";
 
 type UsageSummary = {
   period: string;
@@ -98,12 +99,21 @@ class HttpError extends Error {
 
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
 const MIN_RESUME_TEXT_LENGTH = 20;
+const STRUCTURED_RESUME_MIN_COVERAGE_RATIO = 0.45;
 const RESUME_TEMPLATE_IDS = new Set<string>(ALL_RESUME_TEMPLATE_IDS);
 const RESUME_VERSION_TYPES = new Set(["base", "tailored"]);
 const BILLING_PLAN_FREE = "Free";
 const BILLING_PLAN_PRO = "Pro";
 const DEFAULT_FREE_AI_ACTIONS = 3;
 const DEFAULT_PRO_AI_ACTIONS = 100;
+const DEFAULT_FREE_RESUME_STRUCTURES = 10;
+const DEFAULT_PRO_RESUME_STRUCTURES = 100;
+const AI_ACTION_CREDIT_COST: Record<AiActionType, number> = {
+  optimize_resume: 1,
+  structure_resume: 0,
+  revise_section: 0.25,
+  cover_letter: 0.5,
+};
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 const JOB_TITLE_WORDS = [
   "analyst",
@@ -224,6 +234,10 @@ export default {
 
       if (url.pathname === "/api/resumes" && request.method === "POST") {
         return await handleCreateResume(request, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/resumes/structure" && request.method === "POST") {
+        return await handleStructureResume(request, env, corsHeaders);
       }
 
       const activeResumeMatch = url.pathname.match(/^\/api\/resumes\/([^/]+)\/active$/);
@@ -435,6 +449,44 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
   });
 
   return json({ resume: optimizedResume, score: snapshot.score, run }, { headers });
+}
+
+async function handleStructureResume(request: Request, env: Env, headers: Headers): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const provider = resolveLLMProvider(env, String(body.provider || ""));
+  const resumeName = asNonEmptyString(body.resumeName) || "Resume";
+  const resumeText = asNonEmptyString(body.resumeText);
+
+  if (resumeText.length < MIN_RESUME_TEXT_LENGTH) {
+    return json({ error: "A readable resume is required before structuring." }, { status: 400, headers });
+  }
+
+  if (resumeText.length > 100_000) {
+    return json({ error: "Resume text is too long to structure." }, { status: 400, headers });
+  }
+
+  await assertAiActionAllowed(env, user, "structure_resume");
+
+  const structuredResume = await structureResumeWithProvider(env, provider, {
+    resumeName,
+    resumeText,
+  });
+  const structuredText = resumeToPlainText(structuredResume);
+
+  if (structuredText.length < MIN_RESUME_TEXT_LENGTH) {
+    throw new Error("The model did not return enough structured resume content.");
+  }
+  assertStructuredResumeCoverage(resumeText, structuredText);
+
+  await recordAiUsage(env, user, "structure_resume", {
+    provider,
+    model: getProviderModel(env, provider),
+    inputChars: resumeText.length,
+    outputChars: structuredText.length,
+  });
+
+  return json({ resume: structuredResume, text: structuredText }, { headers });
 }
 
 async function handleReviseSection(request: Request, env: Env, headers: Headers): Promise<Response> {
@@ -1384,9 +1436,9 @@ async function getBillingSummary(env: Env, user: UserRow): Promise<BillingSummar
 async function getUsageSummary(env: Env, userId: string, plan: string): Promise<UsageSummary> {
   const period = getCurrentBillingPeriod();
   const limit = await getMonthlyAiActionLimit(env, plan);
-  const row = await env.DB.prepare(
+  let row = await env.DB.prepare(
     [
-      "select coalesce(sum(request_units), 0) as used",
+      "select coalesce(sum(coalesce(credit_units, request_units)), 0) as used",
       "from usage_ledger",
       "where user_id = ? and billing_period = ?",
     ].join(" "),
@@ -1394,6 +1446,20 @@ async function getUsageSummary(env: Env, userId: string, plan: string): Promise<
     .bind(userId, period)
     .first<{ used: number | null }>()
     .catch(() => null);
+
+  if (!row) {
+    row = await env.DB.prepare(
+      [
+        "select coalesce(sum(request_units), 0) as used",
+        "from usage_ledger",
+        "where user_id = ? and billing_period = ?",
+      ].join(" "),
+    )
+      .bind(userId, period)
+      .first<{ used: number | null }>()
+      .catch(() => null);
+  }
+
   const used = Math.max(0, Number(row?.used ?? 0));
 
   return {
@@ -1414,6 +1480,30 @@ async function getMonthlyAiActionLimit(env: Env, plan: string): Promise<number> 
   return Number.isFinite(limit) && limit > 0 ? limit : fallback;
 }
 
+function getMonthlyResumeStructureLimit(plan: string): number {
+  return plan === BILLING_PLAN_PRO ? DEFAULT_PRO_RESUME_STRUCTURES : DEFAULT_FREE_RESUME_STRUCTURES;
+}
+
+async function getMonthlyActionCount(
+  env: Env,
+  userId: string,
+  actionType: AiActionType,
+  period: string,
+): Promise<number> {
+  const row = await env.DB.prepare(
+    [
+      "select count(*) as count",
+      "from usage_ledger",
+      "where user_id = ? and billing_period = ? and action_type = ?",
+    ].join(" "),
+  )
+    .bind(userId, period, actionType)
+    .first<{ count: number | null }>()
+    .catch(() => null);
+
+  return Math.max(0, Number(row?.count ?? 0));
+}
+
 async function assertAiActionAllowed(
   env: Env,
   user: UserRow,
@@ -1421,11 +1511,27 @@ async function assertAiActionAllowed(
 ): Promise<void> {
   const plan = resolveEffectivePlan(user);
   const usage = await getUsageSummary(env, user.id, plan);
+  const creditCost = getAiActionCreditCost(actionType);
 
-  if (usage.aiActionsRemaining <= 0) {
+  if (actionType === "structure_resume") {
+    const period = usage.period;
+    const used = await getMonthlyActionCount(env, user.id, actionType, period);
+    const limit = getMonthlyResumeStructureLimit(plan);
+
+    if (used >= limit) {
+      throw new HttpError(
+        `Monthly resume import limit reached for the ${plan} plan. Upgrade to Pro to continue.`,
+        402,
+      );
+    }
+
+    return;
+  }
+
+  if (usage.aiActionsRemaining < creditCost) {
     const label = aiActionLabel(actionType);
     throw new HttpError(
-      `Monthly ${label} limit reached for the ${plan} plan. Upgrade to Pro to continue.`,
+      `Not enough AI credits for ${label}. Upgrade to Pro to continue.`,
       402,
     );
   }
@@ -1443,11 +1549,18 @@ async function recordAiUsage(
     runId?: string | null;
   },
 ): Promise<void> {
-  await env.DB.prepare(
+  const creditUnits = getAiActionCreditCost(actionType);
+  const requestUnits = Math.max(0, Math.ceil(creditUnits));
+  const period = getCurrentBillingPeriod();
+
+  const insertWithCreditUnits = env.DB.prepare(
     [
       "insert into usage_ledger",
-      "(id, user_id, action_type, provider, model, request_units, input_chars, output_chars, run_id, billing_period)",
-      "values (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)",
+      [
+        "(id, user_id, action_type, provider, model, request_units, credit_units,",
+        "input_chars, output_chars, run_id, billing_period)",
+      ].join(" "),
+      "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     ].join(" "),
   )
     .bind(
@@ -1456,10 +1569,41 @@ async function recordAiUsage(
       actionType,
       details.provider,
       details.model ?? null,
+      requestUnits,
+      creditUnits,
       Math.max(0, Math.round(details.inputChars ?? 0)),
       Math.max(0, Math.round(details.outputChars ?? 0)),
       details.runId ?? null,
-      getCurrentBillingPeriod(),
+      period,
+    );
+
+  try {
+    await insertWithCreditUnits.run();
+    return;
+  } catch (error) {
+    if (!String(error instanceof Error ? error.message : error).includes("credit_units")) {
+      throw error;
+    }
+  }
+
+  await env.DB.prepare(
+    [
+      "insert into usage_ledger",
+      "(id, user_id, action_type, provider, model, request_units, input_chars, output_chars, run_id, billing_period)",
+      "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    ].join(" "),
+  )
+    .bind(
+      crypto.randomUUID(),
+      user.id,
+      actionType,
+      details.provider,
+      details.model ?? null,
+      requestUnits,
+      Math.max(0, Math.round(details.inputChars ?? 0)),
+      Math.max(0, Math.round(details.outputChars ?? 0)),
+      details.runId ?? null,
+      period,
     )
     .run();
 }
@@ -1485,9 +1629,14 @@ function getCurrentBillingPeriod(date = new Date()): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+function getAiActionCreditCost(actionType: AiActionType): number {
+  return AI_ACTION_CREDIT_COST[actionType] ?? 1;
+}
+
 function aiActionLabel(actionType: AiActionType): string {
   if (actionType === "cover_letter") return "cover letter";
   if (actionType === "revise_section") return "AI revision";
+  if (actionType === "structure_resume") return "resume structuring";
   return "resume optimization";
 }
 
@@ -1967,6 +2116,37 @@ function sanitizeFileName(name: string): string {
 
 function sanitizeDispositionFileName(name: string): string {
   return sanitizeFileName(name).replace(/"/g, "");
+}
+
+function assertStructuredResumeCoverage(sourceText: string, structuredText: string): void {
+  const sourceLength = normalizeCoverageText(sourceText).length;
+  const structuredLength = normalizeCoverageText(structuredText).length;
+  const minimumLength = Math.max(
+    MIN_RESUME_TEXT_LENGTH,
+    Math.floor(sourceLength * STRUCTURED_RESUME_MIN_COVERAGE_RATIO),
+  );
+
+  if (sourceLength >= 500 && structuredLength < minimumLength) {
+    throw new Error(
+      "The model returned an incomplete structured resume. Retry the upload or paste the resume text directly.",
+    );
+  }
+
+  if (hasLikelyExperienceHeading(sourceText) && !hasLikelyExperienceHeading(structuredText)) {
+    throw new Error(
+      "The model returned a structured resume without the experience section. Retry the upload or paste the resume text directly.",
+    );
+  }
+}
+
+function normalizeCoverageText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function hasLikelyExperienceHeading(value: string): boolean {
+  return /(^|[\n\r]|\s{2,})(professional\s+experience|work\s+experience|employment\s+experience|employment\s+history|career\s+history|relevant\s+experience|experience)(\s*:|[\n\r]|\s{2,}|$)/i.test(
+    value,
+  );
 }
 
 function asNonEmptyString(value: unknown): string {

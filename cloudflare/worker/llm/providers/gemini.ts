@@ -4,7 +4,14 @@ import {
   resumeToPlainText,
   type StructuredResume,
 } from "../../resume";
-import type { CoverLetterInput, LLMEnv, LLMProvider, OptimizeInput, ReviseSectionInput } from "../types";
+import type {
+  CoverLetterInput,
+  LLMEnv,
+  LLMProvider,
+  OptimizeInput,
+  ReviseSectionInput,
+  StructureResumeInput,
+} from "../types";
 
 type CreateContentOptions = {
   input: string;
@@ -31,6 +38,7 @@ type GeminiGenerateContentResponse = {
 
 export const geminiProvider: LLMProvider = {
   optimize,
+  structureResume,
   reviseSection,
   generateCoverLetter,
 };
@@ -60,6 +68,49 @@ async function optimize(env: LLMEnv, { jobDescription, resumeText }: OptimizeInp
       "- Return only the JSON object. Do not wrap it in Markdown.",
     ].join("\n"),
     maxOutputTokens: 7000,
+    responseMimeType: "application/json",
+    timeoutMs: 90000,
+  });
+
+  return parseStructuredResumeText(text);
+}
+
+async function structureResume(env: LLMEnv, { resumeName, resumeText }: StructureResumeInput) {
+  const text = await createTextResponse(env, {
+    system: [
+      "You are an expert resume parser.",
+      "Categorize raw extracted resume text into clean resume sections without optimizing, rewriting, or improving it.",
+      "Preserve candidate facts, names, employers, titles, dates, links, tools, metrics, and wording as much as possible.",
+      "Do not fabricate, infer, or add missing content.",
+      "Do not shorten, summarize, or drop Professional Experience, Work Experience, Employment History, roles, bullets, or later-page content.",
+      "The top-level experience array is authoritative for work history and must include every role from the original resume.",
+      "Split each role header into title, company, location, and dates. Never put a role title, company, location, or date range into the role's bullets.",
+      "The sections array must include every original resume section; the experience section content may mirror the top-level experience roles.",
+      "Keep clear section boundaries. Do not mix languages with education, projects with experience, or contact details with summary.",
+      "Unknown section headings should be returned as type custom with the original heading as title.",
+      "Return only valid JSON matching this shape: { summary: string, experience: [{ id, title, company, location, dates, bullets: string[] }], skills: string[], education: string[], sections: [{ id, type, title, content, contentKind, order }] }.",
+    ].join(" "),
+    input: [
+      resumeName ? `RESUME FILE NAME: ${resumeName}` : "",
+      "RAW EXTRACTED RESUME TEXT:",
+      resumeText.trim(),
+      "",
+      "Categorization rules:",
+      "- Output sections in the same order they appear in the original resume.",
+      "- Use type contact for personal details, links, email, phone, and location.",
+      "- Use type summary only for actual summary/profile text.",
+      "- Use type skills only for skills/tool lists.",
+      "- If the raw resume has Professional Experience, Work Experience, Employment History, or similar, populate the top-level experience array with all roles and bullets preserved.",
+      "- For each experience role, keep the role title/date/company line separate from its task bullets.",
+      "- Use type languages only for spoken/written language sections.",
+      "- Use type education only for degrees, schools, training, and education credentials.",
+      "- Use type projects only when the original text is a projects section.",
+      "- Do not omit content from later pages or sections near the end of the raw text.",
+      "- Use type custom for any valid section that does not fit the known categories.",
+      "- contentKind must be paragraph or bullets.",
+      "- Return only the JSON object. Do not wrap it in Markdown.",
+    ].filter(Boolean).join("\n"),
+    maxOutputTokens: 12000,
     responseMimeType: "application/json",
     timeoutMs: 90000,
   });

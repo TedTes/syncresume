@@ -8,6 +8,7 @@ import type {
   LLMProviderName,
   OptimizeInput,
   ReviseSectionInput,
+  StructureResumeInput,
 } from "./types";
 
 const providers: Partial<Record<LLMProviderName, LLMProvider>> = {
@@ -41,6 +42,14 @@ export async function optimizeResumeWithProvider(
   input: OptimizeInput,
 ) {
   return getProvider(providerName).optimize(env, input);
+}
+
+export async function structureResumeWithProvider(
+  env: LLMEnv,
+  providerName: LLMProviderName,
+  input: StructureResumeInput,
+) {
+  return getProvider(providerName).structureResume(env, input);
 }
 
 export async function reviseSectionWithProvider(
