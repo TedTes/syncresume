@@ -498,3 +498,57 @@
   border: 1px dashed var(--border);
   border-radius: 9px;
 }
+
+@media (max-width: 860px) {
+  .stat-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-command-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-primary-cta {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .application-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .application-artifact-item {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+
+  .application-artifact-chevron {
+    display: none;
+  }
+
+  .run-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .run-title {
+    width: 100%;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  .run-title-edit {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .run-title-action {
+    opacity: 1;
+  }
+
+  .run-row-end {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
