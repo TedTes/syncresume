@@ -462,6 +462,16 @@
   width: 30px;
   height: 30px;
   padding: 0;
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.resume-row-actions .btn-icon-only:hover:not(:disabled),
+.resume-row-actions .btn-icon-only:focus-visible {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger);
+  outline: none;
 }
 
 .resume-set-active {
@@ -576,20 +586,13 @@
 
 @media (max-width: 640px) {
   .resume-row {
-    flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     min-height: auto;
     padding: 12px;
   }
 
   .resume-row-open {
-    width: 100%;
     gap: 10px;
-  }
-
-  .resume-row-actions {
-    width: 100%;
-    justify-content: flex-end;
   }
 
   .resume-row-icon {
@@ -598,12 +601,55 @@
     border-radius: 8px;
   }
 
+  /* Allow long names to wrap rather than overflow */
   .resume-row-name {
     font-size: 0.84rem;
+    white-space: normal;
+    overflow-wrap: break-word;
   }
 
+  /* Align pencil to top when name wraps to multiple lines */
+  .resume-row-title-line {
+    align-items: flex-start;
+  }
+
+  /* Truncate long meta strings; name wrapping gives enough context */
   .resume-row-meta {
     font-size: 0.72rem;
     line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Always show on touch — hover unavailable */
+  .resume-name-action {
+    opacity: 1;
+  }
+
+  .resume-set-active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+
+  /* Minimum 32px tap target */
+  .resume-row-actions .btn-icon-only {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Stack upload row so the Upload button becomes full-width and tappable */
+  .resume-upload-compact {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .resume-upload-compact .btn {
+    width: 100%;
+    justify-content: center;
   }
 }

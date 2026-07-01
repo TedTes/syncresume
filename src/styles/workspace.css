@@ -988,11 +988,6 @@
     text-align: left;
   }
 
-  .workspace-job-section .job-link-row,
-  .job-link-row {
-    grid-template-columns: 1fr;
-  }
-
   .workspace-job-section .job-link-row {
     padding: 16px;
   }
@@ -1049,5 +1044,56 @@
     min-height: min(480px, calc(100vh - 144px));
     padding: 14px;
     font-size: 0.86rem;
+  }
+
+  .workspace-job-section .job-link-row,
+  .job-link-row {
+    grid-template-columns: 1fr;
+  }
+
+  .job-link-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .workspace-job-section .job-entry-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-job-section .job-entry-actions .btn-optimize {
+    grid-column: 1 / -1;
+  }
+
+  .workspace-version-item {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .workspace-version-open {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .workspace-version-meta {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .workspace-version-name-row {
+    display: flex;
+    width: 100%;
+  }
+
+  .workspace-version-end {
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .workspace-version-actions {
+    flex-shrink: 0;
+    align-self: center;
   }
 }

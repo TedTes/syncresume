@@ -549,6 +549,10 @@
 
   .run-row-end {
     width: 100%;
-    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .application-delete-button {
+    margin-left: auto;
   }
 }

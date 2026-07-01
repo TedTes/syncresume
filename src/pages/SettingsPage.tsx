@@ -19,6 +19,14 @@ import { RESUME_FONT_OPTIONS, type ResumeFontId } from "../templates/shared/font
 
 type ProfileSaveStatus = "saved" | "saving";
 
+const aiCreditFormatter = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 2,
+});
+
+function formatAiCredits(value: number): string {
+  return aiCreditFormatter.format(value);
+}
+
 export default function SettingsPage() {
   const {
     toggles,
@@ -232,8 +240,10 @@ export default function SettingsPage() {
                 <p className="settings-row-label">Plan</p>
                 <p className="settings-row-desc">
                   {usage
-                    ? `${usage.aiActionsUsed}/${usage.aiActionsLimit} AI actions used in ${usage.period}.`
-                    : "Monthly AI usage is tracked server-side."}
+                    ? `${formatAiCredits(usage.aiActionsUsed)}/${formatAiCredits(
+                        usage.aiActionsLimit,
+                      )} AI credits used in ${usage.period}.`
+                    : "Monthly AI credits are tracked server-side."}
                 </p>
               </div>
               <div className="settings-row-control">
