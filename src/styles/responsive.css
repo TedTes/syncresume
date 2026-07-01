@@ -45,21 +45,7 @@
 }
 
 /* Workspace comparison: keep laptops side-by-side; stack only on narrow tablet/mobile widths. */
-@media (max-width: 900px) {
-  .workspace-flow .template-comparison-grid {
-    grid-template-columns: 1fr;
-    height: auto;
-    max-height: none;
-    overflow: visible;
-  }
 
-  .workspace-flow .template-comparison-pane .resume-template-preview {
-    zoom: 1;
-    width: min(816px, 100%);
-    max-width: 100%;
-    overflow-y: auto;
-  }
-}
 
 @media (max-width: 860px) {
   :root {
@@ -77,22 +63,12 @@
   }
 
   .saved-application-review {
-    inset: 56px 0 0 var(--sidebar-width);
     padding: 10px 12px 14px;
   }
 
   .app-shell.template-panel-open .pdf-fullpage,
   .app-shell.template-panel-open .workspace-fullpage-overlay {
     left: 0;
-  }
-
-  .workspace-flow {
-    width: 100%;
-    padding: 18px 16px 36px;
-  }
-
-  .workspace-flow:has(.review-workspace) {
-    overflow: visible;
   }
 
   .template-drawer-backdrop {
@@ -372,45 +348,12 @@
   }
 
 
-  .template-comparison-grid,
-  .template-comparison-grid:not(.is-single-pane),
-  .template-comparison-grid.is-single-pane,
-  .template-comparison-grid.is-optimized-only,
-  .template-comparison-grid.is-compare-mode.is-single-pane {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    height: auto;
-    max-height: none;
-    padding: 12px;
-    overflow: visible;
-  }
-
-  .template-comparison-grid.is-optimized-only {
-    min-height: min(620px, calc(100vh - 236px));
-  }
-
-  .template-comparison-grid.is-single-pane .template-comparison-before {
-    display: none;
-  }
-
-  .template-comparison-grid.is-compare-mode.is-single-pane .template-comparison-before {
-    display: block;
-  }
-
   .template-comparison-pane {
     height: auto;
     min-height: 0;
     overflow: visible;
   }
 
-  .template-comparison-pane .resume-template-preview,
-  .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
-    width: min(816px, calc(100vw - var(--sidebar-width) - 48px));
-    max-width: 100%;
-    min-height: 640px;
-    height: auto;
-    zoom: 1;
-  }
 
   .template-comparison-pane + .template-comparison-pane {
     border: 0;
@@ -591,18 +534,6 @@
     grid-template-columns: 1fr;
   }
 
-  .workspace-flow {
-    width: 100%;
-    min-width: 0;
-    gap: 12px;
-    padding: 14px 10px 28px;
-  }
-
-  .workspace-flow:has(.review-workspace) {
-    padding: 0 8px 8px;
-    overflow: hidden;
-  }
-
   .workspace-job-section .job-entry-panel {
     border-radius: 12px;
   }
@@ -760,27 +691,6 @@
     min-width: 76px;
   }
 
-  .template-comparison-grid,
-  .template-comparison-grid:not(.is-single-pane),
-  .template-comparison-grid.is-single-pane,
-  .template-comparison-grid.is-optimized-only,
-  .template-comparison-grid.is-compare-mode.is-single-pane {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    height: auto;
-    max-height: none;
-    min-height: 0;
-    padding: 8px 12px 8px 10px;
-    overflow: visible;
-  }
-
-  .template-comparison-grid.is-single-pane .template-comparison-before {
-    display: none;
-  }
-
-  .template-comparison-grid.is-compare-mode.is-single-pane .template-comparison-before {
-    display: block;
-  }
 
   .template-comparison-pane {
     height: auto;
@@ -789,19 +699,6 @@
     overflow-y: visible;
     padding-inline: 2px;
   }
-
-  .template-comparison-pane .resume-template-preview,
-  .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
-    width: calc(100% - 4px);
-    max-width: 100%;
-    height: auto;
-    min-height: 560px;
-    margin: 0 auto;
-    padding: 22px 18px;
-    zoom: 1;
-    overflow: visible;
-  }
-
 
 
   .template-diff-content,
@@ -957,15 +854,6 @@
     display: none;
   }
 
-  .workspace-flow {
-    padding: 12px 6px 22px;
-  }
-
-  .workspace-flow:has(.review-workspace) {
-    padding: 0 4px 6px;
-    overflow: hidden;
-  }
-
   .review-workspace {
     border-radius: 10px;
     overflow: hidden;
@@ -1056,16 +944,7 @@
     overflow: hidden;
   }
 
-  .template-comparison-grid,
-  .template-comparison-grid:not(.is-single-pane),
-  .template-comparison-grid.is-single-pane,
-  .template-comparison-grid.is-optimized-only,
-  .template-comparison-grid.is-compare-mode.is-single-pane {
-    gap: 8px;
-    padding: 8px 12px 8px 10px;
-    overflow: visible;
-    max-width: 100%;
-  }
+
 
   .template-comparison-pane {
     width: 100%;

@@ -164,33 +164,17 @@
 
 .workspace-outer {
   display: flex;
-  flex: 1;
-  min-width: 0;
-  /* clip panel slide animation without breaking sticky positioning */
-  overflow: clip;
-}
-
-.workspace-flow {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
+  flex: 1 1 auto;
   width: 100%;
-  max-width: 1220px;
-  margin: 0 auto;
-  padding: 24px clamp(18px, 3vw, 40px) 42px;
-}
-
-.workspace-outer.template-panel-open .workspace-flow {
-  max-width: none;
-}
-
-.workspace-flow:has(.review-workspace) {
-  padding: 0 16px 16px;
-  max-width: none;
   min-width: 0;
-  overflow: hidden;
+  min-height: 0;
+  overflow: visible;
+}
+
+.workspace-outer > .workspace-job-section {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .workspace-job-section {
@@ -201,21 +185,19 @@
   max-width: none;
 }
 
-.workspace-flow > .page-content,
-.workspace-flow > .workspace-resumes-anchor > .page-content {
-  flex: 0 0 auto;
-  width: 100%;
-  padding: 0;
-}
 
 .saved-application-review {
-  position: fixed;
-  inset: 56px 0 0 var(--sidebar-width);
-  z-index: 45;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 0;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
   min-height: 0;
+  height: calc(100vh - 56px);
+  max-height: calc(100vh - 56px);
+  margin: 0;
   padding: 12px 18px 16px;
   overflow: auto;
   overscroll-behavior: contain;
@@ -255,17 +237,15 @@
 
 .saved-application-review .template-comparison-grid {
   flex: 1 1 auto;
-  height: auto;
-  max-height: none;
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  height: 100%;
+  max-height: 100%;
   overflow: hidden;
 }
 
-.workspace-flow > .workspace-resumes-anchor {
-  flex: 0 0 auto;
-}
+
 
 .workspace-resumes-anchor {
   scroll-margin-top: 72px;

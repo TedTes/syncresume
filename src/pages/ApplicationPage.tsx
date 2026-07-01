@@ -25,17 +25,13 @@ export default function ApplicationPage() {
         <TopbarAccount />
       </header>
 
-      <div className="workspace-outer application-detail-outer">
-        <div className="workspace-flow application-detail-flow">
-          <OptimizerPage
-            embedded
-            preferredArtifact={preferredArtifact}
-            reviewBackPath="/dashboard"
-            reviewRunId={runId}
-            reviewToolbarHost={reviewToolbarHost}
-          />
-        </div>
-      </div>
+      <OptimizerPage
+        embedded
+        preferredArtifact={preferredArtifact}
+        reviewBackPath="/dashboard"
+        reviewRunId={runId}
+        reviewToolbarHost={reviewToolbarHost}
+      />
     </>
   );
 }

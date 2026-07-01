@@ -92,16 +92,14 @@ export default function WorkspacePage() {
       </header>
 
       <div className={`workspace-outer${isTemplatePanelOpen ? " template-panel-open" : ""}`}>
-        <div className="workspace-flow">
-          <OptimizerPage
-            embedded
-            reviewRunId={runId}
-            reviewToolbarHost={reviewToolbarHost}
-            onReviewOpenChange={handleReviewOpenChange}
-            isTemplatePanelOpen={isTemplatePanelOpen}
-            onOpenTemplates={toggleTemplatePanel}
-          />
-        </div>
+        <OptimizerPage
+          embedded
+          reviewRunId={runId}
+          reviewToolbarHost={reviewToolbarHost}
+          onReviewOpenChange={handleReviewOpenChange}
+          isTemplatePanelOpen={isTemplatePanelOpen}
+          onOpenTemplates={toggleTemplatePanel}
+        />
 
         <ResumeTemplatePanel
           selectedTemplateId={selectedTemplateId}
