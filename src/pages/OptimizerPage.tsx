@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardCopy,
+  Download,
   FileText,
   Link2,
   Loader2,
@@ -15,7 +16,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { TopbarAccount } from "../components/TopbarAccount";
@@ -23,19 +24,28 @@ import { useAppData } from "../context/AppDataContext";
 import { useSettings } from "../context/SettingsContext";
 import { useToastMessage } from "../context/ToastContext";
 import { fetchJobPageText } from "../lib/fetchJobPage";
+import { extractResumeText } from "../lib/fileExtract";
+import { downloadCoverLetterDocx, downloadCoverLetterPdf } from "../lib/exportResume";
 import { extractJobTitle } from "../lib/jobTitle";
 import { openAIErrorMessage } from "../lib/openai";
 import {
   generateCoverLetterWithProvider,
   optimizeResumeWithProvider,
+  structureResumeWithProvider,
 } from "../lib/providers/dispatch";
 import { normalizeStructuredResume, resumeToPlainText, type StructuredResume } from "../lib/resume";
-import type { ResumeRecord, RunRecord } from "../lib/storage";
+import {
+  serializeResumeDocument,
+  structuredResumeToDocument,
+} from "../lib/resumeDocument";
+import type { ResumeFileType, ResumeRecord, RunRecord } from "../lib/storage";
 import type { ResumeTemplateId } from "../templates/registry";
 
 const ResumeReview = lazy(() =>
   import("../components/ResumeReview").then((module) => ({ default: module.ResumeReview })),
 );
+
+const MAX_WORKSPACE_RESUME_BYTES = 25 * 1024 * 1024;
 
 function formatRelativeDate(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -45,6 +55,19 @@ function formatRelativeDate(dateStr: string): string {
   if (days < 7) return `${days}d ago`;
   if (days < 30) return `${Math.floor(days / 7)}w ago`;
   return `${Math.floor(days / 30)}mo ago`;
+}
+
+function fileTypeFromName(name: string): ResumeFileType {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".pdf")) return "pdf";
+  if (lower.endsWith(".docx")) return "docx";
+  return "text";
+}
+
+function formatBytes(value: number): string {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 type JobAddMode = "paste" | "link";
@@ -93,6 +116,7 @@ export default function OptimizerPage({
     runs,
     resumes,
     activeResume,
+    addResume,
     setActiveResume,
     getRun,
     addRun,
@@ -104,7 +128,7 @@ export default function OptimizerPage({
     recordExport,
     refresh,
   } = useAppData();
-  const { provider, toggles } = useSettings();
+  const { provider, toggles, selectedTemplateId } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -139,9 +163,13 @@ export default function OptimizerPage({
   const [pendingDeleteVersion, setPendingDeleteVersion] = useState<ResumeRecord | null>(null);
   const [deletingVersionId, setDeletingVersionId] = useState("");
   const [versionDeleteError, setVersionDeleteError] = useState("");
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const [resumeUploadStatus, setResumeUploadStatus] = useState("");
+  const [resumeUploadError, setResumeUploadError] = useState("");
   const jobPanelRef = useRef<HTMLDivElement | null>(null);
   const coverLetterPanelRef = useRef<HTMLElement | null>(null);
   const reviewPanelRef = useRef<HTMLDivElement | null>(null);
+  const workspaceResumeInputRef = useRef<HTMLInputElement | null>(null);
 
   useToastMessage(fetchJDError, { kind: "error", title: "Job page failed", durationMs: 6500 });
   useToastMessage(coverLetterStatus, { kind: "success", title: "Cover letter" });
@@ -149,9 +177,61 @@ export default function OptimizerPage({
   useToastMessage(optimizeError, { kind: "error", title: "Optimization failed", durationMs: 6500 });
   useToastMessage(versionRenameError, { kind: "error", title: "Rename failed", durationMs: 6500 });
   useToastMessage(versionDeleteError, { kind: "error", title: "Delete failed", durationMs: 6500 });
+  useToastMessage(resumeUploadStatus, { kind: "success", title: "Resume uploaded" });
+  useToastMessage(resumeUploadError, { kind: "error", title: "Resume upload failed", durationMs: 6500 });
 
   const hasJD = jobDescription.trim().length > 0;
   const canOptimize = hasJD && Boolean(activeResume) && !isOptimizing;
+
+  async function structureResumeForWorkspaceSave(resumeText: string, resumeName: string): Promise<string> {
+    const structured = await structureResumeWithProvider({
+      provider,
+      resumeName,
+      resumeText,
+    });
+    const document = structuredResumeToDocument(structured.resume, resumeName);
+    const structuredText = serializeResumeDocument(document).trim() || structured.text.trim();
+
+    if (structuredText.length < 20) {
+      throw new Error("The model did not return enough structured resume content.");
+    }
+
+    return structuredText;
+  }
+
+  async function handleWorkspaceResumeUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || isUploadingResume) return;
+
+    setIsSwitcherOpen(false);
+    setIsUploadingResume(true);
+    setResumeUploadStatus("");
+    setResumeUploadError("");
+
+    try {
+      if (file.size > MAX_WORKSPACE_RESUME_BYTES) {
+        throw new Error(`File is larger than ${formatBytes(MAX_WORKSPACE_RESUME_BYTES)}.`);
+      }
+
+      const extracted = await extractResumeText(file);
+      const structuredText = await structureResumeForWorkspaceSave(extracted.text, extracted.name);
+      const record = await addResume({
+        name: extracted.name,
+        fileType: fileTypeFromName(file.name),
+        text: structuredText,
+        characterCount: structuredText.length,
+        templateId: selectedTemplateId,
+        file,
+      });
+      await setActiveResume(record.id);
+      setResumeUploadStatus(`${record.name} is now active.`);
+    } catch (error) {
+      setResumeUploadError(error instanceof Error ? error.message : "Could not upload that resume.");
+    } finally {
+      setIsUploadingResume(false);
+    }
+  }
 
   const jdSignals = useMemo(() => {
     const text = jobDescription.trim();
@@ -561,6 +641,30 @@ export default function OptimizerPage({
     }
   }
 
+  async function handleDownloadCoverLetter(type: "docx" | "pdf") {
+    const normalizedCoverLetter = coverLetter.replace(/\r/g, "").trim();
+    if (!normalizedCoverLetter) {
+      setCoverLetterError("Write or generate a cover letter before downloading.");
+      return;
+    }
+
+    setCoverLetterStatus("");
+    setCoverLetterError("");
+
+    try {
+      const baseTitle = reviewTitle || currentReviewRun?.title || extractJobTitle(jobDescription) || "cover-letter";
+      const fileName = `${baseTitle}-cover-letter.${type}`;
+      if (type === "docx") {
+        await downloadCoverLetterDocx(normalizedCoverLetter, fileName);
+      } else {
+        await downloadCoverLetterPdf(normalizedCoverLetter, fileName);
+      }
+      setCoverLetterStatus(`Cover letter ${type.toUpperCase()} downloaded.`);
+    } catch {
+      setCoverLetterError(`Could not download the cover letter ${type.toUpperCase()}.`);
+    }
+  }
+
   function openTailoredVersion(runId: string | null | undefined, resumeId: string) {
     if (runId) {
       navigate(`/workspace/review/${runId}?artifact=resume`, { state: { returnTo: "/workspace" } });
@@ -632,8 +736,78 @@ export default function OptimizerPage({
     }
   }
 
+  function renderWorkspaceActiveResumeSection() {
+    if (!embedded) return null;
+
+    return (
+      <div className="workspace-active-resume-section">
+        <div>
+          <span className="section-label">Active resume</span>
+          <p>{activeResume ? activeResume.name : "Choose the resume to tailor against this job."}</p>
+        </div>
+        <div className="workspace-resume-inline-wrap">
+          <button
+            type="button"
+            className="workspace-resume-inline"
+            disabled={isUploadingResume}
+            onClick={() => setIsSwitcherOpen((open) => !open)}
+          >
+            {isUploadingResume ? (
+              <Loader2 className="spin" aria-hidden="true" />
+            ) : (
+              <span className="resume-pill-dot" aria-hidden="true" />
+            )}
+            <span>
+              {isUploadingResume
+                ? "Uploading resume"
+                : activeResume?.name ?? (sourceResumeOptions.length > 0 ? "Select resume" : "Upload resume")}
+            </span>
+            <ChevronDown aria-hidden="true" />
+          </button>
+          {isSwitcherOpen && (
+            <div className="workspace-resume-inline-menu">
+              {sourceResumeOptions.map((resume) => (
+                <button
+                  key={resume.id}
+                  type="button"
+                  className="workspace-resume-inline-option"
+                  onClick={() => {
+                    void setActiveResume(resume.id);
+                    setIsSwitcherOpen(false);
+                  }}
+                >
+                  {resume.id === activeResume?.id ? <CheckCircle2 aria-hidden="true" /> : null}
+                  <span>{resume.name}</span>
+                </button>
+              ))}
+              {sourceResumeOptions.length > 0 && <div className="workspace-resume-inline-divider" />}
+              <button
+                type="button"
+                className="workspace-resume-inline-option workspace-resume-inline-upload"
+                onClick={() => {
+                  setIsSwitcherOpen(false);
+                  workspaceResumeInputRef.current?.click();
+                }}
+              >
+                <Upload aria-hidden="true" />
+                <span>Upload resume</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
+      <input
+        ref={workspaceResumeInputRef}
+        type="file"
+        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        hidden
+        onChange={handleWorkspaceResumeUpload}
+      />
       {!embedded && (
         <header className="page-topbar">
           <span className="page-topbar-title">Workspace</span>
@@ -775,7 +949,7 @@ export default function OptimizerPage({
                   reviewToolbarHost,
                 )}
 
-                <section className="job-cover-panel job-description-artifact-panel" aria-label="Job description">
+                <section className={`job-cover-panel job-document-panel job-description-artifact-panel${usePortal ? " job-description-active" : ""}`} aria-label="Job description">
                   {!usePortal && (
                     <div className="cover-letter-header">
                       <div>
@@ -789,7 +963,7 @@ export default function OptimizerPage({
                     </div>
                   )}
                   <textarea
-                    className="cover-letter-textarea job-cover-textarea job-description-artifact-textarea"
+                    className="cover-letter-textarea job-cover-textarea job-document-textarea job-description-artifact-textarea"
                     value={jobDescription}
                     readOnly
                   />
@@ -800,7 +974,9 @@ export default function OptimizerPage({
 
           {jobAddMode && !shouldShowJobDescriptionArtifact && (!optimizedResume || !isJobReferenceCollapsed) && (
             <div
-              className={`job-entry-panel${isJobReferenceCollapsed ? " is-collapsed" : ""}`}
+              className={`job-entry-panel${isJobReferenceCollapsed ? " is-collapsed" : ""}${
+                isSwitcherOpen ? " is-switcher-open" : ""
+              }`}
               ref={jobPanelRef}
             >
               <div className="job-entry-header">
@@ -917,38 +1093,7 @@ export default function OptimizerPage({
                         )}
                         <div className="job-editor-footer">
                           <span>{jobDescription.trim().length.toLocaleString()} chars</span>
-                          {embedded ? (
-                            <div className="workspace-resume-inline-wrap">
-                              <button
-                                type="button"
-                                className="workspace-resume-inline"
-                                disabled={sourceResumeOptions.length === 0}
-                                onClick={() => setIsSwitcherOpen((open) => !open)}
-                              >
-                                <span className="resume-pill-dot" aria-hidden="true" />
-                                <span>{activeResume?.name ?? (sourceResumeOptions.length > 0 ? "Select resume" : "No resumes added")}</span>
-                                {sourceResumeOptions.length > 0 && <ChevronDown aria-hidden="true" />}
-                              </button>
-                              {isSwitcherOpen && sourceResumeOptions.length > 0 && (
-                                <div className="workspace-resume-inline-menu">
-                                  {sourceResumeOptions.map((resume) => (
-                                    <button
-                                      key={resume.id}
-                                      type="button"
-                                      className="workspace-resume-inline-option"
-                                      onClick={() => {
-                                        setActiveResume(resume.id);
-                                        setIsSwitcherOpen(false);
-                                      }}
-                                    >
-                                      {resume.id === activeResume?.id ? <CheckCircle2 aria-hidden="true" /> : null}
-                                      <span>{resume.name}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
+                          {!embedded && (
                             <span>
                               {activeResume ? `Tailoring against ${activeResume.name}` : "Select a resume above."}
                             </span>
@@ -1003,38 +1148,7 @@ export default function OptimizerPage({
                             )}
                             <div className="job-editor-footer">
                               <span>{jobDescription.trim().length.toLocaleString()} characters extracted</span>
-                              {embedded ? (
-                                <div className="workspace-resume-inline-wrap">
-                                  <button
-                                    type="button"
-                                    className="workspace-resume-inline"
-                                    disabled={sourceResumeOptions.length === 0}
-                                    onClick={() => setIsSwitcherOpen((open) => !open)}
-                                  >
-                                    <span className="resume-pill-dot" aria-hidden="true" />
-                                    <span>{activeResume?.name ?? (sourceResumeOptions.length > 0 ? "Select resume" : "No resumes added")}</span>
-                                    {sourceResumeOptions.length > 0 && <ChevronDown aria-hidden="true" />}
-                                  </button>
-                                  {isSwitcherOpen && sourceResumeOptions.length > 0 && (
-                                    <div className="workspace-resume-inline-menu">
-                                      {sourceResumeOptions.map((resume) => (
-                                        <button
-                                          key={resume.id}
-                                          type="button"
-                                          className="workspace-resume-inline-option"
-                                          onClick={() => {
-                                            setActiveResume(resume.id);
-                                            setIsSwitcherOpen(false);
-                                          }}
-                                        >
-                                          {resume.id === activeResume?.id ? <CheckCircle2 aria-hidden="true" /> : null}
-                                          <span>{resume.name}</span>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
+                              {!embedded && (
                                 <span>
                                   {activeResume ? `Tailoring against ${activeResume.name}` : "Select a resume above."}
                                 </span>
@@ -1044,6 +1158,7 @@ export default function OptimizerPage({
                         )}
                       </div>
                     )}
+                    {renderWorkspaceActiveResumeSection()}
                   </div>
                 </div>
 
@@ -1074,6 +1189,14 @@ export default function OptimizerPage({
                   {isSavingCoverLetter ? <Loader2 className="spin" aria-hidden="true" /> : <FileText aria-hidden="true" />}
                   Save
                 </button>
+                <button className="btn btn-secondary btn-sm" type="button" disabled={!coverLetter.trim()} onClick={() => void handleDownloadCoverLetter("docx")}>
+                  <FileText aria-hidden="true" />
+                  DOCX
+                </button>
+                <button className="btn btn-secondary btn-sm" type="button" disabled={!coverLetter.trim()} onClick={() => void handleDownloadCoverLetter("pdf")}>
+                  <Download aria-hidden="true" />
+                  PDF
+                </button>
                 <button className="btn btn-secondary btn-sm" type="button" disabled={!coverLetter.trim()} onClick={handleCopyCoverLetter}>
                   <ClipboardCopy aria-hidden="true" />
                   Copy
@@ -1100,7 +1223,7 @@ export default function OptimizerPage({
                   reviewToolbarHost,
                 )}
 
-                <section className="job-cover-panel" aria-label="Cover letter" ref={coverLetterPanelRef}>
+                <section className={`job-cover-panel job-document-panel${usePortal ? " cover-letter-active" : ""}`} aria-label="Cover letter" ref={coverLetterPanelRef}>
                   {!usePortal && (
                     <div className="cover-letter-header">
                       <div>
@@ -1120,7 +1243,7 @@ export default function OptimizerPage({
                   )}
 
                   <textarea
-                    className="cover-letter-textarea job-cover-textarea"
+                    className="cover-letter-textarea job-cover-textarea job-document-textarea"
                     value={coverLetter}
                     disabled={isGeneratingCoverLetter}
                     onChange={(event) => setCoverLetter(event.target.value)}
