@@ -1,6 +1,10 @@
 import { Github, Globe, Linkedin, Mail, MapPin, Phone } from "lucide-react";
 import { createContext, useContext, type ReactNode } from "react";
-import type { ResumeSection } from "../../resume/schema";
+import {
+  isBulletPrefixedRoleHeaderLine,
+  stripResumeBulletPrefix,
+  type ResumeSection,
+} from "../../resume/schema";
 import { formatContactDetailDisplay, parseResumeContact } from "../../resume/contact";
 import type { TemplatePreviewProps } from "./types";
 
@@ -61,6 +65,28 @@ function DetailIcon({ category }: { category: DetailCategory }) {
   }
 }
 
+function contactDetailHref(raw: string, category: DetailCategory): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+
+  if (category === "email") return `mailto:${value}`;
+  if (category === "phone") {
+    const phone = value.replace(/[^\d+]/g, "");
+    return phone ? `tel:${phone}` : null;
+  }
+  if (category === "github" || category === "linkedin" || category === "website") {
+    return toExternalContactUrl(value);
+  }
+
+  return null;
+}
+
+function toExternalContactUrl(value: string): string {
+  if (/^https?:\/\//i.test(value)) return value;
+  if (/^www\./i.test(value)) return `https://${value}`;
+  return `https://${value}`;
+}
+
 /** Renders contact details as icon + label chips. Inherits text-align from parent. */
 export function ContactDetailList({ details }: { details: string[] }) {
   if (details.length === 0) return null;
@@ -68,10 +94,20 @@ export function ContactDetailList({ details }: { details: string[] }) {
     <p className="contact-detail-list">
       {details.map((raw, i) => {
         const { category, display } = categorizeDetail(raw);
-        return (
-          <span className="contact-detail-item" key={i}>
+        const href = contactDetailHref(raw, category);
+        const content = (
+          <>
             <DetailIcon category={category} />
             <span>{display}</span>
+          </>
+        );
+        return href ? (
+          <a className="contact-detail-item" href={href} key={i} rel="noreferrer" target="_blank">
+            {content}
+          </a>
+        ) : (
+          <span className="contact-detail-item" key={i}>
+            {content}
           </span>
         );
       })}
@@ -133,13 +169,15 @@ export function SectionContent({ section }: { section: ResumeSection }) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+  const hasRoleHeaderBullets =
+    section.type === "experience" && lines.some(isBulletPrefixedRoleHeaderLine);
 
-  if (section.contentKind === "bullets") {
+  if (section.contentKind === "bullets" && !hasRoleHeaderBullets) {
     return (
       <div className="template-section-body">
         <ul>
           {lines.map((line) => (
-            <li key={line}>{line.replace(/^[-•]\s*/, "")}</li>
+            <li key={line}>{stripResumeBulletPrefix(line)}</li>
           ))}
         </ul>
       </div>
@@ -170,7 +208,7 @@ export function SectionContent({ section }: { section: ResumeSection }) {
     groups.push(
       <ul key={`bullets-${groups.length}`}>
         {currentBullets.map((line) => (
-          <li key={line}>{line.replace(/^[-•]\s*/, "")}</li>
+          <li key={line}>{stripResumeBulletPrefix(line)}</li>
         ))}
       </ul>,
     );
@@ -178,7 +216,13 @@ export function SectionContent({ section }: { section: ResumeSection }) {
   };
 
   lines.forEach((line) => {
-    if (/^[-•]\s+/.test(line)) {
+    if (section.type === "experience" && isBulletPrefixedRoleHeaderLine(line)) {
+      flushBullets();
+      groups.push(renderTemplateLine(stripResumeBulletPrefix(line), groups.length));
+      return;
+    }
+
+    if (/^[-*•]\s+/.test(line)) {
       bulletGroup.push(line);
       return;
     }

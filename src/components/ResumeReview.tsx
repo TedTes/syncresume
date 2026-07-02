@@ -1256,27 +1256,20 @@ function documentToStructuredResume(
       .split(/\n|,/)
       .map((item) => item.replace(/^[-•]\s*/, "").trim())
       .filter(Boolean);
+  const hasSection = (type: ResumeSectionType) =>
+    orderedSections.some((section) => section.type === type && section.content.trim());
 
   return {
     ...fallback,
     summary: sectionContent("summary").trim(),
-    experience: orderedSections
-      .filter((section) => section.type === "experience")
-      .map((section, index) => ({
-        id: section.id || `experience-${index}`,
-        title: section.title,
-        company: "",
-        location: "",
-        dates: "",
-        bullets: section.content
-          .split("\n")
-          .map((line) => line.replace(/^[-•]\s*/, "").trim())
-          .filter(Boolean),
-      })),
-    skills: splitList(sectionContent("skills")),
+    experience: hasSection("experience") ? [] : fallback.experience,
+    skills: hasSection("skills") ? splitList(sectionContent("skills")) : fallback.skills,
     education: orderedSections
-      .filter((section) => section.type === "education")
-      .flatMap((section) => splitList(section.content)),
+      .some((section) => section.type === "education" && section.content.trim())
+      ? orderedSections
+          .filter((section) => section.type === "education")
+          .flatMap((section) => splitList(section.content))
+      : fallback.education,
     sections: orderedSections,
   };
 }

@@ -142,6 +142,9 @@ export function inferResumeSectionContentKind(
   const effectiveType = inferredType === "custom" ? sectionType : inferredType;
 
   if (hasMixedTextAndBulletContent(content)) return "paragraph";
+  if (effectiveType === "experience" && hasBulletPrefixedRoleHeaderContent(content)) {
+    return "paragraph";
+  }
   if (isBulletListContent(content)) return "bullets";
 
   if (
@@ -159,6 +162,33 @@ export function inferResumeSectionContentKind(
 
 function normalizeResumeSectionTitle(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function stripDuplicateSectionHeading(title: string, content: string): string {
+  if (!title.trim() || !content.trim()) return content.trim();
+
+  const titleKey = canonicalSectionHeadingFamily(title);
+  const lines = content.replace(/\r/g, "").split("\n");
+  while (lines.length > 0 && isDuplicateSectionHeadingLine(titleKey, lines[0] ?? "")) {
+    lines.shift();
+  }
+
+  return lines.join("\n").trim();
+}
+
+function isDuplicateSectionHeadingLine(titleKey: string, line: string): boolean {
+  const lineKey = canonicalSectionHeadingFamily(line.replace(/^\s*[-*•]\s*/, ""));
+  return Boolean(titleKey && lineKey && titleKey === lineKey);
+}
+
+function canonicalSectionHeadingFamily(value: string): string {
+  const key = normalizeResumeSectionTitle(value);
+  if (!key) return "";
+  if (/\b(summary|profile|objective)\b/.test(key)) return "summary";
+  if (/\b(experience|employment|work history|career history)\b/.test(key)) return "experience";
+  if (/\b(skills|competencies|technologies|tech stack|expertise)\b/.test(key)) return "skills";
+  if (/\b(education|degree|academic)\b/.test(key)) return "education";
+  return key;
 }
 
 export function parseResumeDocument(text: string, title = "Extracted resume"): ResumeDocument {
@@ -341,14 +371,15 @@ export function structuredResumeToDocument(
           .map((section, index): ResumeSection => {
             const sectionType = normalizeSectionType(section.type);
             const title = section.title || "Section";
+            const content = stripDuplicateSectionHeading(title, section.content || "");
             return {
               id: section.id || `${section.type || "custom"}-${index}`,
               type: sectionType,
               title,
-              content: section.content || "",
+              content,
               contentKind:
                 normalizeSectionContentKind(section.contentKind) ??
-                inferResumeSectionContentKind(sectionType, title),
+                inferResumeSectionContentKind(sectionType, title, content),
               order: Number.isFinite(section.order) ? section.order : index,
             };
           })
@@ -462,6 +493,32 @@ function isBulletLine(line: string): boolean {
   return /^[-*•]\s+/.test(line);
 }
 
+export function stripResumeBulletPrefix(line: string): string {
+  return line.replace(/^[-*•]\s+/, "").trim();
+}
+
+export function isBulletPrefixedRoleHeaderLine(line: string): boolean {
+  if (!isBulletLine(line)) return false;
+
+  const text = stripResumeBulletPrefix(line);
+  if (text.length > 180) return false;
+
+  const hasRoleWord =
+    /\b(engineer|developer|manager|designer|analyst|architect|lead|director|consultant|specialist|administrator|coordinator|officer|associate|intern|scientist|technician|founder|principal)\b/i.test(
+      text,
+    );
+  const hasDate =
+    /\b(?:19|20)\d{2}\b/i.test(text) ||
+    /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(?:19|20)\d{2}\b/i.test(text);
+  const hasRoleSeparator = /\s(?:\||—|–|-|at)\s/i.test(text);
+
+  return hasRoleWord && hasDate && hasRoleSeparator;
+}
+
+function hasBulletPrefixedRoleHeaderContent(value: string): boolean {
+  return value.split("\n").some((line) => isBulletPrefixedRoleHeaderLine(line.trim()));
+}
+
 export function sectionTextareaRows(content: string): number {
   const lineCount = content.split("\n").length;
   const wrappedLineEstimate = Math.ceil(content.length / 95);
@@ -525,10 +582,11 @@ function parseResumeSections(text: string): ResumeSection[] {
 
   matches.forEach((match, index) => {
     const nextHeadingStart = matches[index + 1]?.index ?? sectionText.length;
-    const content = formatSectionContent(
+    const rawContent = formatSectionContent(
       sectionText.slice(match.contentStart, nextHeadingStart),
       match.metadata.type,
     );
+    const content = stripDuplicateSectionHeading(match.heading, rawContent);
     if (!content) return;
 
     sections.push({
