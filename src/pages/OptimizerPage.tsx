@@ -30,7 +30,7 @@ import {
   optimizeResumeWithProvider,
 } from "../lib/providers/dispatch";
 import { normalizeStructuredResume, resumeToPlainText, type StructuredResume } from "../lib/resume";
-import type { ResumeRecord } from "../lib/storage";
+import type { ResumeRecord, RunRecord } from "../lib/storage";
 import type { ResumeTemplateId } from "../templates/registry";
 
 const ResumeReview = lazy(() =>
@@ -66,6 +66,17 @@ type ReviewReturnState = {
   returnTo?: string;
   expandedRunId?: string;
 } | null;
+
+type WorkspaceVersionItem = {
+  key: string;
+  resume: ResumeRecord | null;
+  run: RunRecord | null;
+  name: string;
+  secondaryLabel: string;
+  uploadedAt: string;
+  matchScore: number | null;
+  hasCoverLetter: boolean;
+};
 
 export default function OptimizerPage({
   embedded = false,
@@ -167,13 +178,46 @@ export default function OptimizerPage({
 
   const resumeVersions = useMemo(() => {
     if (!activeResume) return [];
-    return resumes
+    const linkedRunIds = new Set<string>();
+    const items: WorkspaceVersionItem[] = resumes
       .filter((r) => r.versionType === "tailored" && r.sourceResumeId === activeResume.id)
       .map((resume) => ({
+        key: `resume:${resume.id}`,
         resume,
         run: runs.find((r) => r.tailoredResumeId === resume.id || r.id === resume.sourceRunId) ?? null,
-      }))
-      .sort((a, b) => new Date(b.resume.uploadedAt).getTime() - new Date(a.resume.uploadedAt).getTime())
+        name: resume.name,
+        secondaryLabel: "",
+        uploadedAt: resume.uploadedAt,
+        matchScore: resume.matchScore ?? null,
+        hasCoverLetter: false,
+      }));
+
+    for (const item of items) {
+      if (item.run?.id) linkedRunIds.add(item.run.id);
+      if (item.resume?.sourceRunId) linkedRunIds.add(item.resume.sourceRunId);
+      item.secondaryLabel =
+        item.run?.title && item.run.title !== item.resume?.name
+          ? `${item.run.title} · ${formatRelativeDate(item.uploadedAt)}`
+          : formatRelativeDate(item.uploadedAt);
+      item.hasCoverLetter = Boolean(item.run?.hasCoverLetter);
+    }
+
+    for (const run of runs) {
+      if (run.resumeId !== activeResume.id || !run.hasReview || linkedRunIds.has(run.id)) continue;
+      items.push({
+        key: `run:${run.id}`,
+        resume: null,
+        run,
+        name: `Resume - ${run.title}`,
+        secondaryLabel: formatRelativeDate(run.createdAt),
+        uploadedAt: run.createdAt,
+        matchScore: run.score,
+        hasCoverLetter: Boolean(run.hasCoverLetter),
+      });
+    }
+
+    return items
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
       .slice(0, 5);
   }, [resumes, runs, activeResume]);
   const sourceResumeOptions = useMemo(() => {
@@ -1100,17 +1144,15 @@ export default function OptimizerPage({
               <section className="workspace-versions" aria-label="Tailored versions">
                 <h3 className="workspace-versions-heading">Tailored versions</h3>
                 <div className="workspace-versions-list">
-                  {resumeVersions.map(({ resume, run }) => {
-                    const applicationRunId = run?.id ?? resume.sourceRunId;
-                    const isRenaming = renamingVersionId === resume.id;
-                    const secondaryLabel =
-                      run?.title && run.title !== resume.name
-                        ? `${run.title} · ${formatRelativeDate(resume.uploadedAt)}`
-                        : formatRelativeDate(resume.uploadedAt);
+                  {resumeVersions.map((item) => {
+                    const { resume, run } = item;
+                    const applicationRunId = run?.id ?? resume?.sourceRunId;
+                    const itemId = resume?.id ?? run?.id ?? item.key;
+                    const isRenaming = Boolean(resume && renamingVersionId === resume.id);
 
                     return (
                       <article
-                        key={resume.id}
+                        key={item.key}
                         className={`workspace-version-item${isRenaming ? " is-renaming" : ""}`}
                         role={isRenaming ? undefined : "button"}
                         tabIndex={isRenaming ? undefined : 0}
@@ -1118,7 +1160,7 @@ export default function OptimizerPage({
                           if (isRenaming) return;
                           const target = event.target as HTMLElement;
                           if (target.closest("button,input,form")) return;
-                          openTailoredVersion(applicationRunId, resume.id);
+                          openTailoredVersion(applicationRunId, itemId);
                         }}
                         onKeyDown={(event) => {
                           if (isRenaming) return;
@@ -1126,13 +1168,13 @@ export default function OptimizerPage({
                           if (target.closest("button,input,form")) return;
                           if (event.key === "Enter" || event.key === " ") {
                             event.preventDefault();
-                            openTailoredVersion(applicationRunId, resume.id);
+                            openTailoredVersion(applicationRunId, itemId);
                           }
                         }}
                       >
                         <div className="workspace-version-open">
                           <div className="workspace-version-meta">
-                            {isRenaming ? (
+                            {isRenaming && resume ? (
                               <>
                                 <form
                                   className="run-title-edit workspace-version-rename-form"
@@ -1178,26 +1220,28 @@ export default function OptimizerPage({
                                   <button
                                     type="button"
                                     className="workspace-version-name-button"
-                                    onClick={() => openTailoredVersion(applicationRunId, resume.id)}
+                                    onClick={() => openTailoredVersion(applicationRunId, itemId)}
                                   >
-                                    <span className="run-title-label workspace-version-name">{resume.name}</span>
+                                    <span className="run-title-label workspace-version-name">{item.name}</span>
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="run-title-action workspace-version-title-action"
-                                    title="Rename version"
-                                    onClick={() => startVersionRename(resume)}
-                                    aria-label={`Rename ${resume.name}`}
-                                  >
-                                    <Pencil aria-hidden="true" />
-                                  </button>
+                                  {resume && (
+                                    <button
+                                      type="button"
+                                      className="run-title-action workspace-version-title-action"
+                                      title="Rename version"
+                                      onClick={() => startVersionRename(resume)}
+                                      aria-label={`Rename ${resume.name}`}
+                                    >
+                                      <Pencil aria-hidden="true" />
+                                    </button>
+                                  )}
                                 </div>
                                 <button
                                   type="button"
                                   className="workspace-version-date-button"
-                                  onClick={() => openTailoredVersion(applicationRunId, resume.id)}
+                                  onClick={() => openTailoredVersion(applicationRunId, itemId)}
                                 >
-                                  <span className="workspace-version-date">{secondaryLabel}</span>
+                                  <span className="workspace-version-date">{item.secondaryLabel}</span>
                                 </button>
                               </>
                             )}
@@ -1205,32 +1249,34 @@ export default function OptimizerPage({
                           <button
                             type="button"
                             className="workspace-version-end workspace-version-end-button"
-                            onClick={() => openTailoredVersion(applicationRunId, resume.id)}
-                            aria-label={`Open ${resume.name}`}
+                            onClick={() => openTailoredVersion(applicationRunId, itemId)}
+                            aria-label={`Open ${item.name}`}
                           >
-                            {run?.hasCoverLetter && (
+                            {item.hasCoverLetter && (
                               <span className="workspace-version-badge">CL</span>
                             )}
-                            {resume.matchScore != null && (
-                              <span className="workspace-version-score">{resume.matchScore}%</span>
+                            {item.matchScore != null && (
+                              <span className="workspace-version-score">{item.matchScore}%</span>
                             )}
                           </button>
                         </div>
 
-                        <div className="workspace-version-actions" aria-label={`${resume.name} actions`}>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm btn-icon-only workspace-version-delete"
-                            disabled={deletingVersionId === resume.id || isRenamingVersion}
-                            onClick={() => {
-                              setPendingDeleteVersion(resume);
-                              setVersionDeleteError("");
-                            }}
-                            aria-label={`Delete ${resume.name}`}
-                          >
-                            {deletingVersionId === resume.id ? <Loader2 className="spin" aria-hidden="true" /> : <X aria-hidden="true" />}
-                          </button>
-                        </div>
+                        {resume && (
+                          <div className="workspace-version-actions" aria-label={`${resume.name} actions`}>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm btn-icon-only workspace-version-delete"
+                              disabled={deletingVersionId === resume.id || isRenamingVersion}
+                              onClick={() => {
+                                setPendingDeleteVersion(resume);
+                                setVersionDeleteError("");
+                              }}
+                              aria-label={`Delete ${resume.name}`}
+                            >
+                              {deletingVersionId === resume.id ? <Loader2 className="spin" aria-hidden="true" /> : <X aria-hidden="true" />}
+                            </button>
+                          </div>
+                        )}
                       </article>
                     );
                   })}

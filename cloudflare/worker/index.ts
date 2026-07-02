@@ -437,7 +437,18 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
       )
       .first<RunRow>();
 
-    run = row ? mapRun(row) : null;
+    if (row) {
+      const tailoredResumeId = await upsertTailoredResumeForRun(
+        env,
+        user.id,
+        row,
+        snapshot.optimizedResumeText,
+        templateId,
+        snapshot.score,
+      );
+      row.tailored_resume_id = tailoredResumeId;
+      run = mapRun(row);
+    }
   }
 
   await recordAiUsage(env, user, "optimize_resume", {
@@ -1153,7 +1164,7 @@ async function handleUpdateRunReview(
   const existing = await env.DB.prepare(
     [
       "select id, title, resume_id, resume_name, job_description, original_resume_text,",
-      "selected_template_id from optimization_runs where user_id = ? and id = ?",
+      "selected_template_id, tailored_resume_id, created_at from optimization_runs where user_id = ? and id = ?",
     ].join(" "),
   )
     .bind(user.id, runId)
@@ -1218,7 +1229,133 @@ async function handleUpdateRunReview(
     .first<RunRow>();
 
   if (!row) throw new Error("Could not save review changes.");
+  const tailoredResumeId = await upsertTailoredResumeForRun(
+    env,
+    user.id,
+    row,
+    snapshot.optimizedResumeText,
+    templateId,
+    snapshot.score,
+  );
+
+  row.tailored_resume_id = tailoredResumeId;
   return json({ run: mapRun(row) }, { headers });
+}
+
+async function upsertTailoredResumeForRun(
+  env: Env,
+  userId: string,
+  run: RunRow,
+  optimizedText: string,
+  templateId: string,
+  matchScore: number,
+): Promise<string> {
+  const existing = run.tailored_resume_id
+    ? await env.DB.prepare(
+        [
+          "select id, storage_key",
+          "from resumes",
+          "where user_id = ? and id = ? and version_type = 'tailored'",
+        ].join(" "),
+      )
+        .bind(userId, run.tailored_resume_id)
+        .first<{ id: string; storage_key: string | null }>()
+    : await env.DB.prepare(
+        [
+          "select id, storage_key",
+          "from resumes",
+          "where user_id = ? and source_run_id = ? and version_type = 'tailored'",
+          "order by uploaded_at desc limit 1",
+        ].join(" "),
+      )
+        .bind(userId, run.id)
+        .first<{ id: string; storage_key: string | null }>();
+
+  const title = normalizeManualRunTitle(run.title) || "Untitled role";
+  const name = formatTailoredResumeVersionName(title, run.created_at);
+  const score = Math.round(matchScore);
+
+  if (existing) {
+    const storageKey = existing.storage_key || `${userId}/${existing.id}/${sanitizeFileName(name)}.txt`;
+    await env.RESUME_BUCKET.put(storageKey, optimizedText, {
+      httpMetadata: { contentType: "text/plain" },
+    });
+
+    await env.DB.prepare(
+      [
+        "update resumes",
+        "set name = ?, file_type = 'text', storage_key = ?, extracted_text = ?, character_count = ?,",
+        "selected_template_id = ?, source_resume_id = ?, source_run_id = ?, tailored_for = ?, match_score = ?,",
+        "updated_at = current_timestamp",
+        "where user_id = ? and id = ? and version_type = 'tailored'",
+      ].join(" "),
+    )
+      .bind(
+        name,
+        storageKey,
+        optimizedText,
+        optimizedText.length,
+        templateId,
+        run.resume_id,
+        run.id,
+        title,
+        score,
+        userId,
+        existing.id,
+      )
+      .run();
+
+    if (run.tailored_resume_id !== existing.id) {
+      await env.DB.prepare(
+        "update optimization_runs set tailored_resume_id = ?, updated_at = current_timestamp where user_id = ? and id = ?",
+      )
+        .bind(existing.id, userId, run.id)
+        .run();
+    }
+
+    return existing.id;
+  }
+
+  const id = crypto.randomUUID();
+  const storageKey = `${userId}/${id}/${sanitizeFileName(name)}.txt`;
+  await env.RESUME_BUCKET.put(storageKey, optimizedText, {
+    httpMetadata: { contentType: "text/plain" },
+  });
+
+  try {
+    await env.DB.prepare(
+      [
+        "insert into resumes",
+        "(id, user_id, name, file_type, storage_key, extracted_text, character_count, is_active, selected_template_id, version_type, source_resume_id, source_run_id, tailored_for, match_score)",
+        "values (?, ?, ?, 'text', ?, ?, ?, 0, ?, 'tailored', ?, ?, ?, ?)",
+      ].join(" "),
+    )
+      .bind(
+        id,
+        userId,
+        name,
+        storageKey,
+        optimizedText,
+        optimizedText.length,
+        templateId,
+        run.resume_id,
+        run.id,
+        title,
+        score,
+      )
+      .run();
+
+    await env.DB.prepare(
+      "update optimization_runs set tailored_resume_id = ?, updated_at = current_timestamp where user_id = ? and id = ?",
+    )
+      .bind(id, userId, run.id)
+      .run();
+  } catch (error) {
+    await env.RESUME_BUCKET.delete(storageKey);
+    throw error;
+  }
+
+  return id;
 }
 
 async function handleUpdateRunCoverLetter(
