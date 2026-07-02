@@ -28,6 +28,10 @@ export function TemplateRenderProvider({
   );
 }
 
+export function useTemplateContactRenderer() {
+  return useContext(TemplateRenderContext).renderContactSectionContent;
+}
+
 // ─── Contact detail categorisation ──────────────────────────────────────────
 
 type DetailCategory = "email" | "phone" | "linkedin" | "github" | "website" | "location";

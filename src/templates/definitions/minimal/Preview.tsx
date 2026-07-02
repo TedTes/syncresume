@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { ResumeSection } from "../../../resume/schema";
 import { parseResumeContact } from "../../../resume/contact";
-import { ContactDetailList, SectionContent } from "../../shared/renderers";
+import { ContactDetailList, SectionContent, useTemplateContactRenderer } from "../../shared/renderers";
 import type { TemplatePreviewProps } from "../../shared/types";
 
 function MinimalSection({
@@ -30,6 +30,7 @@ export function Preview({
   bodySections,
   renderSectionContent,
 }: TemplatePreviewProps) {
+  const renderContactSectionContent = useTemplateContactRenderer();
   const { name, details } = parseResumeContact(
     contactSection?.content ?? "",
     document.title,
@@ -40,10 +41,16 @@ export function Preview({
       className={`resume-template-preview ${template.className}`}
       aria-label={`${template.name} preview`}
     >
-      <header className="template-contact">
-        {name && <h1>{name}</h1>}
-        <ContactDetailList details={details} />
-      </header>
+      {contactSection && renderContactSectionContent ? (
+        <header className="template-contact template-contact-editable">
+          {renderContactSectionContent(contactSection)}
+        </header>
+      ) : (
+        <header className="template-contact">
+          {name && <h1>{name}</h1>}
+          <ContactDetailList details={details} />
+        </header>
+      )}
       {bodySections.map((section) => (
         <MinimalSection
           section={section}

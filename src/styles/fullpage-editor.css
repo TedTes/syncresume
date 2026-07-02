@@ -77,7 +77,6 @@
 }
 
 .template-fullpage-preview-shell .resume-template-preview {
-  display: flow-root;
   flex: 0 0 auto;
   width: min(816px, 100%);
   height: auto;
@@ -140,7 +139,6 @@
 
 .document-editor-stage .resume-template-preview {
   flex: 0 0 auto;
-  display: flow-root;
   width: min(816px, 100%);
   height: auto;
   min-height: 1056px;
@@ -165,9 +163,14 @@
   background: transparent;
   color: inherit;
   font: inherit;
+  font-family: inherit;
+  font-style: inherit;
+  font-weight: inherit;
   font-size: inherit;
   line-height: inherit;
   letter-spacing: 0;
+  text-align: inherit;
+  text-transform: inherit;
   text-rendering: optimizeLegibility;
   overflow: hidden;
   resize: none;
@@ -189,6 +192,10 @@
 
 .resume-section-text-editor.has-toolbar-action .document-section-textarea {
   padding-right: 98px;
+}
+
+.review-contact-editor.has-toolbar-action .document-section-textarea {
+  padding-right: 38px;
 }
 
 .resume-section-format-toolbar {
@@ -278,7 +285,19 @@
 
 .document-section-textarea-contact {
   min-height: 4.2em;
-  text-align: center;
+  text-align: inherit;
+}
+
+.review-editable-contact-shell {
+  width: 100%;
+}
+
+.review-document-contact-textarea {
+  width: 100%;
+  cursor: text;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .review-document-textarea {
@@ -301,7 +320,6 @@
 
 .review-inline-add-section {
   width: 100%;
-  margin-top: 8px;
   border: 1px dashed rgba(16, 185, 129, 0.5);
   border-radius: 7px;
   background: rgba(16, 185, 129, 0.055);
@@ -315,15 +333,35 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 28px;
-  padding: 6px 10px;
+  min-height: 0;
+  max-height: 0;
+  padding: 0 10px;
+  margin-top: 0;
   cursor: pointer;
   font-weight: 800;
+  opacity: 0;
+  overflow: hidden;
+  border-width: 0;
+  pointer-events: none;
+  transition:
+    max-height 0.14s ease,
+    padding 0.14s ease,
+    margin-top 0.14s ease,
+    opacity 0.14s ease;
+}
+
+.review-editable-section-shell:hover .review-inline-add-trigger,
+.review-editable-section-shell:focus-within .review-inline-add-trigger {
+  min-height: 28px;
+  max-height: 44px;
+  padding: 6px 10px;
+  margin-top: 8px;
   opacity: 0.72;
+  border-width: 1px;
+  pointer-events: auto;
 }
 
 .review-inline-add-trigger:hover {
-  border-color: rgba(5, 150, 105, 0.78);
   background: rgba(16, 185, 129, 0.09);
   opacity: 1;
 }

@@ -416,6 +416,16 @@
   display: block;
 }
 
+.template-comparison-grid.is-compare-mode:not(.is-single-pane) .template-comparison-pane,
+.template-comparison-grid.is-compare-mode:not(.is-single-pane) .template-comparison-document {
+  height: 100%;
+}
+
+.template-comparison-grid.is-compare-mode:not(.is-single-pane) .resume-template-font-scope,
+.template-comparison-grid.is-compare-mode:not(.is-single-pane) .resume-template-preview {
+  min-height: 100%;
+}
+
 .template-comparison-pane {
   position: relative;
   box-sizing: border-box;
@@ -438,7 +448,6 @@
 
 .template-comparison-pane .resume-template-preview {
   box-sizing: border-box;
-  display: block;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -816,8 +825,112 @@
   outline: 3px solid var(--accent-dim);
 }
 
+/* Cover letter document-stage — active artifact in review workspace */
+.saved-application-review .cover-letter-active {
+  max-width: none;
+  margin-top: 0;
+  margin-inline: unset;
+  padding: 24px 20px 64px;
+  background: #1e1e1b;
+  border: none;
+  border-radius: 0;
+  gap: 0;
+}
+
+.saved-application-review .cover-letter-active .cover-letter-textarea {
+  display: block;
+  width: min(760px, 100%);
+  min-height: min(1040px, calc(100vh - 160px));
+  margin: 0 auto;
+  padding: 60px 72px;
+  background: #ffffff;
+  color: #111827;
+  border: none;
+  border-radius: 2px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
+  font-size: 1rem;
+  line-height: 1.8;
+  resize: none;
+  field-sizing: content;
+}
+
+.saved-application-review .cover-letter-active .cover-letter-textarea:focus {
+  border: none;
+  outline: none;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
+}
+
+.saved-application-review .cover-letter-active .cover-letter-textarea::placeholder {
+  color: rgba(55, 65, 81, 0.44);
+}
+
+/* Job description document-stage — active artifact in review workspace */
+.saved-application-review .job-description-active {
+  max-width: none;
+  margin-top: 0;
+  margin-inline: unset;
+  padding: 24px 20px 64px;
+  background: #1e1e1b;
+  border: none;
+  border-radius: 0;
+  gap: 0;
+}
+
+.saved-application-review .job-description-active .cover-letter-textarea {
+  display: block;
+  width: min(760px, 100%);
+  min-height: min(1040px, calc(100vh - 160px));
+  margin: 0 auto;
+  padding: 60px 72px;
+  background: #ffffff;
+  color: #111827;
+  border: none;
+  border-radius: 2px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
+  font-size: 1rem;
+  line-height: 1.8;
+  resize: none;
+  field-sizing: content;
+  cursor: default;
+}
+
+.saved-application-review .job-description-active .cover-letter-textarea::placeholder {
+  color: rgba(55, 65, 81, 0.44);
+}
+
+@media (max-width: 640px) {
+  .saved-application-review .cover-letter-active,
+  .saved-application-review .job-description-active {
+    padding: 16px 12px 48px;
+  }
+
+  .saved-application-review .cover-letter-active .cover-letter-textarea,
+  .saved-application-review .job-description-active .cover-letter-textarea {
+    padding: 36px 28px;
+  }
+}
+
 .export-status-msg {
   font-size: 0.84rem;
   font-weight: 600;
   color: var(--success);
+}
+
+.review-contact-view {
+  width: 100%;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 3px;
+  transition: background 0.14s ease;
+}
+
+.review-contact-view:hover,
+.review-contact-view:focus-visible {
+  background: rgba(16, 185, 129, 0.035);
+  outline: 1px solid rgba(16, 185, 129, 0.22);
+  outline-offset: 1px;
+}
+
+.review-contact-view a {
+  pointer-events: none;
 }

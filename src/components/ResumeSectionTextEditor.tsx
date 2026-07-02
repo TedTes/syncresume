@@ -99,6 +99,12 @@ export function ResumeSectionTextEditor({
         toolbarAction ? "has-toolbar-action" : ""
       } ${className}`.trim()}
       data-content-kind={contentKind}
+      onMouseDown={(event) => {
+        if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLButtonElement) {
+          return;
+        }
+        textareaRef.current?.focus();
+      }}
     >
       {(onContentKindChange || toolbarAction) && (
         <div className="resume-section-format-toolbar" role="group" aria-label={`${section.title} format`}>

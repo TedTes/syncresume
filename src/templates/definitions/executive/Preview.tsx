@@ -1,5 +1,5 @@
 import { parseResumeContact } from "../../../resume/contact";
-import { ContactDetailList, SectionContent, TemplateSection } from "../../shared/renderers";
+import { ContactDetailList, SectionContent, TemplateSection, useTemplateContactRenderer } from "../../shared/renderers";
 import type { TemplatePreviewProps } from "../../shared/types";
 
 export function Preview({
@@ -11,6 +11,7 @@ export function Preview({
 }: TemplatePreviewProps) {
   const summarySection = bodySections.find((s) => s.type === "summary");
   const remainingSections = bodySections.filter((s) => s.type !== "summary");
+  const renderContactSectionContent = useTemplateContactRenderer();
   const { name, details } = parseResumeContact(
     contactSection?.content ?? "",
     document.title,
@@ -21,14 +22,20 @@ export function Preview({
       className={`resume-template-preview ${template.className}`}
       aria-label={`${template.name} preview`}
     >
-      <header className="executive-header">
-        {name && <h1>{name}</h1>}
-        {details.length > 0 && (
-          <div className="executive-header-contact">
-            <ContactDetailList details={details} />
-          </div>
-        )}
-      </header>
+      {contactSection && renderContactSectionContent ? (
+        <header className="executive-header template-contact-editable">
+          {renderContactSectionContent(contactSection)}
+        </header>
+      ) : (
+        <header className="executive-header">
+          {name && <h1>{name}</h1>}
+          {details.length > 0 && (
+            <div className="executive-header-contact">
+              <ContactDetailList details={details} />
+            </div>
+          )}
+        </header>
+      )}
 
       {summarySection && (
         <div className="executive-summary-block">

@@ -28,13 +28,14 @@ import {
   downloadResumeDocumentDocx,
   downloadResumeDocumentPdf,
 } from "../lib/exportResume";
+import { parseResumeContact } from "../resume/contact";
+import { ContactDetailList } from "../templates/shared/renderers";
 import { ResumeTemplatePreview } from "./ResumeTemplatePreview";
 import { useSettings } from "../context/SettingsContext";
 import { useToastMessage } from "../context/ToastContext";
 import { openAIErrorMessage } from "../lib/openai";
 import { reviseResumeSectionWithProvider } from "../lib/providers/dispatch";
 import type { LLMProvider } from "../lib/providers/types";
-import { applyUserProfileContactFallback } from "../lib/userProfile";
 import {
   RESUME_SECTION_TYPE_OPTIONS,
   addResumeDocumentSection,
@@ -154,7 +155,6 @@ export function ResumeReview({
     selectedFontId,
     setSelectedFontId,
     setTemplatePreviewDocument,
-    userProfileDetails,
   } = useSettings();
   const persistedTemplateIdRef = useRef<ResumeTemplateId>(initialTemplateId ?? selectedTemplateId);
   const hasAppliedInitialTemplateRef = useRef(!initialTemplateId);
@@ -188,10 +188,6 @@ export function ResumeReview({
   );
   const [resumeDocument, setResumeDocument] = useState<ResumeDocument>(incomingResumeDocument);
   const localDocumentSignatureRef = useRef(serializeResumeDocument(incomingResumeDocument));
-  const displayResumeDocument = useMemo(
-    () => applyUserProfileContactFallback(resumeDocument, userProfileDetails),
-    [resumeDocument, userProfileDetails],
-  );
 
   useEffect(() => {
     const incomingSignature = serializeResumeDocument(incomingResumeDocument);
@@ -199,26 +195,27 @@ export function ResumeReview({
 
     setResumeDocument(incomingResumeDocument);
     localDocumentSignatureRef.current = incomingSignature;
-    const firstEditableSection = incomingResumeDocument.sections.find((section) => section.type !== "contact");
+    const firstEditableSection = incomingResumeDocument.sections[0];
     setAssistantSectionId(firstEditableSection?.id ?? "");
   }, [incomingResumeDocument]);
 
   const sectionComparisons = useMemo(
-    () => buildSectionComparisons(originalResumeText, displayResumeDocument),
-    [displayResumeDocument, originalResumeText],
+    () => buildSectionComparisons(originalResumeText, resumeDocument),
+    [resumeDocument, originalResumeText],
   );
 
-  const sections: SectionConfig[] = resumeDocument.sections
-    .filter((section) => section.type !== "contact")
-    .map((section) => ({
-      id: section.id,
-      label: section.title,
-    }));
+  const sections: SectionConfig[] = resumeDocument.sections.map((section) => ({
+    id: section.id,
+    label: section.type === "contact" ? "Header" : section.title,
+  }));
   const selectedAssistantSection =
     sections.find((section) => section.id === assistantSectionId) ?? sections[0];
   const selectedDocumentSection = resumeDocument.sections.find(
     (section) => section.id === selectedAssistantSection?.id,
   );
+  const removableBodySectionCount = resumeDocument.sections.filter(
+    (section) => section.type !== "contact",
+  ).length;
   const downloadBaseName = useMemo(
     () => safeDownloadBaseName(title || resumeDocument.title || "optimized-resume"),
     [resumeDocument.title, title],
@@ -235,9 +232,9 @@ export function ResumeReview({
   useToastMessage(saveReviewError, { kind: "error", title: "Save failed", durationMs: 6500 });
 
   useEffect(() => {
-    setTemplatePreviewDocument(displayResumeDocument);
+    setTemplatePreviewDocument(resumeDocument);
     return () => setTemplatePreviewDocument(null);
-  }, [displayResumeDocument, setTemplatePreviewDocument]);
+  }, [resumeDocument, setTemplatePreviewDocument]);
 
   useEffect(() => {
     if (!onTemplateChange) return;
@@ -349,11 +346,11 @@ export function ResumeReview({
   }
 
   function handleRemoveSectionById(sectionId: string) {
-    if (sections.length <= 1) return;
+    if (removableBodySectionCount <= 1) return;
 
     const currentIndex = sections.findIndex((section) => section.id === sectionId);
     const nextDocument = removeResumeDocumentSection(resumeDocument, sectionId);
-    const nextSections = nextDocument.sections.filter((section) => section.type !== "contact");
+    const nextSections = nextDocument.sections;
     const nextSelectedSection = nextSections[Math.min(currentIndex, nextSections.length - 1)];
     commitResumeDocumentChange(nextDocument, nextSelectedSection?.id ?? "");
   }
@@ -375,15 +372,15 @@ export function ResumeReview({
 
   async function exportOne(action: ExportType, baseName: string) {
     if (action === "docx") {
-      await downloadResumeDocumentDocx(displayResumeDocument, selectedTemplateId, `${baseName}.docx`, selectedFontId);
+      await downloadResumeDocumentDocx(resumeDocument, selectedTemplateId, `${baseName}.docx`, selectedFontId);
       await onExported?.(action);
     }
     if (action === "pdf") {
-      await downloadResumeDocumentPdf(displayResumeDocument, selectedTemplateId, `${baseName}.pdf`, selectedFontId);
+      await downloadResumeDocumentPdf(resumeDocument, selectedTemplateId, `${baseName}.pdf`, selectedFontId);
       await onExported?.(action);
     }
     if (action === "copy") {
-      await copyPlainText(documentToStructuredResume(displayResumeDocument, resume));
+      await copyPlainText(documentToStructuredResume(resumeDocument, resume));
       await onExported?.(action);
     }
   }
@@ -423,7 +420,7 @@ export function ResumeReview({
     setSaveReviewError("");
     setIsSavingReview(true);
     try {
-      await onSaveReview(documentToStructuredResume(displayResumeDocument, resume), selectedTemplateId);
+      await onSaveReview(documentToStructuredResume(resumeDocument, resume), selectedTemplateId);
       setSaveReviewStatus("Review changes saved.");
     } catch (error) {
       setSaveReviewError(error instanceof Error ? error.message : "Could not save review changes.");
@@ -473,7 +470,7 @@ export function ResumeReview({
           onAfterSectionChange={handleInlineSectionChange}
           onAfterSectionContentKindChange={handleInlineSectionContentKindChange}
           onAfterSectionFormatChange={handleInlineSectionFormatChange}
-          canRemoveAfterSection={sections.length > 1}
+          canRemoveAfterSection={removableBodySectionCount > 1}
           onRemoveAfterSection={handleRemoveSectionById}
           availableAddSectionTitles={availableAddSectionTitles}
           addSectionAfterId={addSectionAfterId}
@@ -847,6 +844,9 @@ function ResultsTab({
                 document={originalDocument}
                 templateId={templateId}
                 fontId={fontId}
+                renderContactSectionContent={(section) =>
+                  renderDiffSectionContent(section, comparisonById, "before")
+                }
                 renderSectionContent={(section) =>
                   renderDiffSectionContent(section, comparisonById, "before")
                 }
@@ -862,6 +862,21 @@ function ResultsTab({
               templateId={templateId}
               fontId={fontId}
               afterPreviewContent={!isCompareMode ? revisionBar : undefined}
+              renderContactSectionContent={(section) =>
+                isCompareMode
+                  ? renderDiffSectionContent(section, comparisonById, "after")
+                  : renderEditableAfterSectionContent(
+                      section,
+                      comparisonById,
+                      selectedSectionId,
+                      onSelectAfterSection,
+                      onAfterSectionChange,
+                      onAfterSectionContentKindChange,
+                      onAfterSectionFormatChange,
+                      canRemoveAfterSection,
+                      onRemoveAfterSection,
+                    )
+              }
               renderSectionContent={(section) =>
                 isCompareMode
                   ? renderDiffSectionContent(section, comparisonById, "after")
@@ -1083,7 +1098,53 @@ function renderEditableAfterSectionContent(
   },
 ) {
   if (section.type === "contact" || section.id === "contact") {
-    return renderDiffSectionContent(section, comparisonById, "after");
+    if (section.id !== selectedSectionId) {
+      const { name, details } = parseResumeContact(section.content);
+      return (
+        <div
+          className="review-contact-view"
+          role="button"
+          tabIndex={0}
+          onClick={() => onSelectAfterSection(section.id)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onSelectAfterSection(section.id);
+            }
+          }}
+        >
+          {name && <h1>{name}</h1>}
+          <ContactDetailList details={details} />
+        </div>
+      );
+    }
+    return (
+      <div className="review-editable-section-shell review-editable-contact-shell">
+        <ResumeSectionTextEditor
+          section={section}
+          isSelected={true}
+          className="review-contact-editor"
+          onSelect={() => onSelectAfterSection(section.id)}
+          onContentChange={(content) => onAfterSectionChange(section.id, content)}
+          textareaClassName="review-document-textarea review-document-contact-textarea"
+          toolbarAction={
+            <button
+              className="resume-section-format-delete"
+              type="button"
+              aria-label="Clear header"
+              title="Clear header"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectAfterSection(section.id);
+                onAfterSectionChange(section.id, "");
+              }}
+            >
+              <X aria-hidden="true" />
+            </button>
+          }
+        />
+      </div>
+    );
   }
 
   return (

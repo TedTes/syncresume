@@ -1,5 +1,5 @@
 import { parseResumeContact } from "../../../resume/contact";
-import { ContactDetailList, TemplateSection } from "../../shared/renderers";
+import { ContactDetailList, TemplateSection, useTemplateContactRenderer } from "../../shared/renderers";
 import type { TemplatePreviewProps } from "../../shared/types";
 
 export function Preview({
@@ -9,6 +9,7 @@ export function Preview({
   bodySections,
   renderSectionContent,
 }: TemplatePreviewProps) {
+  const renderContactSectionContent = useTemplateContactRenderer();
   const { name, details } = parseResumeContact(contactSection?.content ?? "", document.title);
 
   return (
@@ -16,10 +17,16 @@ export function Preview({
       className={`resume-template-preview ${template.className}`}
       aria-label={`${template.name} preview`}
     >
-      <div className="navy-head">
-        {name && <h1>{name}</h1>}
-        <ContactDetailList details={details} />
-      </div>
+      {contactSection && renderContactSectionContent ? (
+        <div className="navy-head template-contact-editable">
+          {renderContactSectionContent(contactSection)}
+        </div>
+      ) : (
+        <div className="navy-head">
+          {name && <h1>{name}</h1>}
+          <ContactDetailList details={details} />
+        </div>
+      )}
       <div className="navy-body">
         {bodySections.map((s) => (
           <TemplateSection section={s} key={s.id} renderSectionContent={renderSectionContent} />

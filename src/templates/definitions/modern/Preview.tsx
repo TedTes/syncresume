@@ -1,5 +1,5 @@
 import { parseResumeContact } from "../../../resume/contact";
-import { ContactDetailList, TemplateSection } from "../../shared/renderers";
+import { ContactDetailList, TemplateSection, useTemplateContactRenderer } from "../../shared/renderers";
 import type { TemplatePreviewProps } from "../../shared/types";
 
 export function Preview({
@@ -9,6 +9,7 @@ export function Preview({
   bodySections,
   renderSectionContent,
 }: TemplatePreviewProps) {
+  const renderContactSectionContent = useTemplateContactRenderer();
   const { name, details } = parseResumeContact(
     contactSection?.content ?? "",
     document.title,
@@ -19,16 +20,22 @@ export function Preview({
       className={`resume-template-preview ${template.className}`}
       aria-label={`${template.name} preview`}
     >
-      <header className="modern-split-header">
-        <div className="modern-split-name">
-          {name && <h1>{name}</h1>}
-        </div>
-        {details.length > 0 && (
-          <div className="modern-split-contact">
-            <ContactDetailList details={details} />
+      {contactSection && renderContactSectionContent ? (
+        <header className="modern-split-header template-contact-editable">
+          {renderContactSectionContent(contactSection)}
+        </header>
+      ) : (
+        <header className="modern-split-header">
+          <div className="modern-split-name">
+            {name && <h1>{name}</h1>}
           </div>
-        )}
-      </header>
+          {details.length > 0 && (
+            <div className="modern-split-contact">
+              <ContactDetailList details={details} />
+            </div>
+          )}
+        </header>
+      )}
       {bodySections.map((section) => (
         <TemplateSection
           section={section}
