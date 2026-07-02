@@ -396,6 +396,15 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
     setIsDraggingOver(false);
   }
 
+  function openFilePicker() {
+    if (uploadsDisabled) {
+      if (requiresSignIn) setUploadError("Sign in before uploading resumes.");
+      return;
+    }
+    if (resumeInputMode !== "upload") switchResumeInputMode("upload");
+    fileInputRef.current?.click();
+  }
+
   async function structureResumeForSave(resumeText: string, resumeName: string): Promise<string> {
     const structured = await structureResumeWithProvider({
       provider,
@@ -964,106 +973,73 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
               </div>
             )}
 
-        <section className="resume-input-section" aria-label="Add resume">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          multiple
+          className="sr-only"
+          disabled={uploadsDisabled}
+          onChange={handleFileInput}
+        />
+
+        <section
+          className={`resume-input-section${isDraggingOver ? " resume-input-dragging" : ""}`}
+          aria-label="Add resume"
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <div className="resume-input-toolbar">
             <span className="resume-input-title">Add resume</span>
-            <button
-              className="btn btn-secondary btn-sm"
-              type="button"
-              onClick={() =>
-                switchResumeInputMode(resumeInputMode === "upload" ? "paste" : "upload")
-              }
-            >
-              {resumeInputMode === "upload" ? (
-                <ClipboardPaste aria-hidden="true" />
-              ) : (
+            <div className="resume-input-actions">
+              <button
+                className="btn btn-secondary btn-sm"
+                type="button"
+                disabled={uploadsDisabled}
+                onClick={openFilePicker}
+              >
                 <UploadCloud aria-hidden="true" />
-              )}
-              {resumeInputMode === "upload" ? "Paste text" : "Upload file"}
-            </button>
+                Upload file
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                type="button"
+                onClick={() =>
+                  switchResumeInputMode(resumeInputMode === "paste" ? "upload" : "paste")
+                }
+              >
+                <ClipboardPaste aria-hidden="true" />
+                Paste text
+              </button>
+            </div>
           </div>
 
           {resumeInputMode === "upload" ? (
-            <>
-              <div
-                className={`resume-upload-compact ${isDraggingOver ? "dragging" : ""} ${uploadsDisabled ? "disabled" : ""}`}
-                onDragEnter={handleDragEnter}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                aria-busy={isUploading}
-                aria-disabled={uploadsDisabled}
-              >
-                <div className="resume-upload-compact-copy">
-                  <span className="resume-upload-compact-title">
-                    {isUploading
-                      ? "Uploading resume..."
-                      : isAuthLoading
-                        ? "Checking session..."
-                        : requiresSignIn
-                          ? "Sign in to upload resumes"
-                          : isDraggingOver
-                            ? "Drop to upload"
-                            : "Upload PDF or DOCX"}
-                  </span>
-                  <span className="resume-upload-compact-sub">
-                    Choose a file, or drag it onto this row.
-                  </span>
-                </div>
-                <button
-                  className="btn btn-primary btn-sm"
-                  type="button"
-                  disabled={uploadsDisabled}
-                  onClick={() => {
-                    if (uploadsDisabled) {
-                      if (requiresSignIn) setUploadError("Sign in before uploading resumes.");
-                      return;
-                    }
-                    fileInputRef.current?.click();
-                  }}
-                >
-                  {isUploading ? (
-                    <Loader2 className="spin" aria-hidden="true" />
-                  ) : (
-                    <UploadCloud aria-hidden="true" />
-                  )}
-                  Upload
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  multiple
-                  className="sr-only"
-                  disabled={uploadsDisabled}
-                  onChange={handleFileInput}
-                />
-              </div>
-
-              {uploadQueue.length > 0 && (
-                <div className="upload-queue" aria-live="polite">
-                  {uploadQueue.map((item) => (
-                    <div className={`upload-queue-row ${item.status}`} key={item.id}>
-                      <span className="upload-queue-icon" aria-hidden="true">
-                        {item.status === "done" ? (
-                          <CheckCircle2 />
-                        ) : item.status === "error" ? (
-                          <AlertCircle />
-                        ) : (
-                          <Loader2 className="spin" />
-                        )}
+            uploadQueue.length > 0 ? (
+              <div className="upload-queue" aria-live="polite">
+                {uploadQueue.map((item) => (
+                  <div className={`upload-queue-row ${item.status}`} key={item.id}>
+                    <span className="upload-queue-icon" aria-hidden="true">
+                      {item.status === "done" ? (
+                        <CheckCircle2 />
+                      ) : item.status === "error" ? (
+                        <AlertCircle />
+                      ) : (
+                        <Loader2 className="spin" />
+                      )}
+                    </span>
+                    <div className="upload-queue-main">
+                      <span className="upload-queue-name">{item.name}</span>
+                      <span className="upload-queue-meta">
+                        {formatBytes(item.size)} · {item.message}
                       </span>
-                      <div className="upload-queue-main">
-                        <span className="upload-queue-name">{item.name}</span>
-                        <span className="upload-queue-meta">
-                          {formatBytes(item.size)} · {item.message}
-                        </span>
-                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </>
+                  </div>
+                ))}
+              </div>
+            ) : null
           ) : (
             <div className="paste-resume-panel">
               <div className="paste-resume-grid">
