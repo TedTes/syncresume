@@ -931,13 +931,14 @@ function InlineRevisionBar({
           className="btn btn-primary review-inline-revision-submit"
           type="submit"
           disabled={isRevising || !instruction.trim() || !selectedSectionId}
+          aria-label={isRevising ? "Revising selected section" : "Revise selected section"}
+          title={isRevising ? "Revising" : "Revise"}
         >
           {isRevising ? (
             <Loader2 className="spin" aria-hidden="true" />
           ) : (
             <Send aria-hidden="true" />
           )}
-          {isRevising ? "Revising..." : "Revise"}
         </button>
       </form>
     </div>

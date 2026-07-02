@@ -116,6 +116,10 @@
     scrollbar-gutter: stable both-edges;
   }
 
+  .template-comparison-grid.is-optimized-only .template-comparison-pane {
+    padding-bottom: 92px;
+  }
+
   .template-comparison-pane + .template-comparison-pane {
     border: 0;
   }
@@ -369,6 +373,10 @@
     min-width: 0;
     padding-inline: 4px;
     overflow-x: hidden;
+  }
+
+  .template-comparison-grid.is-optimized-only .template-comparison-pane {
+    padding-bottom: 92px;
   }
 
   .template-comparison-pane .resume-template-preview,

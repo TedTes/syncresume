@@ -401,6 +401,10 @@
   zoom: 1;
 }
 
+.template-comparison-grid.is-optimized-only .template-comparison-pane {
+  padding-bottom: 92px;
+}
+
 .template-comparison-grid.is-compare-mode.is-single-pane {
   grid-template-columns: minmax(0, 1fr);
   height: auto;
