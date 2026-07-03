@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Columns2,
   Download,
+  Eye,
   LayoutTemplate,
   ListTodo,
   Loader2,
@@ -56,6 +57,7 @@ import type {
 } from "../resume/schema";
 import {
   type ResumeTemplateId,
+  getResumeTemplateDefinition,
 } from "../templates/registry";
 import {
   RESUME_FONT_OPTIONS,
@@ -147,6 +149,7 @@ export function ResumeReview({
   const [saveReviewError, setSaveReviewError] = useState("");
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [isCompareMode, setIsCompareMode] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [addSectionAfterId, setAddSectionAfterId] = useState<string | null>(null);
   const assistantInputRef = useRef<HTMLTextAreaElement | null>(null);
   const {
@@ -440,6 +443,8 @@ export function ResumeReview({
       saveReviewStatus={saveReviewStatus}
       isCompareMode={isCompareMode}
       onToggleCompare={() => setIsCompareMode((isOpen) => !isOpen)}
+      isPreviewOpen={isPreviewOpen}
+      onTogglePreview={() => setIsPreviewOpen((o) => !o)}
       isTemplatePanelOpen={isTemplatePanelOpen}
       onOpenTemplates={onOpenTemplates}
       selectedFontId={selectedFontId}
@@ -451,12 +456,55 @@ export function ResumeReview({
     />
   );
 
+  const previewOverlay = isPreviewOpen
+    ? createPortal(
+        <div
+          className="template-review-backdrop"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setIsPreviewOpen(false);
+          }}
+        >
+          <section
+            className="template-review-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Resume preview"
+          >
+            <header className="template-review-header">
+              <div>
+                <p>Resume preview</p>
+                <h3>{getResumeTemplateDefinition(selectedTemplateId).name}</h3>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon-only"
+                aria-label="Close preview"
+                onClick={() => setIsPreviewOpen(false)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </header>
+            <div className="template-review-canvas">
+              <ResumeTemplatePreview
+                document={resumeDocument}
+                templateId={selectedTemplateId}
+                fontId={selectedFontId}
+              />
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )
+    : null;
+
   return (
     <section
       className={`review-workspace${isTemplatePanelOpen ? " template-panel-open" : ""}`}
       aria-label="Review workspace"
     >
       {topbarPortalTarget ? createPortal(reviewTopbar, topbarPortalTarget) : reviewTopbar}
+      {previewOverlay}
 
       <div className="tab-content">
         <ResultsTab
@@ -507,6 +555,8 @@ function ReviewTopbar({
   saveReviewStatus,
   isCompareMode,
   onToggleCompare,
+  isPreviewOpen,
+  onTogglePreview,
   isTemplatePanelOpen,
   onOpenTemplates,
   selectedFontId,
@@ -525,6 +575,8 @@ function ReviewTopbar({
   saveReviewStatus: string;
   isCompareMode: boolean;
   onToggleCompare: () => void;
+  isPreviewOpen: boolean;
+  onTogglePreview: () => void;
   isTemplatePanelOpen: boolean;
   onOpenTemplates?: () => void;
   selectedFontId: ResumeFontId;
@@ -590,6 +642,19 @@ function ReviewTopbar({
         </span>
       </div>
       <div className="review-topbar-actions">
+        <button
+          className={`btn btn-secondary btn-sm review-icon-action review-preview-button ${
+            isPreviewOpen ? "active" : ""
+          }`}
+          type="button"
+          aria-label={isPreviewOpen ? "Close preview" : "Preview resume"}
+          aria-pressed={isPreviewOpen}
+          data-tooltip={isPreviewOpen ? "Close preview" : "Preview"}
+          onClick={onTogglePreview}
+        >
+          <Eye aria-hidden="true" />
+          <span className="review-action-label">Preview</span>
+        </button>
         <button
           className={`btn btn-secondary btn-sm review-icon-action review-compare-button ${
             isCompareMode ? "active" : ""

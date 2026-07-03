@@ -1,4 +1,4 @@
-import { CheckCircle2, Eye, LayoutTemplate, X } from "lucide-react";
+import { CheckCircle2, Eye, Info, LayoutTemplate, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -104,6 +104,7 @@ export function ResumeTemplatePanel({
   isOpen = true,
 }: ResumeTemplatePanelProps) {
   const [reviewTemplateId, setReviewTemplateId] = useState<ResumeTemplateId | null>(null);
+  const [openInfoId, setOpenInfoId] = useState<ResumeTemplateId | null>(null);
   const reviewTemplate = RESUME_TEMPLATES.find((template) => template.id === reviewTemplateId);
   const reviewDocument = previewDocument ?? DEFAULT_TEMPLATE_PREVIEW_DOCUMENT;
 
@@ -191,14 +192,25 @@ export function ResumeTemplatePanel({
             <h2>Templates</h2>
             <p>Choose the layout used for preview and export.</p>
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm btn-icon-only"
-            aria-label="Close templates"
-            onClick={onClose}
-          >
-            <X aria-hidden="true" />
-          </button>
+          <div className="template-drawer-header-actions">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              aria-label="Preview selected template"
+              onClick={() => setReviewTemplateId(selectedTemplateId)}
+            >
+              <Eye aria-hidden="true" />
+              Preview
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm btn-icon-only"
+              aria-label="Close templates"
+              onClick={onClose}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <div className="template-drawer-list">
@@ -208,21 +220,24 @@ export function ResumeTemplatePanel({
             return (
               <div
                 key={template.id}
-                className={`template-drawer-option ${isSelected ? "selected" : ""}`}
+                className={`template-drawer-option${isSelected ? " selected" : ""}`}
               >
                 <button
                   type="button"
                   className="template-drawer-select-hitbox"
-                  aria-label={`Select ${template.name} template`}
-                  onClick={() => handleSelectTemplate(template.id)}
+                  aria-label={isSelected ? `${template.name} (selected)` : `Use ${template.name} template`}
+                  onClick={() => {
+                    handleSelectTemplate(template.id);
+                    setOpenInfoId(null);
+                  }}
                 >
                   <ResumeTemplateThumbnail
                     templateId={template.id}
                     document={reviewDocument}
                     fontId={selectedFontId}
                   />
-                  <span className="template-drawer-option-main">
-                    <strong>{template.name}</strong>
+                  <span className="template-drawer-option-main" aria-hidden="true">
+                    Use template
                   </span>
                   {isSelected && (
                     <span className="template-drawer-selected" aria-hidden="true">
@@ -232,13 +247,21 @@ export function ResumeTemplatePanel({
                 </button>
                 <button
                   type="button"
-                  className="template-drawer-review"
-                  aria-label={`Preview ${template.name} template`}
-                  onClick={() => setReviewTemplateId(template.id)}
+                  className={`template-card-info${openInfoId === template.id ? " is-open" : ""}`}
+                  aria-label={`${template.name} info`}
+                  aria-pressed={openInfoId === template.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenInfoId(openInfoId === template.id ? null : template.id);
+                  }}
                 >
-                  <Eye aria-hidden="true" />
-                  Preview
+                  <Info aria-hidden="true" />
                 </button>
+                {openInfoId === template.id && (
+                  <span className="template-card-name-overlay" aria-hidden="true">
+                    {template.name}
+                  </span>
+                )}
               </div>
             );
           })}
