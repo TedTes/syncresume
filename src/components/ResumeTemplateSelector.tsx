@@ -113,6 +113,9 @@ export function ResumeTemplatePanel({
     if (reviewTemplateId) {
       setReviewTemplateId(templateId);
     }
+    if (window.matchMedia("(max-width: 1100px)").matches) {
+      onClose();
+    }
   }
 
   useEffect(() => {

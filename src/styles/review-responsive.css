@@ -76,6 +76,7 @@
   .template-comparison-grid.is-compare-mode.is-single-pane {
     box-sizing: border-box;
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     gap: 10px;
     width: 100%;
     max-width: 100%;
@@ -108,7 +109,7 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    height: auto;
+    height: 100%;
     min-height: 0;
     padding-inline: 4px;
     overflow-x: hidden;
