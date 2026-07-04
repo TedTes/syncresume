@@ -164,7 +164,7 @@ function normalizeResumeSectionTitle(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-function stripDuplicateSectionHeading(title: string, content: string): string {
+export function stripDuplicateSectionHeading(title: string, content: string): string {
   if (!title.trim() || !content.trim()) return content.trim();
 
   const titleKey = canonicalSectionHeadingFamily(title);
@@ -174,6 +174,29 @@ function stripDuplicateSectionHeading(title: string, content: string): string {
   }
 
   return lines.join("\n").trim();
+}
+
+/**
+ * Returns true when an AI revision includes a recognised body-section heading
+ * that does not belong to the target section.
+ */
+export function revisionOutputHasUnexpectedBodyHeading(text: string, targetTitle: string): boolean {
+  const targetKey = canonicalSectionHeadingFamily(targetTitle);
+  return text
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .some((line) => {
+      const normalizedLine = normalizeResumeSectionTitle(line.replace(/:$/, ""));
+      const matchedHeading = KNOWN_RESUME_HEADINGS.find(
+        (h) => h.type !== "contact" && normalizeResumeSectionTitle(h.heading) === normalizedLine,
+      );
+      if (!matchedHeading) return false;
+
+      const matchedKey = canonicalSectionHeadingFamily(matchedHeading.heading);
+      return !targetKey || matchedKey !== targetKey;
+    });
 }
 
 function isDuplicateSectionHeadingLine(titleKey: string, line: string): boolean {

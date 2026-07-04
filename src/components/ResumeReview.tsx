@@ -44,7 +44,9 @@ import {
   inferResumeSectionTypeFromTitle,
   parseResumeDocument,
   removeResumeDocumentSection,
+  revisionOutputHasUnexpectedBodyHeading,
   serializeResumeDocument,
+  stripDuplicateSectionHeading,
   structuredResumeToDocument,
   updateResumeDocumentSection,
   updateResumeDocumentSectionContentKind,
@@ -145,6 +147,8 @@ export function ResumeReview({
   const [exportError, setExportError] = useState("");
   const [selectedExportTypes, setSelectedExportTypes] = useState<ExportType[]>(["docx", "pdf"]);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportNameDialogOpen, setIsExportNameDialogOpen] = useState(false);
+  const [exportNameDraft, setExportNameDraft] = useState("");
   const [saveReviewStatus, setSaveReviewStatus] = useState("");
   const [saveReviewError, setSaveReviewError] = useState("");
   const [isSavingReview, setIsSavingReview] = useState(false);
@@ -274,12 +278,24 @@ export function ResumeReview({
       return;
     }
 
+    // Guard: if the header/contact section is selected, check whether the
+    // instruction is actually about a different section in this document.
+    if (selectedDocumentSection.type === "contact") {
+      const mentionedSection = mentionedSectionFromInstruction(instruction, resumeDocument.sections);
+      if (mentionedSection) {
+        setRevisionError(
+          `Select the "${mentionedSection.title}" section to revise it, then try again.`,
+        );
+        return;
+      }
+    }
+
     setRevisingSectionId(selectedAssistantSection.id);
     setRevisionStatus("");
     setRevisionError("");
 
     try {
-      const revisedText = await reviseResumeSectionWithProvider({
+      let revisedText = await reviseResumeSectionWithProvider({
         provider,
         jobDescription,
         resume: documentToStructuredResume(resumeDocument, resume),
@@ -287,6 +303,20 @@ export function ResumeReview({
         sectionText: selectedDocumentSection.content,
         instruction,
       });
+
+      // Guard: reject AI output that includes another section heading. This
+      // keeps responses like "Header...\n\nSkills\n..." from merging sections.
+      if (revisionOutputHasUnexpectedBodyHeading(revisedText, selectedDocumentSection.title)) {
+        setRevisionError(
+          "The AI returned content for a different resume section. Select that section and try again.",
+        );
+        return;
+      }
+
+      // Strip a duplicate section heading if the AI echoes it back at the top
+      // (e.g. returning "Skills\nProgramming Languages: ..." for the Skills section).
+      revisedText = stripDuplicateSectionHeading(selectedDocumentSection.title, revisedText);
+
       commitResumeDocumentChange(
         updateResumeDocumentSection(resumeDocument, selectedAssistantSection.id, revisedText),
         selectedAssistantSection.id,
@@ -388,6 +418,20 @@ export function ResumeReview({
     }
   }
 
+  async function runSelectedExports(baseName: string) {
+    setIsExporting(true);
+
+    try {
+      for (const action of selectedExportTypes) {
+        await exportOne(action, baseName);
+      }
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Export failed.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   async function handleExportSelected() {
     if (selectedExportTypes.length === 0) {
       setExportError("Select at least one export format.");
@@ -397,23 +441,20 @@ export function ResumeReview({
     setExportError("");
 
     const hasFileExport = selectedExportTypes.some((type) => type === "docx" || type === "pdf");
-    let exportBaseName = downloadBaseName;
     if (hasFileExport) {
-      const requestedName = window.prompt("Export file name", downloadBaseName);
-      if (requestedName === null) return;
-      exportBaseName = safeDownloadBaseName(requestedName || downloadBaseName);
+      setExportNameDraft(downloadBaseName);
+      setIsExportNameDialogOpen(true);
+      return;
     }
-    setIsExporting(true);
 
-    try {
-      for (const action of selectedExportTypes) {
-        await exportOne(action, exportBaseName);
-      }
-    } catch (error) {
-      setExportError(error instanceof Error ? error.message : "Export failed.");
-    } finally {
-      setIsExporting(false);
-    }
+    await runSelectedExports(downloadBaseName);
+  }
+
+  async function handleConfirmExportName(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const exportBaseName = safeDownloadBaseName(exportNameDraft || downloadBaseName);
+    setIsExportNameDialogOpen(false);
+    await runSelectedExports(exportBaseName);
   }
 
   async function handleSaveReview() {
@@ -498,6 +539,19 @@ export function ResumeReview({
       )
     : null;
 
+  const exportNameDialog = isExportNameDialogOpen
+    ? createPortal(
+        <ExportNameDialog
+          fileName={exportNameDraft}
+          selectedExportTypes={selectedExportTypes}
+          onFileNameChange={setExportNameDraft}
+          onCancel={() => setIsExportNameDialogOpen(false)}
+          onSubmit={handleConfirmExportName}
+        />,
+        document.body,
+      )
+    : null;
+
   return (
     <section
       className={`review-workspace${isTemplatePanelOpen ? " template-panel-open" : ""}`}
@@ -505,6 +559,7 @@ export function ResumeReview({
     >
       {topbarPortalTarget ? createPortal(reviewTopbar, topbarPortalTarget) : reviewTopbar}
       {previewOverlay}
+      {exportNameDialog}
 
       <div className="tab-content">
         <ResultsTab
@@ -542,6 +597,92 @@ export function ResumeReview({
         />
       </div>
     </section>
+  );
+}
+
+function ExportNameDialog({
+  fileName,
+  selectedExportTypes,
+  onFileNameChange,
+  onCancel,
+  onSubmit,
+}: {
+  fileName: string;
+  selectedExportTypes: ExportType[];
+  onFileNameChange: (value: string) => void;
+  onCancel: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+}) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onCancel();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
+  const fileFormats = selectedExportTypes
+    .filter((type) => type === "docx" || type === "pdf")
+    .map((type) => type.toUpperCase())
+    .join(" and ");
+  const includesCopy = selectedExportTypes.includes("copy");
+
+  return (
+    <div
+      className="confirm-modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
+    >
+      <form
+        className="confirm-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Export file name"
+        onSubmit={onSubmit}
+      >
+        <header className="confirm-modal-header">
+          <div>
+            <p>Export</p>
+            <h2>Name your file</h2>
+          </div>
+          <button
+            className="btn btn-ghost btn-sm btn-icon-only"
+            type="button"
+            aria-label="Cancel export"
+            onClick={onCancel}
+          >
+            <X aria-hidden="true" />
+          </button>
+        </header>
+        <label className="export-name-field">
+          <span className="export-name-label">File name</span>
+          <input
+            autoFocus
+            className="field-input"
+            value={fileName}
+            onChange={(event) => onFileNameChange(event.target.value)}
+            placeholder="optimized-resume"
+          />
+        </label>
+        <p className="export-name-hint">
+          {includesCopy
+            ? `${fileFormats} will be downloaded with this name. Text will be copied to the clipboard.`
+            : `${fileFormats} will be downloaded with this name.`}
+        </p>
+        <div className="confirm-modal-actions">
+          <button className="btn btn-secondary btn-sm" type="button" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn-primary btn-sm" type="submit">
+            <Download aria-hidden="true" />
+            Export
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -1425,6 +1566,61 @@ function withContactSection(
 
 function normalizeSectionTitle(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+const SECTION_INSTRUCTION_ALIASES: Partial<Record<ResumeSectionType, string[]>> = {
+  summary: ["summary", "profile", "objective", "about"],
+  skills: [
+    "skill",
+    "skills",
+    "technical skills",
+    "technology",
+    "technologies",
+    "tech stack",
+    "tools",
+    "programming languages",
+    "frameworks",
+    "frontend",
+    "backend",
+    "cloud",
+    "devops",
+    "databases",
+    "api",
+  ],
+  experience: ["experience", "professional experience", "work experience", "work history", "employment", "roles", "jobs"],
+  projects: ["project", "projects", "selected projects", "portfolio"],
+  education: ["education", "degree", "academic"],
+  certifications: ["certification", "certifications", "certificate", "training"],
+  awards: ["award", "awards", "honors"],
+  publications: ["publication", "publications"],
+  volunteering: ["volunteer", "volunteering", "community"],
+  languages: ["language", "languages"],
+};
+
+function mentionedSectionFromInstruction(
+  instruction: string,
+  sections: ResumeSection[],
+): ResumeSection | undefined {
+  const normalizedInstruction = normalizeSectionTitle(instruction);
+  if (!normalizedInstruction) return undefined;
+
+  return sections
+    .filter((section) => section.type !== "contact")
+    .find((section) => {
+      const candidates = [
+        section.title,
+        section.type,
+        ...(SECTION_INSTRUCTION_ALIASES[section.type] ?? []),
+      ];
+      return candidates.some((candidate) =>
+        normalizedInstructionHasPhrase(normalizedInstruction, normalizeSectionTitle(candidate)),
+      );
+    });
+}
+
+function normalizedInstructionHasPhrase(instruction: string, phrase: string): boolean {
+  if (!phrase) return false;
+  return ` ${instruction} `.includes(` ${phrase} `);
 }
 
 function getAvailableAddSectionTitles(sections: ResumeSection[]): string[] {
