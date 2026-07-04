@@ -134,7 +134,9 @@ export function TemplateContact({
   if (section && renderContactSectionContent) {
     return (
       <header className={`${className} template-contact-editable`}>
-        {renderContactSectionContent(section)}
+        <div className="template-contact-editable-content">
+          {renderContactSectionContent(section)}
+        </div>
       </header>
     );
   }

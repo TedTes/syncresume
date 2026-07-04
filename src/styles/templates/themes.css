@@ -627,11 +627,54 @@
   margin: -34px -38px 18px;
   padding: 28px 38px 24px;
   background: #312e81;
+  color: #f8fafc;
 }
 
 .template-leadership .template-contact h1,
 .template-leadership .template-contact p {
   color: #f8fafc;
+}
+
+/* Edit mode: override green-tinted UI for this dark header */
+.template-leadership .template-contact .review-document-textarea {
+  background: transparent;
+}
+.template-leadership .template-contact .document-section-textarea:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.template-leadership .template-contact .document-section-textarea:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.36);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+.template-leadership .template-contact .document-section-textarea.is-selected {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.template-leadership .template-contact .review-contact-view:hover,
+.template-leadership .template-contact .review-contact-view:focus-visible {
+  background: rgba(255, 255, 255, 0.07);
+  outline-color: rgba(255, 255, 255, 0.28);
+}
+.template-leadership .template-contact .resume-section-format-toolbar {
+  background: rgba(49, 46, 129, 0.96);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.template-leadership .template-contact .resume-section-format-toolbar button {
+  color: rgba(255, 255, 255, 0.78);
+}
+.template-leadership .template-contact .resume-section-format-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.template-leadership .template-contact .resume-section-format-toolbar .resume-section-format-delete {
+  color: #fca5a5;
+}
+.template-leadership .template-contact .resume-section-format-toolbar .resume-section-format-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
 }
 
 .template-leadership .template-section h2 {

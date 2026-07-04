@@ -149,7 +149,16 @@
 }
 
 .template-contact-editable {
+  box-sizing: border-box;
   text-align: inherit;
+}
+
+.template-contact-editable-content,
+.template-contact-editable .review-editable-contact-shell,
+.template-contact-editable .review-contact-view {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
 }
 
 .document-section-textarea {
@@ -174,7 +183,6 @@
   text-rendering: optimizeLegibility;
   overflow: hidden;
   resize: none;
-  field-sizing: content;
   transition:
     border-color 0.14s ease,
     background 0.14s ease,

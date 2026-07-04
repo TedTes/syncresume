@@ -909,9 +909,6 @@ function ResultsTab({
                 document={originalDocument}
                 templateId={templateId}
                 fontId={fontId}
-                renderContactSectionContent={(section) =>
-                  renderDiffSectionContent(section, comparisonById, "before")
-                }
                 renderSectionContent={(section) =>
                   renderDiffSectionContent(section, comparisonById, "before")
                 }
@@ -927,20 +924,21 @@ function ResultsTab({
               templateId={templateId}
               fontId={fontId}
               afterPreviewContent={!isCompareMode ? revisionBar : undefined}
-              renderContactSectionContent={(section) =>
+              renderContactSectionContent={
                 isCompareMode
-                  ? renderDiffSectionContent(section, comparisonById, "after")
-                  : renderEditableAfterSectionContent(
-                      section,
-                      comparisonById,
-                      selectedSectionId,
-                      onSelectAfterSection,
-                      onAfterSectionChange,
-                      onAfterSectionContentKindChange,
-                      onAfterSectionFormatChange,
-                      canRemoveAfterSection,
-                      onRemoveAfterSection,
-                    )
+                  ? undefined
+                  : (section) =>
+                      renderEditableAfterSectionContent(
+                        section,
+                        comparisonById,
+                        selectedSectionId,
+                        onSelectAfterSection,
+                        onAfterSectionChange,
+                        onAfterSectionContentKindChange,
+                        onAfterSectionFormatChange,
+                        canRemoveAfterSection,
+                        onRemoveAfterSection,
+                      )
               }
               renderSectionContent={(section) =>
                 isCompareMode

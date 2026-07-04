@@ -32,6 +32,17 @@ export function ResumeSectionTextEditor({
     resizeTextarea(textareaRef.current);
   }, [section.content]);
 
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || typeof ResizeObserver === "undefined") return;
+
+    const resizeObserver = new ResizeObserver(() => resizeTextarea(textarea));
+    resizeObserver.observe(textarea);
+    if (textarea.parentElement) resizeObserver.observe(textarea.parentElement);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
   function applyContentKind(nextKind: ResumeSectionContentKind) {
     const textarea = textareaRef.current;
     const selectionStart = textarea?.selectionStart ?? section.content.length;
@@ -157,7 +168,7 @@ export function ResumeSectionTextEditor({
 function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   if (!textarea) return;
 
-  textarea.style.height = "auto";
+  textarea.style.height = "0px";
   textarea.style.height = `${textarea.scrollHeight}px`;
 }
 
