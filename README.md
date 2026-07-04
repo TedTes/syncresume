@@ -35,6 +35,16 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
 The backend lives in `cloudflare/` and is configured by `wrangler.toml`. The
 frontend is deployed to Cloudflare Pages from `dist/`.
 
+Local development uses the frontend dev server plus a local Worker:
+
+- Frontend: `http://localhost:5173`
+- API Worker: `http://localhost:8787`
+
+Production uses Cloudflare-hosted domains:
+
+- Frontend: `https://syncresume.io`
+- API Worker: `https://api.syncresume.io`
+
 ```bash
 npm run cf:typecheck
 npm run cf:d1:apply:local
@@ -72,12 +82,22 @@ wrangler secret put OPENAI_API_KEY
 Required Worker variables:
 
 ```bash
-APP_ORIGIN=http://localhost:5173
+APP_ORIGIN=https://syncresume.io
 CLERK_JWKS_URL=https://<your-clerk-frontend-api>/.well-known/jwks.json
 CLERK_ISSUER=https://<your-clerk-issuer>
-CLERK_AUTHORIZED_PARTIES=http://localhost:5173,https://<your-pages-domain>
+CLERK_AUTHORIZED_PARTIES=https://syncresume.io
 ```
 
-For production, set `APP_ORIGIN` to the Pages URL, set the Pages build variables
-`VITE_CLOUDFLARE_API_URL` and `VITE_CLERK_PUBLISHABLE_KEY`, and set the Clerk
-Worker variables in the Cloudflare Worker environment.
+For local development, keep these values in `.dev.vars` instead:
+
+```bash
+APP_ORIGIN=http://localhost:5173
+CLERK_AUTHORIZED_PARTIES=http://localhost:5173
+```
+
+For production, set the Pages build variables:
+
+```bash
+VITE_CLOUDFLARE_API_URL=https://api.syncresume.io
+VITE_CLERK_PUBLISHABLE_KEY=pk_live_your_clerk_publishable_key
+```

@@ -1,18 +1,21 @@
 name = "syncresume-api"
 main = "cloudflare/worker/index.ts"
 compatibility_date = "2026-06-16"
-workers_dev = true
+workers_dev = false
 keep_vars = true
+routes = [
+  { pattern = "api.syncresume.io", custom_domain = true }
+]
 
 [vars]
-APP_ORIGIN = "https://syncresume.pages.dev"
+APP_ORIGIN = "https://syncresume.io"
 DEFAULT_LLM_PROVIDER = "openai"
 OPENAI_MODEL = "gpt-5.4-mini"
 # Local Worker development should use `.dev.vars`.
 # Set these to your Clerk instance values in the Cloudflare dashboard.
 # CLERK_JWKS_URL = "https://<your-clerk-frontend-api>/.well-known/jwks.json"
 # CLERK_ISSUER = "https://<your-clerk-issuer>"
-# CLERK_AUTHORIZED_PARTIES = "https://syncresume.pages.dev"
+# CLERK_AUTHORIZED_PARTIES = "https://syncresume.io"
 # Billing uses Stripe through Worker secrets and vars:
 # - STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET should be secrets.
 # - STRIPE_PRICE_ID should point to the subscription price for Pro.
