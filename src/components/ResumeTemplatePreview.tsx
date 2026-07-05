@@ -54,7 +54,6 @@ export function ResumeTemplatePreview({
           template={template}
           font={font}
           fontId={fontId}
-          sections={sections}
           contactSection={contactSection}
           bodySections={bodySections}
           renderSectionContent={renderSectionContent}

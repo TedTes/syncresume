@@ -35,7 +35,6 @@ export type TemplatePreviewProps = {
   template: ResumeTemplateConfig;
   font: ResumeFontOption;
   fontId: ResumeFontId;
-  sections: ResumeSection[];
   contactSection?: ResumeSection;
   bodySections: ResumeSection[];
   renderSectionContent?: (section: ResumeSection) => ReactNode;

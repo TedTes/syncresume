@@ -18,14 +18,14 @@ export function Preview({
       aria-label={`${template.name} preview`}
     >
       {contactSection && renderContactSectionContent ? (
-        <div className="navy-head template-contact-editable">
+        <header className="navy-head template-contact-editable">
           {renderContactSectionContent(contactSection)}
-        </div>
+        </header>
       ) : (
-        <div className="navy-head">
+        <header className="navy-head">
           {name && <h1>{name}</h1>}
           <ContactDetailList details={details} />
-        </div>
+        </header>
       )}
       <div className="navy-body">
         {bodySections.map((s) => (

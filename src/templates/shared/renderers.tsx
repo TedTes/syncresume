@@ -182,8 +182,8 @@ export function SectionContent({ section }: { section: ResumeSection }) {
     return (
       <div className="template-section-body">
         <ul>
-          {lines.map((line) => (
-            <li key={line}>{stripResumeBulletPrefix(line)}</li>
+          {lines.map((line, i) => (
+            <li key={i}>{stripResumeBulletPrefix(line)}</li>
           ))}
         </ul>
       </div>
@@ -196,8 +196,8 @@ export function SectionContent({ section }: { section: ResumeSection }) {
       return (
         <div className="template-section-body">
           <ul className="template-project-list">
-            {projectEntries.map((entry) => (
-              <li key={entry}>{entry}</li>
+            {projectEntries.map((entry, i) => (
+              <li key={i}>{entry}</li>
             ))}
           </ul>
         </div>
@@ -213,8 +213,8 @@ export function SectionContent({ section }: { section: ResumeSection }) {
     const currentBullets = bulletGroup;
     groups.push(
       <ul key={`bullets-${groups.length}`}>
-        {currentBullets.map((line) => (
-          <li key={line}>{stripResumeBulletPrefix(line)}</li>
+        {currentBullets.map((line, i) => (
+          <li key={i}>{stripResumeBulletPrefix(line)}</li>
         ))}
       </ul>,
     );
