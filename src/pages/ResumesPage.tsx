@@ -983,6 +983,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
           onChange={handleFileInput}
         />
 
+        {(orderedBaseResumes.length > 0 || resumeInputMode === "paste" || uploadQueue.length > 0) && (
         <section
           className={`resume-input-section${isDraggingOver ? " resume-input-dragging" : ""}`}
           aria-label="Add resume"
@@ -1084,6 +1085,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             </div>
           )}
         </section>
+        )}
 
           </>
         )}
@@ -1146,8 +1148,53 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
             ))}
           </div>
         )}
-        {resumes.length === 0 ? (
-          <div className="empty-state">No resumes uploaded yet.</div>
+        {orderedBaseResumes.length === 0 ? (
+          !embedded ? (
+            uploadQueue.length === 0 ? (
+              <div
+                className={`resume-empty-zone${isDraggingOver ? " resume-input-dragging" : ""}${uploadsDisabled ? " resume-empty-zone-disabled" : ""}`}
+                aria-label="Upload your first resume"
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <span className="resume-empty-icon-wrap" aria-hidden="true">
+                  <UploadCloud className="resume-empty-icon" />
+                </span>
+                <div className="resume-empty-copy">
+                  <p className="resume-empty-title">Upload your resume</p>
+                  <p className="resume-empty-sub">Drop a PDF or DOCX here, or choose a file.</p>
+                </div>
+                <div className="resume-empty-formats" aria-label="Accepted: PDF and DOCX, up to 25 MB">
+                  <span className="resume-empty-format-tag">PDF</span>
+                  <span className="resume-empty-format-tag">DOCX</span>
+                  <span className="resume-empty-format-size">· up to 25 MB</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={uploadsDisabled}
+                  onClick={openFilePicker}
+                >
+                  <UploadCloud aria-hidden="true" />
+                  Choose file
+                </button>
+                <p className="resume-empty-alt">
+                  or{" "}
+                  <button
+                    type="button"
+                    className="resume-empty-alt-link"
+                    onClick={() => switchResumeInputMode("paste")}
+                  >
+                    paste plain text instead
+                  </button>
+                </p>
+              </div>
+            ) : null
+          ) : (
+            <p className="resume-list-empty">No resumes added yet.</p>
+          )
         ) : (
           <div className="resumes-list">
             {orderedBaseResumes.map((resume) => (
