@@ -1,4 +1,187 @@
-/* ============ Auth gate ============ */
+/* ─── Auth page (full-viewport, no sidebar) ───────────────────────────────── */
+
+.auth-page {
+  min-height: 100vh;
+  background: var(--bg);
+  /* Horizontal padding lives here so the page never bleeds to the edge */
+  padding-inline: clamp(16px, 4vw, 48px);
+  padding-block: 28px 48px;
+}
+
+/* Shared max-width container — brand and body share the same left edge,
+   eliminating the sub-pixel alignment artifact at the grid column boundary */
+.auth-page-inner {
+  display: flex;
+  flex-direction: column;
+  width: min(920px, 100%);
+  min-height: calc(100vh - 76px); /* full height minus top/bottom padding */
+  margin-inline: auto;
+}
+
+/* Brand header */
+
+.auth-page-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  width: fit-content;
+  margin-bottom: 52px;
+  flex-shrink: 0;
+}
+
+.auth-page-brand:hover {
+  color: var(--ink);
+}
+
+.auth-page-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+
+.auth-page-brand-mark svg {
+  width: 16px;
+  height: 20px;
+}
+
+.auth-page-brand-name {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Two-column body */
+
+.auth-page-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr minmax(300px, 400px);
+  align-items: center;
+  column-gap: 56px;
+  row-gap: 32px;
+}
+
+/* Left: marketing copy */
+
+.auth-page-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-page-copy h1 {
+  font-size: clamp(1.85rem, 3vw, 2.6rem);
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.auth-page-copy > p {
+  font-size: 0.975rem;
+  line-height: 1.65;
+  color: var(--muted);
+  max-width: 38ch;
+}
+
+.auth-page-perks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 4px;
+}
+
+.auth-page-perks li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.auth-page-perks li svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--accent-strong);
+}
+
+/* Right: Clerk card column */
+
+.auth-page-clerk {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-page-error {
+  padding: 10px 12px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+/* Clerk element class overrides (complement the variables-based dark theme) */
+
+.clerk-root-box,
+.clerk-card-box {
+  width: 100%;
+}
+
+.clerk-card {
+  width: 100%;
+  background: var(--surface-raised) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+.clerk-social-button {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--ink) !important;
+}
+
+.clerk-field-input {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--ink) !important;
+}
+
+.clerk-primary-button {
+  background: var(--accent) !important;
+  color: #06140a !important;
+  box-shadow: none !important;
+}
+
+.clerk-footer-link {
+  color: var(--accent-strong) !important;
+}
+
+.clerk-divider-line {
+  background: var(--border) !important;
+}
+
+.clerk-divider-text {
+  color: var(--muted) !important;
+}
+
+/* ─── Centered fallback layouts (loading / config error / backend error) ─── */
+
 .auth-gate {
   min-height: 100vh;
   display: grid;
@@ -17,17 +200,6 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-}
-
-.auth-panel-clerk {
-  width: min(100%, 980px);
-  display: grid;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1fr);
-  align-items: center;
-  gap: 28px;
-  padding: 0;
-  background: transparent;
-  border: none;
 }
 
 .auth-panel-icon {
@@ -55,96 +227,22 @@
   gap: 7px;
 }
 
-.auth-panel-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  color: var(--accent-strong);
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.auth-panel-kicker svg {
-  width: 16px;
-  height: 16px;
-}
-
 .auth-panel-copy h1 {
-  font-size: 2.25rem;
-  line-height: 1.25;
+  font-size: 1.1rem;
+  line-height: 1.35;
   color: var(--ink);
 }
 
 .auth-panel-copy p {
-  max-width: 34rem;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   line-height: 1.55;
   color: var(--muted);
-}
-
-.clerk-card-shell {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.clerk-root-box,
-.clerk-card-box {
-  width: 100%;
-}
-
-.clerk-card {
-  width: 100%;
-  max-width: 420px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  box-shadow: none;
-}
-
-.clerk-header-title {
-  color: var(--ink);
-}
-
-.clerk-header-subtitle,
-.clerk-divider-text {
-  color: var(--muted);
-}
-
-.clerk-social-button,
-.clerk-field-input {
-  background: var(--surface);
-  border-color: var(--border);
-  color: var(--ink);
-}
-
-.clerk-primary-button {
-  background: var(--accent);
-  color: #06140a;
-  box-shadow: none;
-}
-
-.clerk-footer-link {
-  color: var(--accent-strong);
-}
-
-.clerk-divider-line {
-  background: var(--border);
 }
 
 .auth-panel-error {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--danger);
-}
-
-.auth-panel-floating-error {
-  width: min(100%, 980px);
-  padding: 10px 12px;
-  background: var(--danger-bg);
-  border: 1px solid var(--danger-border);
-  border-radius: 8px;
 }
 
 .auth-config-code {
@@ -171,4 +269,33 @@
 .auth-loading svg {
   width: 17px;
   height: 17px;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .auth-page {
+    padding-block: 20px 40px;
+  }
+
+  .auth-page-inner {
+    min-height: unset;
+  }
+
+  .auth-page-brand {
+    margin-bottom: 28px;
+  }
+
+  .auth-page-body {
+    grid-template-columns: 1fr;
+    row-gap: 24px;
+  }
+
+  .auth-page-copy h1 {
+    font-size: 1.55rem;
+  }
+
+  .auth-page-copy > p {
+    max-width: none;
+  }
 }

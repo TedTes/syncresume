@@ -51,12 +51,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    return (
-      <main className="auth-gate">
-        <AuthPanel />
-        {authError && <p className="auth-panel-error auth-panel-floating-error">{authError}</p>}
-      </main>
-    );
+    return <AuthPanel authError={authError} />;
   }
 
   return <>{children}</>;

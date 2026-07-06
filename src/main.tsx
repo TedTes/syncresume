@@ -14,6 +14,10 @@ createRoot(document.getElementById("root")!).render(
       publishableKey={clerkPublishableKey}
       __internal_bypassMissingPublishableKey={!clerkPublishableKey}
       afterSignOutUrl="/"
+      localization={{
+        signIn: { start: { title: "Sign in to SyncResume" } },
+        signUp: { start: { title: "Create your SyncResume account" } },
+      }}
     >
       <BrowserRouter>
         <App />

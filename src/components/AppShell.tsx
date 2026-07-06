@@ -1,5 +1,6 @@
 import { FileText, Files, LayoutGrid, Settings } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { AuthGate } from "./AuthGate";
 
 const PRIMARY_NAV_ITEMS = [
@@ -13,7 +14,17 @@ const SECONDARY_NAV_ITEMS = [
 ];
 
 export function AppShell() {
+  const { user } = useAuth();
   const location = useLocation();
+
+  // No sidebar for unauthenticated / loading — AuthGate handles all pre-auth states
+  if (!user) {
+    return (
+      <AuthGate>
+        <Outlet />
+      </AuthGate>
+    );
+  }
 
   return (
     <div className="app-shell">
