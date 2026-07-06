@@ -38,6 +38,13 @@
   color: var(--ink);
 }
 
+.warning-banner-hint {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .warning-banner .btn {
   height: 24px;
   padding: 0 8px;

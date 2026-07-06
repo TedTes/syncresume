@@ -739,6 +739,8 @@ export default function OptimizerPage({
   function renderWorkspaceActiveResumeSection() {
     if (!embedded) return null;
 
+    const hasResumeOptions = sourceResumeOptions.length > 0;
+
     return (
       <div className="workspace-active-resume-section">
         <div>
@@ -750,21 +752,30 @@ export default function OptimizerPage({
             type="button"
             className="workspace-resume-inline"
             disabled={isUploadingResume}
-            onClick={() => setIsSwitcherOpen((open) => !open)}
+            onClick={() => {
+              if (hasResumeOptions) {
+                setIsSwitcherOpen((open) => !open);
+                return;
+              }
+
+              workspaceResumeInputRef.current?.click();
+            }}
           >
             {isUploadingResume ? (
               <Loader2 className="spin" aria-hidden="true" />
+            ) : !hasResumeOptions ? (
+              <Upload aria-hidden="true" />
             ) : (
               <span className="resume-pill-dot" aria-hidden="true" />
             )}
             <span>
               {isUploadingResume
                 ? "Uploading resume"
-                : activeResume?.name ?? (sourceResumeOptions.length > 0 ? "Select resume" : "Upload resume")}
+                : activeResume?.name ?? (hasResumeOptions ? "Select resume" : "Upload resume")}
             </span>
-            <ChevronDown aria-hidden="true" />
+            {hasResumeOptions ? <ChevronDown aria-hidden="true" /> : null}
           </button>
-          {isSwitcherOpen && (
+          {isSwitcherOpen && hasResumeOptions && (
             <div className="workspace-resume-inline-menu">
               {sourceResumeOptions.map((resume) => (
                 <button
@@ -923,7 +934,7 @@ export default function OptimizerPage({
                 <div className="warning-banner choice-warning">
                   <AlertTriangle aria-hidden="true" />
                   <span className="warning-banner-text">Resume required to optimize.</span>
-                  {renderResumeAction("Upload")}
+                  <span className="warning-banner-hint">Upload one below.</span>
                 </div>
               )}
             </div>
@@ -989,7 +1000,7 @@ export default function OptimizerPage({
                     <div className="warning-banner">
                       <AlertTriangle aria-hidden="true" />
                       <span className="warning-banner-text">Resume required.</span>
-                      {renderResumeAction("Upload")}
+                      <span className="warning-banner-hint">Use Active resume below.</span>
                     </div>
                   )}
                 </div>
