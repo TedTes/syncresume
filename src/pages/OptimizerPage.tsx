@@ -120,6 +120,7 @@ export default function OptimizerPage({
     setActiveResume,
     getRun,
     addRun,
+    updateRunTitle,
     updateRunReview,
     updateRunCoverLetter,
     updateResumeName,
@@ -301,8 +302,7 @@ export default function OptimizerPage({
       .slice(0, 5);
   }, [resumes, runs, activeResume]);
   const sourceResumeOptions = useMemo(() => {
-    const originals = resumes.filter((resume) => resume.versionType !== "tailored");
-    return originals.length > 0 ? originals : resumes;
+    return resumes.filter((resume) => resume.versionType !== "tailored");
   }, [resumes]);
   const canGenerateCoverLetter =
     hasJD && Boolean(activeResume) && !isGeneratingCoverLetter && !isOptimizing && !isFetchingJD;
@@ -1488,6 +1488,15 @@ export default function OptimizerPage({
                   return recordExport(currentRunId, exportType);
                 }
               }}
+              onExportNameConfirmed={
+                currentRunId
+                  ? async (name) => {
+                      const run = await updateRunTitle(currentRunId, name);
+                      setReviewTitle(run.title);
+                      setCurrentRunId(run.id);
+                    }
+                  : undefined
+              }
             />
           </Suspense>
               </div>

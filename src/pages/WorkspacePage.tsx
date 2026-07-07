@@ -11,6 +11,7 @@ import OptimizerPage from "./OptimizerPage";
 export default function WorkspacePage() {
   const { runId } = useParams();
   const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [reviewToolbarHost, setReviewToolbarHost] = useState<HTMLDivElement | null>(null);
 
   const { activeResume, resumes } = useAppData();
@@ -59,10 +60,13 @@ export default function WorkspacePage() {
   }, []);
 
   const handleReviewOpenChange = useCallback((isOpen: boolean) => {
+    setIsReviewOpen(isOpen);
     if (!isOpen) {
       closeTemplatePanel();
     }
   }, [closeTemplatePanel]);
+
+  const isReviewMode = Boolean(runId) || isReviewOpen;
 
   useEffect(() => {
     if (!isTemplatePanelOpen) return;
@@ -82,8 +86,8 @@ export default function WorkspacePage() {
 
   return (
     <>
-      <header className={`page-topbar workspace-topbar${runId ? " review-mode" : ""}`}>
-        {runId ? (
+      <header className={`page-topbar workspace-topbar${isReviewMode ? " review-mode" : ""}`}>
+        {isReviewMode ? (
           <div className="review-toolbar-slot" ref={setReviewToolbarHost} />
         ) : (
           <span className="page-topbar-title">Workspace</span>

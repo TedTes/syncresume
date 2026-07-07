@@ -89,6 +89,7 @@ type ResumeReviewProps = {
     resume: StructuredResume,
   ) => Promise<void> | void;
   onExported?: (exportType: ExportType) => void | Promise<void>;
+  onExportNameConfirmed?: (name: string) => void | Promise<void>;
   onBack?: () => void;
   topbarPortalTarget?: HTMLElement | null;
   title?: string;
@@ -132,6 +133,7 @@ export function ResumeReview({
   onSaveReview,
   onTemplateChange,
   onExported,
+  onExportNameConfirmed,
   onBack,
   topbarPortalTarget,
   title,
@@ -452,8 +454,17 @@ export function ResumeReview({
 
   async function handleConfirmExportName(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const exportBaseName = safeDownloadBaseName(exportNameDraft || downloadBaseName);
+    const requestedName = exportNameDraft || downloadBaseName;
+    const exportBaseName = safeDownloadBaseName(requestedName);
+    const displayName = displayTitleFromDownloadName(requestedName);
     setIsExportNameDialogOpen(false);
+    if (displayName) {
+      try {
+        await onExportNameConfirmed?.(displayName);
+      } catch (error) {
+        setExportError(error instanceof Error ? error.message : "Could not update the saved name.");
+      }
+    }
     await runSelectedExports(exportBaseName);
   }
 
@@ -1658,4 +1669,14 @@ function safeDownloadBaseName(value: string): string {
       .replace(/^[.-]+|[.-]+$/g, "")
       .slice(0, 80) || "optimized-resume"
   );
+}
+
+function displayTitleFromDownloadName(value: string): string {
+  return value
+    .trim()
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^\W+|\W+$/g, "")
+    .slice(0, 90);
 }

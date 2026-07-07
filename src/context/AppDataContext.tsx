@@ -216,7 +216,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     await refresh({ force: true });
   }
 
-  const activeResume = resumes.find((resume) => resume.isActive) ?? null;
+  const rawActiveResume = resumes.find((resume) => resume.isActive) ?? null;
+  const activeResume =
+    rawActiveResume?.versionType === "tailored"
+      ? resumes.find(
+          (resume) =>
+            resume.id === rawActiveResume.sourceResumeId &&
+            resume.versionType !== "tailored",
+        ) ?? null
+      : rawActiveResume;
 
   function requireBackendUser() {
     if (!hasBackend) {
