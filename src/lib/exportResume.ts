@@ -202,7 +202,7 @@ export async function downloadCoverLetterDocx(text: string, fileName = "syncresu
   saveBlob(blob, withDownloadExtension(fileName, "docx"));
 }
 
-export async function downloadResumeDocumentPdf(
+async function downloadResumeDocumentPdfText(
   resumeDocument: ResumeDocument,
   templateId: ResumeTemplateId,
   fileName = "syncresume-resume.pdf",
@@ -234,7 +234,7 @@ export async function downloadResumeDocumentPdf(
 
   const addWrappedText = (
     text: string,
-    options: { bold?: boolean; center?: boolean; indent?: number; size?: number } = {},
+    options: { bold?: boolean; center?: boolean; indent?: number; size?: number; url?: string | null } = {},
   ) => {
     const size = options.size ?? bodySize;
     const indent = options.indent ?? 0;
@@ -244,13 +244,21 @@ export async function downloadResumeDocumentPdf(
     const lines = pdf.splitTextToSize(text, maxWidth - indent);
     for (const line of lines) {
       addPageIfNeeded(lineHeight);
-      const x = options.center
-        ? page.width / 2
-        : page.margin + indent;
-      if (options.center) {
-        pdf.text(line, x, y, { align: "center" });
+      if (options.url) {
+        const linkedPdf = pdf as unknown as {
+          textWithLink?: (content: string, x: number, y: number, options: { url: string }) => void;
+        };
+        const textWidth = pdf.getTextWidth(line);
+        const x = options.center ? page.width / 2 - textWidth / 2 : page.margin + indent;
+        if (linkedPdf.textWithLink) {
+          linkedPdf.textWithLink(line, x, y, { url: options.url });
+        } else {
+          pdf.text(line, x, y);
+        }
+      } else if (options.center) {
+        pdf.text(line, page.width / 2, y, { align: "center" });
       } else {
-        pdf.text(line, x, y);
+        pdf.text(line, page.margin + indent, y);
       }
       y += lineHeight;
     }
@@ -265,12 +273,195 @@ export async function downloadResumeDocumentPdf(
     y += 2;
   };
 
+  const renderSidebarPdf = () => {
+    const railStyle = getSidebarPdfStyle(template.className);
+    const railWidth = Math.min(185, Math.max(155, page.width * 0.34));
+    const railX = page.margin;
+    const railY = page.margin;
+    const railBottom = page.height - page.margin;
+    const railHeight = railBottom - railY;
+    const railPaddingX = 18;
+    const railContentX = railX + railPaddingX;
+    const railContentWidth = railWidth - railPaddingX * 2;
+    const mainX = railX + railWidth + 24;
+    const mainWidth = page.width - page.margin - mainX;
+    const railBodySize = Math.max(8, bodySize - 0.7);
+    const railLineHeight = Math.max(11, lineHeight - 1.5);
+    let railTextY = railY + 28;
+    let mainTextY = page.margin + 28;
+
+    const drawSidebarPage = () => {
+      pdf.setFillColor(...railStyle.background);
+      pdf.rect(railX, railY, railWidth, railHeight, "F");
+      pdf.setFillColor(railStyle.paper[0], railStyle.paper[1], railStyle.paper[2]);
+      pdf.rect(railX + railWidth, railY, page.width - page.margin - railX - railWidth, railHeight, "F");
+    };
+
+    const addMainPageIfNeeded = (height = lineHeight) => {
+      if (mainTextY + height <= railBottom - 8) return;
+      pdf.addPage();
+      drawSidebarPage();
+      mainTextY = page.margin + 28;
+    };
+
+    const addColumnText = (
+      text: string,
+      x: number,
+      width: number,
+      cursorY: number,
+      options: {
+        bold?: boolean;
+        center?: boolean;
+        indent?: number;
+        size?: number;
+        lineHeight?: number;
+        color?: [number, number, number];
+        url?: string | null;
+        allowPageBreak?: boolean;
+      } = {},
+    ) => {
+      const size = options.size ?? bodySize;
+      const rowHeight = options.lineHeight ?? lineHeight;
+      const indent = options.indent ?? 0;
+      const color = options.color ?? ([0, 0, 0] as [number, number, number]);
+      pdf.setFont(pdfFont, options.bold ? "bold" : "normal");
+      pdf.setFontSize(size);
+      pdf.setTextColor(...color);
+
+      const lines = pdf.splitTextToSize(text, width - indent);
+      let nextY = cursorY;
+      for (const line of lines) {
+        if (options.allowPageBreak !== false && nextY + rowHeight > railBottom - 8) {
+          pdf.addPage();
+          drawSidebarPage();
+          nextY = page.margin + 28;
+        }
+
+        const textWidth = pdf.getTextWidth(line);
+        const textX = options.center ? x + width / 2 - textWidth / 2 : x + indent;
+        if (options.url) {
+          const linkedPdf = pdf as unknown as {
+            textWithLink?: (content: string, x: number, y: number, options: { url: string }) => void;
+          };
+          if (linkedPdf.textWithLink) {
+            linkedPdf.textWithLink(line, textX, nextY, { url: options.url });
+          } else {
+            pdf.text(line, textX, nextY);
+          }
+        } else {
+          pdf.text(line, options.center ? x + width / 2 : textX, nextY, options.center ? { align: "center" } : undefined);
+        }
+        nextY += rowHeight;
+      }
+      return nextY;
+    };
+
+    const addRailHeading = (title: string) => {
+      railTextY += 12;
+      if (railTextY < railBottom - 16) {
+        pdf.setDrawColor(...railStyle.rule);
+        pdf.line(railContentX, railTextY - 4, railContentX + railContentWidth, railTextY - 4);
+      }
+      railTextY = addColumnText(title.toUpperCase(), railContentX, railContentWidth, railTextY, {
+        bold: true,
+        size: Math.max(8, headingSize - 1),
+        lineHeight: railLineHeight,
+        color: railStyle.text,
+        allowPageBreak: false,
+      });
+    };
+
+    const addMainHeading = (title: string) => {
+      mainTextY += 4;
+      addMainPageIfNeeded(headingSize + 8);
+      mainTextY = addColumnText(title.toUpperCase(), mainX, mainWidth, mainTextY, {
+        bold: true,
+        size: headingSize,
+        color: template.pdf.accent,
+      });
+      mainTextY += 2;
+    };
+
+    const railSectionTypes = new Set(["skills", "languages", "certifications", "education"]);
+    const contactBlock = blocks.find((block) => block.isContact);
+    const bodyBlocks = blocks.filter((block) => !block.isContact);
+    const railBlocks = bodyBlocks.filter((block) => railSectionTypes.has(block.type));
+    const railBlockIds = new Set(railBlocks.map((block) => block.id));
+    const mainBlocks = bodyBlocks.filter((block) => !railBlockIds.has(block.id));
+
+    drawSidebarPage();
+
+    if (contactBlock) {
+      const { name, details } = parseResumeContact(contactBlock.lines.join(" | "), resumeDocument.title);
+      if (name) {
+        railTextY = addColumnText(name, railContentX, railContentWidth, railTextY, {
+          bold: true,
+          size: bodySize + 3,
+          lineHeight: railLineHeight + 2,
+          color: railStyle.text,
+          allowPageBreak: false,
+        });
+      }
+      for (const detail of details) {
+        railTextY = addColumnText(formatContactDetailDisplay(detail), railContentX, railContentWidth, railTextY, {
+          size: railBodySize,
+          lineHeight: railLineHeight,
+          color: railStyle.mutedText,
+          url: getContactDetailHref(detail),
+          allowPageBreak: false,
+        });
+      }
+    }
+
+    for (const block of railBlocks) {
+      addRailHeading(block.title);
+      for (const line of block.lines) {
+        const isBullet = /^\s*[-•]\s+/.test(line);
+        railTextY = addColumnText(isBullet ? line.replace(/^\s*[-•]\s+/, "- ") : line, railContentX, railContentWidth, railTextY, {
+          indent: isBullet ? 8 : 0,
+          size: railBodySize,
+          lineHeight: railLineHeight,
+          color: railStyle.mutedText,
+          allowPageBreak: false,
+        });
+      }
+    }
+
+    for (const block of mainBlocks) {
+      addMainHeading(block.title);
+      for (const line of block.lines) {
+        const isBullet = /^\s*[-•]\s+/.test(line);
+        addMainPageIfNeeded(lineHeight);
+        mainTextY = addColumnText(isBullet ? line.replace(/^\s*[-•]\s+/, "- ") : line, mainX, mainWidth, mainTextY, {
+          indent: isBullet ? 12 : 0,
+          bold: !isBullet && block.type === "experience" && /\b(?:19|20)\d{2}\b/.test(line),
+          allowPageBreak: true,
+        });
+      }
+      mainTextY += sectionGap;
+    }
+
+    pdf.setTextColor(0, 0, 0);
+  };
+
+  if (template.renderer === "sidebar") {
+    renderSidebarPdf();
+    pdf.save(sanitizeDownloadFileName(fileName));
+    return;
+  }
+
   for (const block of blocks) {
     if (block.isContact) {
       const { name, details } = parseResumeContact(block.lines.join(" | "), resumeDocument.title);
       if (name) addWrappedText(name, { bold: true, center: true, size: bodySize + 5 });
       if (details.length > 0) {
-        addWrappedText(details.map(formatContactDetailDisplay).join(" | "), { center: true, size: bodySize - 1 });
+        for (const detail of details) {
+          addWrappedText(formatContactDetailDisplay(detail), {
+            center: true,
+            size: bodySize - 1,
+            url: getContactDetailHref(detail),
+          });
+        }
       }
       y += sectionGap;
       continue;
@@ -290,11 +481,209 @@ export async function downloadResumeDocumentPdf(
   pdf.save(sanitizeDownloadFileName(fileName));
 }
 
+async function captureResumeTemplatePdf(
+  resumeDocument: ResumeDocument,
+  templateId: ResumeTemplateId,
+  fontId?: ResumeFontId,
+): Promise<Blob> {
+  const { default: html2canvas } = await import("html2canvas");
+  const { jsPDF } = await import("jspdf");
+  const { createElement } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const { ResumeTemplatePreview } = await import("../components/ResumeTemplatePreview");
+  const { DEFAULT_RESUME_FONT_ID } = await import("../templates/shared/fonts");
+
+  const SCALE = 2;
+  const PAGE_W_PX = 816;
+  const PAGE_H_PX = 1056;
+  const PAGE_W_PT = 612;
+  const PAGE_H_PT = 792;
+  const PX_TO_PT = PAGE_W_PT / PAGE_W_PX; // 0.75
+
+  const container = document.createElement("div");
+  container.style.cssText =
+    "position:fixed;left:0;top:0;width:816px;z-index:-9999;pointer-events:none;background:#fff;";
+  document.body.appendChild(container);
+  const root = createRoot(container);
+
+  try {
+    root.render(
+      createElement(ResumeTemplatePreview, {
+        document: resumeDocument,
+        templateId,
+        fontId: fontId ?? DEFAULT_RESUME_FONT_ID,
+      }),
+    );
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    await document.fonts.ready;
+    await new Promise<void>((resolve) => setTimeout(resolve, 150));
+
+    const article = container.querySelector<HTMLElement>(".resume-template-preview");
+    if (!article) throw new Error("Template element not found");
+
+    article.style.border = "none";
+    article.style.boxShadow = "none";
+    article.style.borderRadius = "0";
+
+    // Stretch to the nearest full page multiple so the template background
+    // fills every page completely, giving consistent bottom margins.
+    const naturalPages = Math.max(1, Math.ceil(article.scrollHeight / PAGE_H_PX));
+    article.style.minHeight = `${naturalPages * PAGE_H_PX}px`;
+
+    // Allow layout to settle after the min-height change.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    const articleRect = article.getBoundingClientRect();
+
+    const canvas = await html2canvas(article, {
+      scale: SCALE,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      windowWidth: PAGE_W_PX,
+    });
+
+    const pageHCanvas = PAGE_H_PX * SCALE;
+    const totalPages = Math.max(1, Math.ceil(canvas.height / pageHCanvas));
+
+    // Collect text entries from the rendered DOM before building the PDF.
+    // Text is added BEFORE the image on each page so the image naturally
+    // covers it visually, while the text stays in the content stream for
+    // selection and ATS parsing (the OCR-PDF technique).
+    type TextEntry = { raw: string; pdfX: number; pdfY: number; pdfFontSize: number; pageIndex: number };
+    const textByPage = new Map<number, TextEntry[]>();
+
+    const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
+    let textNode = walker.nextNode() as Text | null;
+    while (textNode) {
+      const raw = textNode.textContent ?? "";
+      if (!raw.trim()) { textNode = walker.nextNode() as Text | null; continue; }
+      const parent = textNode.parentElement;
+      if (!parent) { textNode = walker.nextNode() as Text | null; continue; }
+      const tag = parent.tagName.toLowerCase();
+      if (tag === "script" || tag === "style") { textNode = walker.nextNode() as Text | null; continue; }
+
+      const computedFontSize = parseFloat(window.getComputedStyle(parent).fontSize) || 10;
+      const range = document.createRange();
+      range.selectNodeContents(textNode);
+
+      for (const r of range.getClientRects()) {
+        if (r.width < 1 || r.height < 1) continue;
+        const relY = r.top - articleRect.top;
+        if (relY < 0) continue;
+        const pageIndex = Math.floor(relY / PAGE_H_PX);
+        if (pageIndex >= totalPages) continue;
+
+        const relX = r.left - articleRect.left;
+        const pageLocalY = relY - pageIndex * PAGE_H_PX;
+        const pdfX = relX * PX_TO_PT;
+        const pdfY = (pageLocalY + r.height * 0.8) * PX_TO_PT;
+        const pdfFontSize = Math.max(1, computedFontSize * PX_TO_PT);
+        if (pdfX < 0 || pdfX > PAGE_W_PT || pdfY < 0 || pdfY > PAGE_H_PT) continue;
+
+        if (!textByPage.has(pageIndex)) textByPage.set(pageIndex, []);
+        textByPage.get(pageIndex)!.push({ raw, pdfX, pdfY, pdfFontSize, pageIndex });
+      }
+
+      textNode = walker.nextNode() as Text | null;
+    }
+
+    // Build the PDF: for each page, write text first then image on top.
+    // The image covers the text visually; the text remains extractable.
+    const pdf = new jsPDF({ unit: "pt", format: "letter", orientation: "portrait" });
+    pdf.setFont("helvetica", "normal");
+
+    for (let i = 0; i < totalPages; i++) {
+      if (i > 0) pdf.addPage();
+
+      // Text layer (beneath image)
+      for (const { raw, pdfX, pdfY, pdfFontSize } of textByPage.get(i) ?? []) {
+        pdf.setFontSize(pdfFontSize);
+        pdf.text(raw, pdfX, pdfY);
+      }
+
+      // Image layer (covers text)
+      const srcY = i * pageHCanvas;
+      const srcH = Math.min(pageHCanvas, canvas.height - srcY);
+      const slice = document.createElement("canvas");
+      slice.width = canvas.width;
+      slice.height = pageHCanvas;
+      const ctx = slice.getContext("2d")!;
+      // Use the template's own background color so partial last pages
+      // don't show a white strip where the article hasn't filled yet.
+      ctx.fillStyle = window.getComputedStyle(article).backgroundColor || "#f7f7f4";
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+      pdf.addImage(slice.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, PAGE_W_PT, PAGE_H_PT);
+    }
+
+    return pdf.output("blob");
+  } finally {
+    root.unmount();
+    document.body.removeChild(container);
+  }
+}
+
+export async function downloadResumeDocumentPdf(
+  resumeDocument: ResumeDocument,
+  templateId: ResumeTemplateId,
+  fileName = "syncresume-resume.pdf",
+  fontId?: ResumeFontId,
+) {
+  try {
+    const blob = await captureResumeTemplatePdf(resumeDocument, templateId, fontId);
+    saveBlob(blob, sanitizeDownloadFileName(fileName));
+  } catch (err) {
+    console.warn("[exportResume] Visual PDF capture failed, falling back to text renderer:", err);
+    await downloadResumeDocumentPdfText(resumeDocument, templateId, fileName, fontId);
+  }
+}
+
 function getPdfFontFamily(fontId?: ResumeFontId): "helvetica" | "times" | "courier" {
   if (fontId === "serif") return "times";
   if (fontId === "mono") return "courier";
   return "helvetica";
 }
+
+function getSidebarPdfStyle(className: string): {
+  background: [number, number, number];
+  paper: [number, number, number];
+  rule: [number, number, number];
+  text: [number, number, number];
+  mutedText: [number, number, number];
+} {
+  if (className.includes("template-portfolio")) {
+    return {
+      background: [124, 45, 18],
+      paper: [255, 250, 243],
+      rule: [174, 94, 55],
+      text: [255, 247, 237],
+      mutedText: [255, 237, 213],
+    };
+  }
+
+  if (className.includes("template-terra")) {
+    return {
+      background: [120, 53, 15],
+      paper: [255, 251, 245],
+      rule: [180, 83, 9],
+      text: [254, 243, 199],
+      mutedText: [253, 230, 138],
+    };
+  }
+
+  return {
+    background: [22, 60, 48],
+    paper: [251, 251, 248],
+    rule: [79, 116, 104],
+    text: [244, 250, 246],
+    mutedText: [210, 232, 224],
+  };
+}
+
 
 export async function downloadResumeDocumentDocx(
   document: ResumeDocument,
@@ -302,7 +691,7 @@ export async function downloadResumeDocumentDocx(
   fileName = "syncresume-resume.docx",
   fontId?: ResumeFontId,
 ) {
-  const { Document, Packer, Paragraph, TextRun } = await import("docx");
+  const { Document, ExternalHyperlink, Packer, Paragraph, TextRun } = await import("docx");
   const template = getResumeTemplateDefinition(templateId);
   const font = fontId ? getResumeFontOption(fontId) : null;
   const docxFont = font?.docxFamily;
@@ -325,13 +714,42 @@ export async function downloadResumeDocumentDocx(
       }),
     );
   };
+  const addContactDetails = (details: string[]) => {
+    const children: Array<InstanceType<typeof TextRun> | InstanceType<typeof ExternalHyperlink>> = [];
+    details.forEach((detail, index) => {
+      if (index > 0) {
+        children.push(new TextRun({ text: " | ", size: 19, font: docxFont }));
+      }
+
+      const label = formatContactDetailDisplay(detail);
+      const href = getContactDetailHref(detail);
+      if (href) {
+        children.push(
+          new ExternalHyperlink({
+            link: href,
+            children: [new TextRun({ text: label, size: 19, font: docxFont, style: "Hyperlink" })],
+          }),
+        );
+      } else {
+        children.push(new TextRun({ text: label, size: 19, font: docxFont }));
+      }
+    });
+
+    paragraphs.push(
+      new Paragraph({
+        alignment: "center",
+        spacing: { after: template.density === "compact" ? 50 : 80 },
+        children,
+      }),
+    );
+  };
 
   for (const block of blocks) {
     if (block.isContact) {
       const { name, details } = parseResumeContact(block.lines.join(" | "), document.title);
       if (name) addText(name, { bold: true, center: true, size: 24 });
       if (details.length > 0) {
-        addText(details.map(formatContactDetailDisplay).join(" | "), { center: true, size: 19 });
+        addContactDetails(details);
       }
       continue;
     }
@@ -429,6 +847,19 @@ function sanitizeDownloadFileName(value: string): string {
 function withDownloadExtension(value: string, extension: "docx" | "pdf"): string {
   const fallback = extension === "docx" ? "syncresume-cover-letter" : "syncresume-cover-letter";
   return `${sanitizeDownloadBaseName(value) || fallback}.${extension}`;
+}
+
+function getContactDetailHref(value: string): string | null {
+  const trimmed = value.trim();
+  const email = trimmed.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+  if (email) return `mailto:${email}`;
+
+  const explicitUrl = trimmed.match(/https?:\/\/[^\s|]+/i)?.[0];
+  if (explicitUrl) return explicitUrl;
+
+  const webPath = trimmed.match(/\b(?:www\.)?(?:github\.com|linkedin\.com|[a-z0-9-]+\.[a-z]{2,})(?:\/[^\s|]*)?/i)?.[0];
+  if (!webPath) return null;
+  return `https://${webPath.replace(/^www\./i, "www.")}`;
 }
 
 function sanitizeDownloadBaseName(value: string): string {
