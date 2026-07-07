@@ -3,9 +3,9 @@ main = "cloudflare/worker/index.ts"
 compatibility_date = "2026-06-16"
 workers_dev = false
 keep_vars = true
-routes = [
-  { pattern = "api.syncresume.io", custom_domain = true }
-]
+# The production custom domain (`api.syncresume.io`) is managed in the
+# Cloudflare Dashboard. Keeping it out of wrangler.toml lets CI deploy code
+# without requiring zone-level Workers route permissions.
 
 [vars]
 APP_ORIGIN = "https://syncresume.io"
