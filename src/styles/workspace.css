@@ -608,8 +608,15 @@
 
 .job-link-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(104px, max-content);
+  align-items: stretch;
   gap: 8px;
+}
+
+.job-link-row .job-link-fetch {
+  justify-content: center;
+  min-width: 104px;
+  min-height: 44px;
 }
 
 .workspace-job-section .optimizer-resume-context {

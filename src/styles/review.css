@@ -623,8 +623,9 @@
 }
 
 .review-workspace.template-panel-open .results-template-stage .template-comparison-grid.is-optimized-only {
-  height: 100%;
+  height: min(100%, calc(100dvh - 72px));
   min-height: 0;
+  max-height: calc(100dvh - 72px);
   overflow: hidden;
   padding-bottom: 8px;
 }
@@ -632,6 +633,7 @@
 .review-workspace.template-panel-open .results-template-stage .template-comparison-grid.is-optimized-only .template-comparison-pane {
   height: 100%;
   overflow-y: auto;
+  touch-action: pan-y;
 }
 
 .review-workspace.template-panel-open .results-template-stage .template-comparison-pane {
@@ -642,7 +644,9 @@
 }
 
 .review-workspace.template-panel-open .results-template-stage .template-comparison-document {
+  height: auto;
   min-height: 0;
+  overflow: visible;
 }
 
 .saved-application-review:has(.review-workspace) {
