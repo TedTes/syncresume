@@ -204,7 +204,11 @@ async function renderResumeDocumentPdfHtml(
     await waitForPrintRender();
     await waitForBrowserFonts();
 
-    const styles = collectPdfExportStyles();
+    // Round up to the next full page so the body fills all pages completely.
+    // This lets the body background gradient cover empty space on the last page.
+    const PAGE_H_PX = 11 * 96; // 11in at 96dpi (CSS pixel DPI)
+    const pageCount = Math.max(1, Math.ceil(host.scrollHeight / PAGE_H_PX));
+    const styles = collectPdfExportStyles(pageCount);
     const title = escapeHtml(sanitizeDownloadBaseName(fileName) || "syncresume-resume");
 
     return [
@@ -227,7 +231,8 @@ async function renderResumeDocumentPdfHtml(
   }
 }
 
-function collectPdfExportStyles() {
+function collectPdfExportStyles(pageCount: number) {
+  const totalH = `${pageCount * 11}in`;
   const styles: string[] = [];
 
   document.querySelectorAll("style").forEach((style) => {
@@ -255,7 +260,7 @@ function collectPdfExportStyles() {
 html,
 body {
   width: 8.5in;
-  min-height: 11in;
+  min-height: ${totalH};
   margin: 0;
   padding: 0;
   background: #fff;
@@ -270,7 +275,7 @@ body {
 #syncresume-pdf-root .resume-template-font-scope {
   display: block;
   width: 8.5in;
-  min-height: 11in;
+  min-height: ${totalH};
   margin: 0;
   padding: 0;
   background: #fff;
@@ -278,13 +283,55 @@ body {
 
 #syncresume-pdf-root .resume-template-preview {
   width: 8.5in !important;
-  min-height: 11in !important;
+  min-height: ${totalH} !important;
   margin: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   transform: none !important;
   overflow: visible !important;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Stretch sidebar columns to fill all pages so template background colors
+   cover the full page height, not just where content exists. */
+#syncresume-pdf-root .template-sidebar-rail,
+#syncresume-pdf-root .template-sidebar-main {
+  min-height: ${totalH} !important;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+#syncresume-pdf-root :where(
+  .template-sidebar, .template-portfolio,
+  .template-split, .template-gradient, .template-stripe,
+  .template-terra, .template-retro, .template-navy,
+  .template-arc, .template-smoke
+) {
+  overflow: visible !important;
+}
+
+#syncresume-pdf-root :where(.template-section, .template-timeline-track, .template-timeline-entry) {
+  break-inside: auto !important;
+  page-break-inside: auto !important;
+}
+
+#syncresume-pdf-root :where(.template-section h2, .template-timeline-entry h2) {
+  break-after: avoid !important;
+  page-break-after: avoid !important;
+}
+
+#syncresume-pdf-root :where(.template-section-body, .template-timeline-entry .template-section-body) {
+  break-before: avoid !important;
+  page-break-before: avoid !important;
+}
+
+#syncresume-pdf-root :where(.template-section-body > p, .template-section-body > ul > li) {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  orphans: 2;
+  widows: 2;
 }
 
 #syncresume-pdf-root :where(button, .section-edit-controls, .section-format-controls, .document-section-delete, .add-section-inline-form, .add-section-trigger) {
