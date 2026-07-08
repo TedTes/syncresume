@@ -8,23 +8,12 @@ import {
 } from "lucide-react";
 import { TopbarAccount } from "../components/TopbarAccount";
 import { useAuth } from "../context/AuthContext";
+import { usePricing } from "../context/PricingContext";
 import { useSettings } from "../context/SettingsContext";
-import { useToastMessage } from "../context/ToastContext";
-import {
-  createBillingCheckoutSession,
-  createBillingPortalSession,
-  type BillingCheckoutPlan,
-  type BillingPlanKey,
-} from "../lib/cloudflare/client";
 import type { UserProfileDetails } from "../lib/userProfile";
 import { RESUME_FONT_OPTIONS, type ResumeFontId } from "../templates/shared/fonts";
 
 type ProfileSaveStatus = "saved" | "saving";
-type BillingAction = BillingPlanKey | "portal";
-
-const FALLBACK_BILLING_PLANS: BillingCheckoutPlan[] = [
-  { key: "monthly", label: "Pro Monthly", price: "$14", cadence: "per month" },
-];
 
 const aiCreditFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
@@ -44,22 +33,17 @@ export default function SettingsPage() {
     setSelectedFontId,
   } = useSettings();
   const { user, profile } = useAuth();
-  const [billingAction, setBillingAction] = useState<BillingAction | null>(null);
-  const [billingError, setBillingError] = useState<string | null>(null);
+  const {
+    billingAction,
+    canCheckout,
+    canOpenPortal,
+    openBillingPortal,
+    openPricing,
+  } = usePricing();
   const [profileSaveStatus, setProfileSaveStatus] = useState<ProfileSaveStatus>("saved");
   const profileSaveTimerRef = useRef<number | null>(null);
   const usage = profile?.usage;
   const isPro = profile?.plan === "Pro";
-  const canCheckout = Boolean(profile?.billing?.checkoutEnabled);
-  const canOpenPortal = Boolean(profile?.billing?.portalEnabled);
-  const checkoutPlans =
-    profile?.billing?.checkoutPlans?.length
-      ? profile.billing.checkoutPlans
-      : canCheckout
-        ? FALLBACK_BILLING_PLANS
-        : [];
-
-  useToastMessage(billingError, { kind: "error", title: "Billing failed", durationMs: 6500 });
 
   useEffect(() => {
     return () => {
@@ -80,22 +64,6 @@ export default function SettingsPage() {
     profileSaveTimerRef.current = window.setTimeout(() => {
       setProfileSaveStatus("saved");
     }, 450);
-  }
-
-  async function openBilling(action: BillingAction) {
-    setBillingAction(action);
-    setBillingError(null);
-
-    try {
-      const session =
-        action === "portal"
-          ? await createBillingPortalSession()
-          : await createBillingCheckoutSession(action);
-      window.location.assign(session.url);
-    } catch (error) {
-      setBillingError(error instanceof Error ? error.message : "Billing request failed.");
-      setBillingAction(null);
-    }
   }
 
   return (
@@ -268,47 +236,33 @@ export default function SettingsPage() {
                   <button
                     className="btn btn-secondary btn-sm"
                     type="button"
-                    disabled={!canOpenPortal || billingAction === "portal"}
-                    onClick={() => void openBilling("portal")}
+                    disabled={(!canOpenPortal && !canCheckout) || billingAction === "portal"}
+                    onClick={() => {
+                      if (canOpenPortal) {
+                        void openBillingPortal();
+                        return;
+                      }
+
+                      openPricing();
+                    }}
                   >
                     {billingAction === "portal" ? (
                       <Loader2 aria-hidden="true" className="spin-icon" />
                     ) : (
                       <CreditCard aria-hidden="true" />
                     )}
-                    Manage
+                    {canOpenPortal ? "Manage" : "Change plan"}
                   </button>
                 ) : (
-                  <div className="settings-plan-options" aria-label="Upgrade options">
-                    {checkoutPlans.map((checkoutPlan) => (
-                      <button
-                        key={checkoutPlan.key}
-                        className="settings-plan-option"
-                        type="button"
-                        disabled={!canCheckout || billingAction === checkoutPlan.key}
-                        onClick={() => void openBilling(checkoutPlan.key)}
-                      >
-                        <span className="settings-plan-main">
-                          <CreditCard aria-hidden="true" />
-                          <span>{checkoutPlan.label}</span>
-                        </span>
-                        <span className="settings-plan-price">
-                          {billingAction === checkoutPlan.key ? (
-                            <Loader2 aria-hidden="true" className="spin-icon" />
-                          ) : (
-                            checkoutPlan.price
-                          )}
-                          <span>{checkoutPlan.cadence}</span>
-                        </span>
-                        {checkoutPlan.savings && (
-                          <span className="settings-plan-savings">{checkoutPlan.savings}</span>
-                        )}
-                      </button>
-                    ))}
-                    {!checkoutPlans.length && (
-                      <span className="settings-row-desc">Upgrade checkout is not configured.</span>
-                    )}
-                  </div>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    type="button"
+                    disabled={!canCheckout}
+                    onClick={openPricing}
+                  >
+                    <CreditCard aria-hidden="true" />
+                    Upgrade
+                  </button>
                 )}
               </div>
             </div>

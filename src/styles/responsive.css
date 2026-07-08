@@ -426,6 +426,32 @@
   .settings-plan-option {
     width: 100%;
   }
+
+  .settings-pricing-backdrop {
+    padding: 14px;
+  }
+
+  .settings-pricing-dialog {
+    width: min(100%, calc(100vw - 28px));
+    max-height: calc(100vh - 28px);
+    padding: 16px;
+  }
+
+  .settings-pricing-header {
+    gap: 12px;
+  }
+
+  .settings-pricing-options {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-manage {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 520px) {

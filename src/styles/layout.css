@@ -120,10 +120,28 @@
   border-radius: 999px;
   background: rgba(34, 197, 94, 0.08);
   color: var(--accent-strong);
+  appearance: none;
+  font: inherit;
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
+  text-decoration: none;
+  cursor: default;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    color 0.14s ease;
+}
+
+.topbar-upgrade-pill:hover {
+  border-color: var(--success-border);
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--ink);
+}
+
+button.topbar-plan-pill {
+  cursor: pointer;
 }
 
 .topbar-credit-count {
