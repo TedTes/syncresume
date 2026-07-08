@@ -81,6 +81,16 @@ type UsageSummary = {
   aiActionsRemaining: number;
 };
 
+type BillingPlanKey = "monthly" | "six_month" | "yearly";
+
+type BillingCheckoutPlan = {
+  key: BillingPlanKey;
+  label: string;
+  price: string;
+  cadence: string;
+  savings?: string;
+};
+
 type BillingSummary = {
   plan: string;
   subscriptionStatus: string;
@@ -88,6 +98,7 @@ type BillingSummary = {
   usage: UsageSummary;
   checkoutEnabled: boolean;
   portalEnabled: boolean;
+  checkoutPlans: BillingCheckoutPlan[];
 };
 
 class HttpError extends Error {
@@ -121,6 +132,11 @@ const RESUME_TEMPLATE_IDS = new Set<string>(ALL_RESUME_TEMPLATE_IDS);
 const RESUME_VERSION_TYPES = new Set(["base", "tailored"]);
 const BILLING_PLAN_FREE = "Free";
 const BILLING_PLAN_PRO = "Pro";
+const BILLING_CHECKOUT_PLANS: BillingCheckoutPlan[] = [
+  { key: "monthly", label: "Pro Monthly", price: "$14", cadence: "per month" },
+  { key: "six_month", label: "Pro 6-Month", price: "$49", cadence: "every 6 months", savings: "Save 42%" },
+  { key: "yearly", label: "Pro Yearly", price: "$79", cadence: "per year", savings: "Save 53%" },
+];
 const DEFAULT_FREE_AI_ACTIONS = 3;
 const DEFAULT_PRO_AI_ACTIONS = 100;
 const DEFAULT_FREE_RESUME_STRUCTURES = 10;
@@ -808,7 +824,15 @@ async function handleCreateBillingCheckout(
   headers: Headers,
 ): Promise<Response> {
   const { user } = await requireSession(request, env);
-  requireStripeRuntime(env, ["STRIPE_SECRET_KEY", "STRIPE_PRICE_ID"]);
+  requireStripeRuntime(env, ["STRIPE_SECRET_KEY"]);
+
+  const body = await readJson(request);
+  const planKey = normalizeBillingPlanKey(body.plan);
+  const priceId = getStripePriceIdForPlan(env, planKey);
+
+  if (!priceId) {
+    throw new HttpError("Selected billing plan is not configured.", 500);
+  }
 
   const customerId = await getOrCreateStripeCustomer(env, user);
   const successUrl = resolveAppUrl(env.BILLING_SUCCESS_URL, env.APP_ORIGIN, "/settings?billing=success");
@@ -816,10 +840,11 @@ async function handleCreateBillingCheckout(
   const session = await stripePost(env, "/checkout/sessions", {
     mode: "subscription",
     customer: customerId,
-    "line_items[0][price]": env.STRIPE_PRICE_ID,
+    "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
     client_reference_id: user.id,
     "metadata[user_id]": user.id,
+    "metadata[plan_key]": planKey,
     success_url: successUrl,
     cancel_url: cancelUrl,
     allow_promotion_codes: "true",
@@ -1828,14 +1853,16 @@ async function findOrCreateUser(env: Env, clerkUserId: string, email: string): P
 async function getBillingSummary(env: Env, user: UserRow): Promise<BillingSummary> {
   const plan = resolveEffectivePlan(user);
   const usage = await getUsageSummary(env, user.id, plan);
+  const checkoutPlans = getConfiguredBillingCheckoutPlans(env);
 
   return {
     plan,
     subscriptionStatus: user.subscription_status || (plan === BILLING_PLAN_PRO ? "active" : "free"),
     subscriptionCurrentPeriodEnd: user.subscription_current_period_end ?? null,
     usage,
-    checkoutEnabled: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_ID),
+    checkoutEnabled: Boolean(env.STRIPE_SECRET_KEY && checkoutPlans.length),
     portalEnabled: Boolean(env.STRIPE_SECRET_KEY && user.stripe_customer_id),
+    checkoutPlans,
   };
 }
 
@@ -2174,6 +2201,40 @@ function requireStripeRuntime(env: Env, keys: Array<keyof Env>): void {
   if (missing.length) {
     throw new HttpError(`${missing.join(", ")} is not configured.`, 500);
   }
+}
+
+function normalizeBillingPlanKey(value: unknown): BillingPlanKey {
+  if (value === "monthly" || value === "six_month" || value === "yearly") {
+    return value;
+  }
+
+  if (value === undefined || value === null || value === "") {
+    return "monthly";
+  }
+
+  throw new HttpError("Unknown billing plan.", 400);
+}
+
+function getStripePriceIdForPlan(env: Env, planKey: BillingPlanKey): string {
+  const billingEnv = env as Env & {
+    STRIPE_PRICE_MONTHLY_ID?: string;
+    STRIPE_PRICE_6_MONTH_ID?: string;
+    STRIPE_PRICE_YEARLY_ID?: string;
+  };
+
+  if (planKey === "monthly") {
+    return billingEnv.STRIPE_PRICE_MONTHLY_ID || "";
+  }
+
+  if (planKey === "six_month") {
+    return billingEnv.STRIPE_PRICE_6_MONTH_ID || "";
+  }
+
+  return billingEnv.STRIPE_PRICE_YEARLY_ID || "";
+}
+
+function getConfiguredBillingCheckoutPlans(env: Env): BillingCheckoutPlan[] {
+  return BILLING_CHECKOUT_PLANS.filter((plan) => Boolean(getStripePriceIdForPlan(env, plan.key)));
 }
 
 async function stripePost(
@@ -2749,6 +2810,7 @@ function publicUser(user: UserRow, billing?: BillingSummary): JsonRecord {
       ? {
           checkoutEnabled: billing.checkoutEnabled,
           portalEnabled: billing.portalEnabled,
+          checkoutPlans: billing.checkoutPlans,
         }
       : undefined,
     createdAt: user.created_at,

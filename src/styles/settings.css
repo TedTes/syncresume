@@ -193,6 +193,85 @@
   height: 15px;
 }
 
+.settings-plan-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 560px;
+}
+
+.settings-plan-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 150px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    transform 0.14s ease;
+}
+
+.settings-plan-option:hover:not(:disabled) {
+  border-color: var(--success-border);
+  background: rgba(16, 185, 129, 0.08);
+  transform: translateY(-1px);
+}
+
+.settings-plan-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-plan-main,
+.settings-plan-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-plan-main {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.settings-plan-main svg,
+.settings-plan-price svg {
+  width: 14px;
+  height: 14px;
+}
+
+.settings-plan-price {
+  color: var(--accent-strong);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.settings-plan-price span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.settings-plan-savings {
+  display: inline-flex;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent-strong);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
 .settings-row-stacked {
   align-items: stretch;
   flex-direction: column;

@@ -4,6 +4,16 @@ type AuthTokenProvider = () => Promise<string | null>;
 
 let authTokenProvider: AuthTokenProvider | null = null;
 
+export type BillingPlanKey = "monthly" | "six_month" | "yearly";
+
+export type BillingCheckoutPlan = {
+  key: BillingPlanKey;
+  label: string;
+  price: string;
+  cadence: string;
+  savings?: string;
+};
+
 export type CloudflareUser = {
   id: string;
   email: string;
@@ -19,6 +29,7 @@ export type CloudflareUser = {
   billing?: {
     checkoutEnabled: boolean;
     portalEnabled: boolean;
+    checkoutPlans?: BillingCheckoutPlan[];
   };
   createdAt?: string;
 };
@@ -135,9 +146,10 @@ export async function cloudflareBlobPostRequest(path: string, body: Record<strin
   return response.blob();
 }
 
-export function createBillingCheckoutSession(): Promise<BillingSessionResponse> {
+export function createBillingCheckoutSession(plan: BillingPlanKey = "monthly"): Promise<BillingSessionResponse> {
   return cloudflareRequest<BillingSessionResponse>("/api/billing/checkout", {
     method: "POST",
+    body: { plan },
   });
 }
 

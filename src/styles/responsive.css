@@ -420,6 +420,12 @@
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .settings-row-control,
+  .settings-plan-options,
+  .settings-plan-option {
+    width: 100%;
+  }
 }
 
 @media (max-width: 520px) {
