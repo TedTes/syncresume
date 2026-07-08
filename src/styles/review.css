@@ -532,7 +532,10 @@
   grid-template-columns: minmax(84px, max-content) minmax(0, 1fr);
 }
 
-.template-comparison-pane .resume-template-preview * {
+/* In compare mode the panes are narrower and need min-width: 0 to avoid overflow.
+   In optimized-only edit mode the document is fixed-width so we must NOT override
+   min-width: auto — otherwise sidebar grid columns can collapse to near-zero. */
+.template-comparison-grid:not(.is-optimized-only) .template-comparison-pane .resume-template-preview * {
   min-width: 0;
 }
 
@@ -544,6 +547,9 @@
   }
 }
 
+/* Prevent long non-breaking tokens (URLs, emails) from overflowing the template box.
+   break-word only triggers when a token genuinely can't fit on one line, unlike
+   "anywhere" which affects min-content width and breaks words mid-character. */
 .template-comparison-pane .template-contact p,
 .template-comparison-pane .contact-detail-list,
 .template-comparison-pane .contact-detail-item,
@@ -552,7 +558,7 @@
 .template-comparison-pane .template-section p,
 .template-comparison-pane .template-section li {
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   word-break: normal;
 }
 
@@ -631,7 +637,9 @@
 }
 
 .review-workspace.template-panel-open .results-template-stage .template-comparison-grid.is-optimized-only .template-comparison-pane {
+  justify-content: flex-start;
   height: 100%;
+  overflow-x: auto;
   overflow-y: auto;
   touch-action: pan-y;
 }
@@ -644,8 +652,14 @@
 }
 
 .review-workspace.template-panel-open .results-template-stage .template-comparison-document {
+  flex: 0 0 816px;
+  width: 816px;
+  max-width: none;
   height: auto;
   min-height: 0;
+  min-width: 816px;
+  margin-left: 0;
+  margin-right: auto;
   overflow: visible;
 }
 
@@ -1027,4 +1041,108 @@
 
 .review-contact-view a {
   pointer-events: none;
+}
+
+/* ── Horizontal scroll pane wrapper ── */
+
+.hscroll-pane-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Pane fills wrapper height via flex */
+.hscroll-pane-wrapper > .template-comparison-pane {
+  flex: 1 1 auto;
+}
+
+/* Edge-fade gradients indicate scrollable content */
+.hscroll-pane-wrapper::before,
+.hscroll-pane-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 64px;
+  pointer-events: none;
+  z-index: 8;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.hscroll-pane-wrapper::before {
+  left: 0;
+  background: linear-gradient(to right, var(--surface) 15%, transparent);
+}
+
+.hscroll-pane-wrapper::after {
+  right: 0;
+  background: linear-gradient(to left, var(--surface) 15%, transparent);
+}
+
+.hscroll-pane-wrapper.has-scroll-left::before,
+.hscroll-pane-wrapper.has-scroll-right::after {
+  opacity: 1;
+}
+
+/* Arrow buttons */
+.hscroll-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) scale(0.8);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background: rgba(28, 28, 31, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: rgba(255, 255, 255, 0.78);
+  box-shadow:
+    0 2px 14px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease,
+    background 0.14s ease;
+}
+
+.hscroll-arrow.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) scale(1);
+}
+
+.hscroll-arrow:hover {
+  background: rgba(45, 45, 50, 0.88);
+  color: #fff;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.hscroll-arrow:active {
+  transform: translateY(-50%) scale(0.9);
+  transition-duration: 0.08s;
+}
+
+.hscroll-arrow-left { left: 10px; }
+.hscroll-arrow-right { right: 10px; }
+
+/* When is-compare-mode.is-single-pane restores display:block on .template-comparison-before,
+   keep the wrapper as flex (the wrapper now carries that class). */
+.template-comparison-grid.is-compare-mode.is-single-pane .hscroll-pane-wrapper.template-comparison-before {
+  display: flex;
 }

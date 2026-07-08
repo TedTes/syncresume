@@ -72,6 +72,7 @@ import {
 } from "../lib/resume";
 import type { ExportType } from "../lib/storage";
 import { ResumeSectionTextEditor } from "./ResumeSectionTextEditor";
+import { HScrollPane } from "./HScrollPane";
 
 type ResumeReviewProps = {
   jobDescription: string;
@@ -444,6 +445,12 @@ export function ResumeReview({
 
     if (!instruction) {
       setRevisionError("Add a revision instruction before submitting.");
+      return;
+    }
+
+    const instructionValidationError = getRevisionInstructionValidationError(instruction);
+    if (instructionValidationError) {
+      setRevisionError(instructionValidationError);
       return;
     }
 
@@ -1178,6 +1185,8 @@ function ResultsTab({
     () => new Map(sections.map((section) => [section.id, section])),
     [sections],
   );
+  const lastBodySectionId = [...sections].reverse().find((s) => s.type !== "contact")?.id;
+
   useEffect(() => {
     const comparison = comparisonRef.current;
     if (!comparison) return;
@@ -1229,7 +1238,7 @@ function ResultsTab({
         ref={comparisonRef}
       >
         {isCompareMode && (
-          <div className="template-comparison-pane template-comparison-before">
+          <HScrollPane className="template-comparison-before">
             <div className="template-comparison-document">
               <ResumeTemplatePreview
                 key={`before-${templateId}`}
@@ -1241,9 +1250,9 @@ function ResultsTab({
                 }
               />
             </div>
-          </div>
+          </HScrollPane>
         )}
-        <div className="template-comparison-pane template-comparison-after">
+        <HScrollPane className="template-comparison-after">
           <div className="template-comparison-document">
             <ResumeTemplatePreview
               key={`after-${templateId}`}
@@ -1280,19 +1289,21 @@ function ResultsTab({
                       onAfterSectionFormatChange,
                       canRemoveAfterSection,
                       onRemoveAfterSection,
-                      {
-                        availableSectionTitles: availableAddSectionTitles,
-                        isAddSectionOpen: addSectionAfterId === section.id,
-                        onAddSection: (title, content, contentKind) =>
-                          onAddSection(section.id, title, content, contentKind),
-                        onOpenAddSection: () => onOpenAddSection(section.id),
-                        onCloseAddSection,
-                      },
+                      section.id === lastBodySectionId
+                        ? {
+                            availableSectionTitles: availableAddSectionTitles,
+                            isAddSectionOpen: addSectionAfterId === section.id,
+                            onAddSection: (title, content, contentKind) =>
+                              onAddSection(section.id, title, content, contentKind),
+                            onOpenAddSection: () => onOpenAddSection(section.id),
+                            onCloseAddSection,
+                          }
+                        : undefined,
                     )
               }
             />
           </div>
-        </div>
+        </HScrollPane>
       </div>
     </div>
   );
@@ -1464,6 +1475,116 @@ function getRevisionSuggestions(
     .sort((a, b) => b.score - a.score || a.suggestion.label.localeCompare(b.suggestion.label))
     .slice(0, limit)
     .map(({ suggestion }) => suggestion);
+}
+
+function getRevisionInstructionValidationError(instruction: string): string {
+  if (isLikelyInvalidRevisionInstruction(instruction)) {
+    return "Ask for a specific resume edit, e.g. “Make this section more concise.”";
+  }
+
+  return "";
+}
+
+function isLikelyInvalidRevisionInstruction(instruction: string): boolean {
+  const value = instruction.trim().toLowerCase();
+  if (!value) return false;
+
+  const words = value
+    .replace(/[^a-z0-9\s'-]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return true;
+
+  const editSignals = [
+    "rewrite",
+    "revise",
+    "improve",
+    "shorten",
+    "expand",
+    "condense",
+    "make",
+    "more",
+    "less",
+    "stronger",
+    "clearer",
+    "concise",
+    "specific",
+    "generic",
+    "turn",
+    "convert",
+    "format",
+    "categorize",
+    "category",
+    "group",
+    "organize",
+    "tailor",
+    "tone",
+    "grammar",
+    "professional",
+    "senior",
+    "add",
+    "remove",
+    "replace",
+    "emphasize",
+    "quantify",
+    "summarize",
+    "fix",
+    "polish",
+    "trim",
+    "tighten",
+    "reorder",
+    "prioritize",
+    "align",
+    "active",
+    "voice",
+    "bullet",
+    "bullets",
+    "paragraph",
+    "ats",
+    "keyword",
+    "keywords",
+  ];
+  const resumeSignals = [
+    "resume",
+    "section",
+    "summary",
+    "skill",
+    "skills",
+    "experience",
+    "education",
+    "project",
+    "projects",
+    "award",
+    "awards",
+    "certification",
+    "certifications",
+    "contact",
+    "header",
+  ];
+  const matchesSuggestion = REVISION_SUGGESTIONS.some((suggestion) => {
+    const suggestionText = `${suggestion.label} ${suggestion.instruction}`.toLowerCase();
+    return suggestionText.includes(value) || value.includes(suggestion.label.toLowerCase());
+  });
+
+  if (matchesSuggestion) return false;
+
+  const hasEditSignal = editSignals.some((signal) => words.includes(signal));
+  const hasResumeSignal = resumeSignals.some((signal) => words.includes(signal));
+
+  if (!hasEditSignal && !hasResumeSignal) return true;
+
+  return words.some(isLikelyGarbageWord);
+}
+
+function isLikelyGarbageWord(word: string): boolean {
+  const letters = word.replace(/[^a-z]/g, "");
+  if (letters.length < 8) return false;
+
+  const vowelCount = (letters.match(/[aeiou]/g) ?? []).length;
+  const vowelRatio = vowelCount / letters.length;
+  const uniqueLetters = new Set(letters).size;
+
+  return vowelRatio < 0.12 || uniqueLetters <= 4;
 }
 
 function buildSectionComparisons(originalResumeText: string, resumeDocument: ResumeDocument): SectionComparison[] {

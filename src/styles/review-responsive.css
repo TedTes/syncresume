@@ -105,15 +105,16 @@
   .template-comparison-pane {
     box-sizing: border-box;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     height: 100%;
     min-height: 0;
     padding-inline: 4px;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     scrollbar-gutter: stable both-edges;
   }
 
@@ -121,34 +122,33 @@
     padding-bottom: 92px;
   }
 
-  .template-comparison-pane + .template-comparison-pane {
+  .hscroll-pane-wrapper + .hscroll-pane-wrapper .template-comparison-pane {
     border: 0;
   }
 
   .template-comparison-document {
     box-sizing: border-box;
-    width: min(816px, calc(100% - 2px));
-    max-width: 100%;
-    min-width: 0;
+    flex: 0 0 816px;
+    width: 816px;
+    max-width: none;
+    min-width: 816px;
+    /* auto margins center the document when the pane is wider than 816 px and
+       resolve to 0 when narrower, leaving the document left-aligned for scroll. */
+    margin-inline: auto;
   }
 
   .template-comparison-pane .resume-template-preview,
   .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
     box-sizing: border-box;
     width: 100%;
-    max-width: 100%;
+    max-width: none;
     min-width: 0;
-    margin-inline: auto;
+    margin-inline: 0;
     zoom: 1;
-    overflow-x: hidden;
-  }
-
-  .template-comparison-pane .resume-template-preview *,
-  .template-comparison-pane .resume-template-preview :where(p, li, span, strong, em, textarea, input, .template-section-body, .contact-detail-list, .contact-detail-item) {
-    max-width: 100%;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    word-break: normal;
+    /* Use clip instead of hidden: clip hard-clips without creating a scroll
+       container. overflow-x: hidden forces overflow-y to auto (per CSS spec),
+       making the preview steal wheel events from the pane. */
+    overflow-x: clip;
   }
 
   .template-comparison-pane .document-section-textarea,
@@ -169,12 +169,20 @@
   .saved-application-review .results-template-stage,
   .saved-application-review .template-comparison-grid,
   .saved-application-review .template-comparison-grid.is-optimized-only,
-  .saved-application-review .template-comparison-grid.is-compare-mode.is-single-pane,
-  .saved-application-review .template-comparison-pane {
+  .saved-application-review .template-comparison-grid.is-compare-mode.is-single-pane {
     height: auto;
     max-height: none;
     min-height: 0;
     overflow: visible;
+  }
+
+  .saved-application-review .template-comparison-pane {
+    justify-content: flex-start;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: visible;
   }
 }
 
@@ -286,10 +294,12 @@
   }
 
   .template-comparison-pane {
+    justify-content: flex-start;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: visible;
     padding-inline: 2px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .template-diff-content,
@@ -368,12 +378,12 @@
 
   .template-comparison-pane {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     padding-inline: 4px;
-    overflow-x: hidden;
+    overflow-x: auto;
   }
 
   .template-comparison-grid.is-optimized-only .template-comparison-pane {
@@ -384,60 +394,9 @@
   .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
     box-sizing: border-box;
     width: 100%;
-    max-width: 100%;
+    max-width: none;
     min-width: 0;
-    margin-inline: auto;
-    padding: 18px 14px;
-  }
-
-  .template-comparison-pane .resume-template-preview,
-  .template-comparison-pane .resume-template-preview :where(p, li, span, strong, em, textarea, input) {
-    overflow-wrap: anywhere;
-    word-break: normal;
-  }
-
-  .template-comparison-pane .resume-template-preview :where(.template-contact p, .contact-detail-list, .contact-detail-item, .template-section-body, .template-section p, .template-section li, .document-section-textarea) {
-    font-size: clamp(0.64rem, 3.2vw, 0.78rem);
-    line-height: 1.34;
-  }
-
-  .template-comparison-pane .resume-template-preview :where(h1, .template-contact h1) {
-    font-size: clamp(0.92rem, 5vw, 1.12rem);
-    line-height: 1.12;
-  }
-
-  .template-comparison-pane .resume-template-preview :where(h2, .template-section h2) {
-    font-size: clamp(0.58rem, 2.9vw, 0.7rem);
-    line-height: 1.18;
-  }
-
-  .template-comparison-pane .template-labeled-line {
-    display: block;
-  }
-
-  .template-comparison-pane :where(.split-body, .template-technical-grid) {
-    display: grid;
-    grid-template-columns: 1fr !important;
-    gap: 10px;
-  }
-
-  .template-comparison-pane :where(.template-sidebar) {
-    display: grid;
-    grid-template-columns: 1fr !important;
-  }
-
-  .template-comparison-pane :where(.template-sidebar-rail, .template-sidebar-main, .split-left, .split-right) {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-  }
-
-  .resume-section-text-editor .document-section-textarea {
-    padding-right: 52px;
-  }
-
-  .resume-section-text-editor.has-toolbar-action .document-section-textarea {
-    padding-right: 76px;
+    margin-inline: 0;
   }
 
   .resume-section-format-toolbar {
@@ -474,8 +433,10 @@
   }
 
   .template-comparison-document {
-    width: calc(100% - 2px);
-    max-width: 100%;
+    flex: 0 0 816px;
+    width: 816px;
+    max-width: none;
+    min-width: 816px;
   }
 }
 
@@ -575,20 +536,21 @@
   }
 
   .template-comparison-pane {
+    justify-content: flex-start;
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: visible;
     padding-inline: 2px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .template-comparison-pane .resume-template-preview,
   .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
-    width: calc(100% - 4px);
-    max-width: 100%;
+    width: 100%;
+    max-width: none;
     min-height: auto;
-    margin: 0 auto;
-    padding: 18px 14px;
+    margin: 0;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.32);
     zoom: 1;
   }
@@ -638,12 +600,9 @@
   }
 
   .template-comparison-document {
-    width: calc(100% - 2px);
-    max-width: 100%;
-  }
-
-  .template-comparison-pane .resume-template-preview,
-  .template-comparison-grid.is-optimized-only .template-comparison-pane .resume-template-preview {
-    padding: 16px 12px;
+    flex: 0 0 816px;
+    width: 816px;
+    max-width: none;
+    min-width: 816px;
   }
 }
