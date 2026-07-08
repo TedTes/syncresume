@@ -352,16 +352,12 @@
   }
 
   .document-editor-stage {
-    min-width: 0;
     padding: 10px;
     border-radius: 12px;
-    overflow: hidden;
   }
 
   .document-editor-stage .resume-template-preview,
   .template-fullpage-preview-shell .resume-template-preview {
-    width: 100%;
-    max-width: 100%;
     min-height: 820px;
     padding: 24px 18px;
   }

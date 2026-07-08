@@ -73,12 +73,15 @@
 
 .template-fullpage-preview-shell {
   display: block;
+  min-width: fit-content;
   background: #282826;
 }
 
 .template-fullpage-preview-shell .resume-template-preview {
-  flex: 0 0 auto;
-  width: min(816px, 100%);
+  flex: 0 0 816px;
+  width: 816px;
+  min-width: 816px;
+  max-width: none;
   height: auto;
   min-height: 1056px;
   margin: 0 auto;
@@ -129,6 +132,9 @@
   flex: 0 0 auto;
   box-sizing: border-box;
   width: 100%;
+  /* min-width: fit-content ensures the stage expands to hold the 816px document
+     so the shell's overflow: auto sees the full width and creates a scrollbar. */
+  min-width: fit-content;
   min-height: 100%;
   padding: 18px;
   border: 1px solid var(--border);
@@ -140,9 +146,10 @@
 }
 
 .document-editor-stage .resume-template-preview {
-  flex: 0 0 auto;
-  width: min(816px, 100%);
-  max-width: 100%;
+  flex: 0 0 816px;
+  width: 816px;
+  min-width: 816px;
+  max-width: none;
   height: auto;
   min-height: 1056px;
   border: none;
