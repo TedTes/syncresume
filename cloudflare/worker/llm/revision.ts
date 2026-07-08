@@ -95,9 +95,15 @@ export function isLikelyOutOfScopeRevisionInstruction(instruction: string): bool
   const looksLikeQuestion = /^(what|why|how|where|when|who|can|could|should|do|does|is|are)\b/.test(
     value,
   );
+  const words = value
+    .replace(/[^a-z0-9\s'-]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
 
   if (hasAppSupportSignal && !hasResumeSignal) return true;
   if (looksLikeQuestion && !hasEditSignal && !hasResumeSignal) return true;
+  if (!hasEditSignal && !hasResumeSignal) return true;
+  if (words.some(isLikelyGarbageWord)) return true;
 
   return false;
 }
@@ -128,4 +134,15 @@ function stripJsonFence(value: string): string {
   const trimmed = value.trim();
   const match = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   return match?.[1]?.trim() ?? trimmed;
+}
+
+function isLikelyGarbageWord(word: string): boolean {
+  const letters = word.replace(/[^a-z]/g, "");
+  if (letters.length < 8) return false;
+
+  const vowelCount = (letters.match(/[aeiou]/g) ?? []).length;
+  const vowelRatio = vowelCount / letters.length;
+  const uniqueLetters = new Set(letters).size;
+
+  return vowelRatio < 0.12 || uniqueLetters <= 4;
 }
