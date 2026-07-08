@@ -71,6 +71,24 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (!isTemplatePanelOpen) return;
 
+    function closeOnOutsidePointerDown(event: PointerEvent) {
+      const target = event.target as Element | null;
+      if (!target) return;
+      if (target.closest(".template-drawer")) return;
+      if (target.closest(".review-template-button")) return;
+      closeTemplatePanel();
+    }
+
+    document.addEventListener("pointerdown", closeOnOutsidePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+    };
+  }, [closeTemplatePanel, isTemplatePanelOpen]);
+
+  useEffect(() => {
+    if (!isTemplatePanelOpen) return;
+
     function collapseOnViewportChange() {
       setIsTemplatePanelOpen(false);
     }

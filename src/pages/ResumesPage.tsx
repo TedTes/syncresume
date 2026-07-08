@@ -152,6 +152,8 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   const [isEditorExportMenuOpen, setIsEditorExportMenuOpen] = useState(false);
   const [editError, setEditError] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [exportError, setExportError] = useState("");
+  const [isPreviewExporting, setIsPreviewExporting] = useState(false);
   const [isSavingExtractedText, setIsSavingExtractedText] = useState(false);
   const [renamingResumeId, setRenamingResumeId] = useState("");
   const [renamingResumeName, setRenamingResumeName] = useState("");
@@ -166,6 +168,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
   useToastMessage(uploadError, { kind: "error", title: "Resume action failed", durationMs: 6500 });
   useToastMessage(previewError, { kind: "error", title: "Preview unavailable", durationMs: 6500 });
   useToastMessage(editError, { kind: "error", title: "Resume edit failed", durationMs: 6500 });
+  useToastMessage(exportError, { kind: "error", title: "Export failed", durationMs: 6500 });
   useToastMessage(editStatus, { kind: "success", title: "Resume saved" });
   useToastMessage(resumeRenameError, { kind: "error", title: "Rename failed", durationMs: 6500 });
   const requiresSignIn = hasBackend && !user;
@@ -402,7 +405,11 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
       return;
     }
     if (resumeInputMode !== "upload") switchResumeInputMode("upload");
-    fileInputRef.current?.click();
+    if (!fileInputRef.current) {
+      setUploadError("File picker is not ready. Refresh and try again.");
+      return;
+    }
+    fileInputRef.current.click();
   }
 
   async function structureResumeForSave(resumeText: string, resumeName: string): Promise<string> {
@@ -470,11 +477,30 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
       } catch (error) {
         const message = error instanceof Error ? error.message : "Could not process that file.";
         updateUploadItem(itemId, { status: "error", message });
-        setUploadError("Some files could not be uploaded. Check the processing details.");
+        setUploadError(message);
       }
     }
 
     setIsUploading(false);
+  }
+
+  async function handleExportPreviewResume() {
+    if (!previewResumeDocumentWithProfile || !previewResume) return;
+
+    setExportError("");
+    setIsPreviewExporting(true);
+    try {
+      await downloadResumeDocumentPdf(
+        previewResumeDocumentWithProfile,
+        previewTemplateId,
+        previewResume.name,
+        selectedFontId,
+      );
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Could not export resume.");
+    } finally {
+      setIsPreviewExporting(false);
+    }
   }
 
   function handleFileInput(event: ChangeEvent<HTMLInputElement>) {
@@ -791,6 +817,16 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
         </header>
       )}
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        multiple
+        className="sr-only"
+        disabled={uploadsDisabled}
+        onChange={handleFileInput}
+      />
+
       {editingResume ? (
         <main
           className={`pdf-fullpage extracted-editor-page${embedded ? " workspace-fullpage-overlay" : ""}`}
@@ -903,17 +939,14 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
-                    onClick={() => {
-                      if (!previewResumeDocumentWithProfile) return;
-                      void downloadResumeDocumentPdf(
-                        previewResumeDocumentWithProfile,
-                        previewTemplateId,
-                        previewResume.name,
-                        selectedFontId,
-                      );
-                    }}
+                    disabled={isPreviewExporting || !previewResumeDocumentWithProfile}
+                    onClick={() => void handleExportPreviewResume()}
                   >
-                    <Download aria-hidden="true" />
+                    {isPreviewExporting ? (
+                      <Loader2 className="spin" aria-hidden="true" />
+                    ) : (
+                      <Download aria-hidden="true" />
+                    )}
                     <span className="pdf-action-label">Export</span>
                   </button>
                 </>
@@ -972,16 +1005,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                 </Link>
               </div>
             )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          multiple
-          className="sr-only"
-          disabled={uploadsDisabled}
-          onChange={handleFileInput}
-        />
 
         {(orderedBaseResumes.length > 0 || resumeInputMode === "paste" || uploadQueue.length > 0) && (
         <section
@@ -1098,13 +1121,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                 type="button"
                 className="btn btn-ghost btn-sm resume-upload-link"
                 disabled={uploadsDisabled}
-                onClick={() => {
-                  if (uploadsDisabled) {
-                    if (requiresSignIn) setUploadError("Sign in before uploading resumes.");
-                    return;
-                  }
-                  fileInputRef.current?.click();
-                }}
+                onClick={openFilePicker}
               >
                 {isUploading ? (
                   <Loader2 className="spin" aria-hidden="true" />
@@ -1113,15 +1130,6 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
                 )}
                 Upload new
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                multiple
-                className="sr-only"
-                disabled={uploadsDisabled}
-                onChange={handleFileInput}
-              />
             </div>
           )}
         </div>

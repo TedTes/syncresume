@@ -113,10 +113,177 @@ type SectionComparison = {
   tokens: DiffToken[];
 };
 
+type RevisionSuggestion = {
+  label: string;
+  instruction: string;
+  keywords: string[];
+  sectionTypes?: ResumeSectionType[];
+  common?: boolean;
+};
+
 const EXPORT_OPTIONS: Array<{ type: ExportType; label: string }> = [
   { type: "docx", label: "DOCX" },
   { type: "pdf", label: "PDF" },
   { type: "copy", label: "Text" },
+];
+
+const REVISION_SUGGESTIONS: RevisionSuggestion[] = [
+  {
+    label: "Make concise",
+    instruction: "Make this section more concise while preserving the strongest details.",
+    keywords: ["make", "short", "shorten", "concise", "tight", "trim", "reduce"],
+    common: true,
+  },
+  {
+    label: "More senior",
+    instruction: "Make this section sound more senior and impact-oriented without adding new facts.",
+    keywords: ["senior", "leadership", "stronger", "executive", "impact", "authority"],
+    common: true,
+  },
+  {
+    label: "ATS keywords",
+    instruction: "Improve ATS keyword alignment for this job while keeping the content truthful.",
+    keywords: ["ats", "keyword", "keywords", "match", "job", "tailor", "optimize"],
+    common: true,
+  },
+  {
+    label: "Fix grammar",
+    instruction: "Fix grammar, punctuation, and wording without changing the meaning.",
+    keywords: ["fix", "grammar", "punctuation", "typo", "wording", "clean"],
+    common: true,
+  },
+  {
+    label: "Action verbs",
+    instruction: "Rewrite with stronger action verbs and clearer outcomes without inventing metrics.",
+    keywords: ["verb", "verbs", "action", "stronger", "outcome", "impact"],
+    sectionTypes: ["experience", "projects", "custom"],
+  },
+  {
+    label: "Convert to bullets",
+    instruction: "Convert this section into clear resume bullets.",
+    keywords: ["bullet", "bullets", "list", "convert", "format"],
+    sectionTypes: ["experience", "projects", "education", "custom"],
+  },
+  {
+    label: "Tighten bullets",
+    instruction: "Tighten each bullet so it is clearer, more direct, and less repetitive.",
+    keywords: ["bullet", "bullets", "tighten", "repetitive", "direct"],
+    sectionTypes: ["experience", "projects", "custom"],
+  },
+  {
+    label: "Group skills",
+    instruction: "Group these skills into meaningful categories.",
+    keywords: ["skill", "skills", "group", "category", "categorize", "organize"],
+    sectionTypes: ["skills"],
+  },
+  {
+    label: "Prioritize skills",
+    instruction: "Prioritize the most relevant skills for this job and move weaker matches lower.",
+    keywords: ["skill", "skills", "prioritize", "relevant", "job", "match"],
+    sectionTypes: ["skills"],
+  },
+  {
+    label: "Remove weak skills",
+    instruction: "Remove or de-emphasize less relevant skills for this job.",
+    keywords: ["skill", "skills", "remove", "weak", "irrelevant", "less relevant"],
+    sectionTypes: ["skills"],
+  },
+  {
+    label: "Sharper summary",
+    instruction: "Rewrite this summary to be sharper, job-specific, and concise.",
+    keywords: ["summary", "profile", "headline", "sharper", "job", "specific"],
+    sectionTypes: ["summary"],
+  },
+  {
+    label: "Less generic",
+    instruction: "Make this section less generic and more specific to the target role.",
+    keywords: ["generic", "specific", "target", "role", "job"],
+  },
+  {
+    label: "One-page fit",
+    instruction: "Shorten this section to help the resume fit on the page without losing key value.",
+    keywords: ["one", "page", "fit", "shorten", "space", "length"],
+  },
+  {
+    label: "Clarify impact",
+    instruction: "Clarify the business or technical impact using only information already present.",
+    keywords: ["impact", "clarify", "business", "technical", "result", "outcome"],
+    sectionTypes: ["experience", "projects", "summary", "custom"],
+  },
+  {
+    label: "Clean contact",
+    instruction: "Clean up the contact section and keep only clear professional contact details.",
+    keywords: ["contact", "header", "email", "phone", "linkedin", "github", "clean"],
+    sectionTypes: ["contact"],
+  },
+  {
+    label: "Active voice",
+    instruction: "Rewrite this section in active voice with direct, confident wording.",
+    keywords: ["active", "voice", "direct", "confident", "rewrite"],
+  },
+  {
+    label: "Remove repetition",
+    instruction: "Remove repetitive wording while preserving the meaning and important details.",
+    keywords: ["remove", "repetition", "repetitive", "duplicate", "clean"],
+  },
+  {
+    label: "Technical depth",
+    instruction: "Make the technical depth clearer without adding tools or claims that are not already present.",
+    keywords: ["technical", "depth", "engineering", "architecture", "systems"],
+    sectionTypes: ["summary", "experience", "projects", "skills", "custom"],
+  },
+  {
+    label: "Customer impact",
+    instruction: "Emphasize customer or business impact using only the existing facts.",
+    keywords: ["customer", "business", "impact", "user", "users", "stakeholder"],
+    sectionTypes: ["summary", "experience", "projects", "custom"],
+  },
+  {
+    label: "Leadership focus",
+    instruction: "Emphasize leadership, ownership, and collaboration without overstating the role.",
+    keywords: ["leadership", "lead", "ownership", "collaboration", "mentor"],
+    sectionTypes: ["summary", "experience", "projects", "custom"],
+  },
+  {
+    label: "Role alignment",
+    instruction: "Align this section more closely to the target role while staying truthful.",
+    keywords: ["align", "alignment", "role", "target", "job", "tailor"],
+    common: true,
+  },
+  {
+    label: "Simplify language",
+    instruction: "Simplify the language so it is clear, professional, and easy to scan.",
+    keywords: ["simple", "simplify", "clear", "readable", "scan"],
+  },
+  {
+    label: "Add missing context",
+    instruction: "Add helpful context only where it can be inferred from the existing section text.",
+    keywords: ["context", "missing", "clarify", "explain"],
+  },
+  {
+    label: "Reorder by relevance",
+    instruction: "Reorder the content by relevance to the target job without changing the facts.",
+    keywords: ["reorder", "order", "relevance", "relevant", "prioritize"],
+    sectionTypes: ["skills", "experience", "projects", "custom"],
+  },
+  {
+    label: "Stronger opener",
+    instruction: "Rewrite the opening line to be stronger and more specific to the target role.",
+    keywords: ["opening", "opener", "first", "line", "start", "stronger"],
+    sectionTypes: ["summary", "contact", "custom"],
+  },
+  {
+    label: "Metric-safe impact",
+    instruction: "Improve the impact language without inventing numbers, metrics, or outcomes.",
+    keywords: ["metric", "metrics", "numbers", "impact", "safe"],
+    sectionTypes: ["experience", "projects", "summary", "custom"],
+  },
+  {
+    label: "Tight paragraph",
+    instruction: "Rewrite this as one tight paragraph with no bullets.",
+    keywords: ["paragraph", "tight", "no bullets", "prose"],
+    sectionTypes: ["summary", "custom"],
+  },
 ];
 
 const ADDABLE_RESUME_SECTION_TYPE_OPTIONS = RESUME_SECTION_TYPE_OPTIONS.filter(
@@ -297,7 +464,7 @@ export function ResumeReview({
     setRevisionError("");
 
     try {
-      let revisedText = await reviseResumeSectionWithProvider({
+      const revision = await reviseResumeSectionWithProvider({
         provider,
         jobDescription,
         resume: documentToStructuredResume(resumeDocument, resume),
@@ -305,6 +472,13 @@ export function ResumeReview({
         sectionText: selectedDocumentSection.content,
         instruction,
       });
+
+      if (revision.type === "out_of_scope") {
+        setRevisionError(revision.message);
+        return;
+      }
+
+      let revisedText = revision.text;
 
       // Guard: reject AI output that includes another section heading. This
       // keeps responses like "Header...\n\nSkills\n..." from merging sections.
@@ -594,6 +768,7 @@ export function ResumeReview({
           revisionBar={
             <InlineRevisionBar
               selectedSectionId={selectedAssistantSection?.id ?? ""}
+              selectedSectionType={selectedDocumentSection?.type}
               instruction={assistantInstruction}
               inputRef={assistantInputRef}
               isRevising={Boolean(revisingSectionId)}
@@ -1125,6 +1300,7 @@ function ResultsTab({
 
 function InlineRevisionBar({
   selectedSectionId,
+  selectedSectionType,
   instruction,
   inputRef,
   isRevising,
@@ -1132,20 +1308,90 @@ function InlineRevisionBar({
   onSubmit,
 }: {
   selectedSectionId: string;
+  selectedSectionType?: ResumeSectionType;
   instruction: string;
   inputRef: RefObject<HTMLTextAreaElement | null>;
   isRevising: boolean;
   onInstructionChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
 }) {
+  const [isSuggestionListOpen, setIsSuggestionListOpen] = useState(false);
+  const compactSuggestions = useMemo(
+    () => getRevisionSuggestions(instruction, selectedSectionType, {
+      includeAllWhenEmpty: false,
+      limit: 4,
+    }),
+    [instruction, selectedSectionType],
+  );
+  const allSuggestions = useMemo(
+    () => getRevisionSuggestions(instruction, selectedSectionType, {
+      includeAllWhenEmpty: true,
+      limit: 18,
+    }),
+    [instruction, selectedSectionType],
+  );
+  const hiddenSuggestionCount = Math.max(0, allSuggestions.length - compactSuggestions.length);
+
+  useEffect(() => {
+    setIsSuggestionListOpen(false);
+  }, [selectedSectionType]);
+
   function handleInstructionKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
     event.currentTarget.form?.requestSubmit();
   }
 
+  function handleSuggestionClick(suggestion: RevisionSuggestion) {
+    onInstructionChange(suggestion.instruction);
+    setIsSuggestionListOpen(false);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
   return (
     <div className="review-inline-revision-card">
+      {selectedSectionId && !isRevising && compactSuggestions.length > 0 && (
+        <div className="review-inline-suggestion-shell">
+          <div className="review-inline-suggestions" aria-label="Suggested resume edit actions">
+            {compactSuggestions.map((suggestion) => (
+              <button
+                key={suggestion.instruction}
+                className="review-inline-suggestion"
+                type="button"
+                onClick={() => handleSuggestionClick(suggestion)}
+              >
+                {suggestion.label}
+              </button>
+            ))}
+            {hiddenSuggestionCount > 0 && (
+              <button
+                className="review-inline-suggestion review-inline-suggestion-more"
+                type="button"
+                aria-expanded={isSuggestionListOpen}
+                onClick={() => setIsSuggestionListOpen((current) => !current)}
+              >
+                <ListTodo aria-hidden="true" />
+                {isSuggestionListOpen ? "Hide" : `More ${hiddenSuggestionCount}`}
+              </button>
+            )}
+          </div>
+          {isSuggestionListOpen && (
+            <div className="review-inline-suggestion-list" aria-label="All resume edit templates">
+              {allSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion.instruction}
+                  className="review-inline-suggestion-option"
+                  type="button"
+                  onClick={() => handleSuggestionClick(suggestion)}
+                >
+                  <span>{suggestion.label}</span>
+                  <small>{suggestion.instruction}</small>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <form className="review-inline-revision-form" onSubmit={onSubmit}>
         <textarea
           ref={inputRef}
@@ -1153,7 +1399,7 @@ function InlineRevisionBar({
           value={isRevising ? "Submitting..." : instruction}
           rows={1}
           disabled={isRevising}
-          placeholder="Click any section above to edit directly, or ask AI"
+          placeholder="Tell AI how to revise the selected section..."
           onChange={(event) => onInstructionChange(event.target.value)}
           onKeyDown={handleInstructionKeyDown}
         />
@@ -1173,6 +1419,51 @@ function InlineRevisionBar({
       </form>
     </div>
   );
+}
+
+function getRevisionSuggestions(
+  query: string,
+  sectionType: ResumeSectionType | undefined,
+  {
+    includeAllWhenEmpty,
+    limit,
+  }: {
+    includeAllWhenEmpty: boolean;
+    limit: number;
+  },
+): RevisionSuggestion[] {
+  const value = query.trim().toLowerCase();
+  const candidates = REVISION_SUGGESTIONS.filter(
+    (suggestion) => !suggestion.sectionTypes || (sectionType && suggestion.sectionTypes.includes(sectionType)),
+  );
+
+  if (!value) {
+    return (includeAllWhenEmpty ? candidates : candidates.filter((suggestion) => suggestion.common)).slice(0, limit);
+  }
+
+  const terms = value.split(/\s+/).filter(Boolean);
+
+  return candidates
+    .map((suggestion) => {
+      const searchable = [
+        suggestion.label,
+        suggestion.instruction,
+        ...suggestion.keywords,
+      ].join(" ").toLowerCase();
+      const score = terms.reduce((total, term) => {
+        if (searchable.includes(term)) return total + 3;
+        if (suggestion.keywords.some((keyword) => keyword.startsWith(term) || term.startsWith(keyword))) {
+          return total + 2;
+        }
+        return total;
+      }, suggestion.common ? 1 : 0);
+
+      return { suggestion, score };
+    })
+    .filter(({ score }) => score > 1)
+    .sort((a, b) => b.score - a.score || a.suggestion.label.localeCompare(b.suggestion.label))
+    .slice(0, limit)
+    .map(({ suggestion }) => suggestion);
 }
 
 function buildSectionComparisons(originalResumeText: string, resumeDocument: ResumeDocument): SectionComparison[] {
