@@ -122,6 +122,16 @@ type ReviseArgs = {
   instruction: string;
 };
 
+type ReviseEdgeResponse = {
+  type?: "revision" | "out_of_scope";
+  revisedText?: string;
+  message?: string;
+};
+
+export type ReviseProviderResult =
+  | { type: "revision"; text: string }
+  | { type: "out_of_scope"; message: string };
+
 export async function reviseResumeSectionWithProvider({
   provider,
   jobDescription,
@@ -129,12 +139,12 @@ export async function reviseResumeSectionWithProvider({
   sectionLabel,
   sectionText,
   instruction,
-}: ReviseArgs): Promise<string> {
+}: ReviseArgs): Promise<ReviseProviderResult> {
   if (!hasCloudflareConfig()) {
     throw new Error("Cloudflare API is not configured. Set VITE_CLOUDFLARE_API_URL.");
   }
 
-  const data = await cloudflareRequest<{ revisedText?: string }>("/api/revise-section", {
+  const data = await cloudflareRequest<ReviseEdgeResponse>("/api/revise-section", {
     method: "POST",
     body: {
       provider,
@@ -146,11 +156,18 @@ export async function reviseResumeSectionWithProvider({
     },
   });
 
+  if (data.type === "out_of_scope") {
+    return {
+      type: "out_of_scope",
+      message: data.message || "This AI box only revises the selected resume section.",
+    };
+  }
+
   if (!data.revisedText?.trim()) {
     throw new Error("The backend returned an empty revision.");
   }
 
-  return data.revisedText.trim();
+  return { type: "revision", text: data.revisedText.trim() };
 }
 
 type CoverLetterArgs = {

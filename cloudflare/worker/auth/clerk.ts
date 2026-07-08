@@ -84,7 +84,7 @@ async function verifyClerkJwt(token: string, env: ClerkAuthEnv): Promise<ClerkJw
   const isValidSignature = await crypto.subtle.verify(
     "RSASSA-PKCS1-v1_5",
     cryptoKey,
-    decodeBase64Url(encodedSignature),
+    bytesToArrayBuffer(decodeBase64Url(encodedSignature)),
     new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
   );
 
@@ -188,4 +188,10 @@ function decodeBase64Url(value: string): Uint8Array {
   }
 
   return bytes;
+}
+
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
 }

@@ -1,4 +1,5 @@
 import { fetchJobPageText } from "./jobPage";
+import puppeteer from "@cloudflare/puppeteer";
 import { ALL_RESUME_TEMPLATE_IDS } from "../../src/templates/ids";
 import {
   generateCoverLetterWithProvider,
@@ -7,9 +8,11 @@ import {
   reviseSectionWithProvider,
   structureResumeWithProvider,
 } from "./llm/dispatch";
+import { isLikelyOutOfScopeRevisionInstruction } from "./llm/revision";
 import {
   buildResumeReviewSnapshot,
   normalizeStructuredResume,
+  preferRicherCanonicalSections,
   resumeToPlainText,
 } from "./resume";
 import { getClerkEmail, verifyClerkRequest } from "./auth/clerk";
@@ -97,9 +100,23 @@ class HttpError extends Error {
   }
 }
 
+class StructuredResumeCoverageError extends HttpError {
+  reason: string;
+  coverage: StructuredResumeCoverage;
+
+  constructor(message: string, reason: string, coverage: StructuredResumeCoverage) {
+    super(message, 502);
+    this.name = "StructuredResumeCoverageError";
+    this.reason = reason;
+    this.coverage = coverage;
+  }
+}
+
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
+const MAX_EXPORT_HTML_CHARS = 2_500_000;
 const MIN_RESUME_TEXT_LENGTH = 20;
 const STRUCTURED_RESUME_MIN_COVERAGE_RATIO = 0.45;
+const STRUCTURED_RESUME_MIN_TERM_COVERAGE_RATIO = 0.5;
 const RESUME_TEMPLATE_IDS = new Set<string>(ALL_RESUME_TEMPLATE_IDS);
 const RESUME_VERSION_TYPES = new Set(["base", "tailored"]);
 const BILLING_PLAN_FREE = "Free";
@@ -113,6 +130,81 @@ const AI_ACTION_CREDIT_COST: Record<AiActionType, number> = {
   structure_resume: 0,
   revise_section: 0.25,
   cover_letter: 0.5,
+};
+
+const COVERAGE_STOP_WORDS = new Set([
+  "about",
+  "above",
+  "across",
+  "after",
+  "again",
+  "against",
+  "also",
+  "among",
+  "and",
+  "are",
+  "been",
+  "being",
+  "between",
+  "both",
+  "can",
+  "candidate",
+  "could",
+  "during",
+  "each",
+  "for",
+  "from",
+  "had",
+  "has",
+  "have",
+  "into",
+  "its",
+  "job",
+  "more",
+  "most",
+  "not",
+  "our",
+  "over",
+  "per",
+  "role",
+  "same",
+  "such",
+  "than",
+  "that",
+  "the",
+  "their",
+  "then",
+  "there",
+  "these",
+  "they",
+  "this",
+  "through",
+  "under",
+  "using",
+  "was",
+  "were",
+  "what",
+  "when",
+  "where",
+  "which",
+  "while",
+  "with",
+  "within",
+  "work",
+  "you",
+  "your",
+]);
+
+type StructuredResumeCoverage = {
+  sourceLength: number;
+  structuredLength: number;
+  minimumLength: number;
+  lengthRatio: number;
+  sourceTermCount: number;
+  matchedTermCount: number;
+  termCoverageRatio: number;
+  hasSourceExperience: boolean;
+  hasStructuredExperience: boolean;
 };
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 const JOB_TITLE_WORDS = [
@@ -316,6 +408,10 @@ export default {
         return await handleRecordExport(request, env, corsHeaders);
       }
 
+      if (url.pathname === "/api/exports/pdf" && request.method === "POST") {
+        return await handleRenderPdfExport(request, env, corsHeaders);
+      }
+
       if (url.pathname === "/api/optimize" && request.method === "POST") {
         return await handleOptimize(request, env, corsHeaders);
       }
@@ -463,6 +559,8 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
 }
 
 async function handleStructureResume(request: Request, env: Env, headers: Headers): Promise<Response> {
+  const requestId = crypto.randomUUID();
+  const startedAt = Date.now();
   const { user } = await requireSession(request, env);
   const body = await readJson(request);
   const provider = resolveLLMProvider(env, String(body.provider || ""));
@@ -479,25 +577,96 @@ async function handleStructureResume(request: Request, env: Env, headers: Header
 
   await assertAiActionAllowed(env, user, "structure_resume");
 
-  const structuredResume = await structureResumeWithProvider(env, provider, {
-    resumeName,
-    resumeText,
-  });
-  const structuredText = resumeToPlainText(structuredResume);
-
-  if (structuredText.length < MIN_RESUME_TEXT_LENGTH) {
-    throw new Error("The model did not return enough structured resume content.");
-  }
-  assertStructuredResumeCoverage(resumeText, structuredText);
-
-  await recordAiUsage(env, user, "structure_resume", {
+  logWorkerEvent("info", "resume_structure_started", {
+    requestId,
     provider,
     model: getProviderModel(env, provider),
     inputChars: resumeText.length,
-    outputChars: structuredText.length,
+    inputNormalizedChars: normalizeCoverageText(resumeText).length,
   });
 
-  return json({ resume: structuredResume, text: structuredText }, { headers });
+  try {
+    let structuredResume = preferRicherCanonicalSections(await structureResumeWithProvider(env, provider, {
+      resumeName,
+      resumeText,
+    }));
+    let structuredText = resumeToPlainText(structuredResume);
+
+    if (structuredText.length < MIN_RESUME_TEXT_LENGTH) {
+      throw new Error("The model did not return enough structured resume content.");
+    }
+    let coverage: StructuredResumeCoverage;
+
+    try {
+      coverage = assertStructuredResumeCoverage(resumeText, structuredText);
+    } catch (error) {
+      if (!(error instanceof StructuredResumeCoverageError) || !shouldRetryStructuredResumeCoverage(error)) {
+        throw error;
+      }
+
+      logWorkerEvent("warn", "resume_structure_retrying", {
+        requestId,
+        provider,
+        reason: error.reason,
+        coverage: error.coverage,
+      });
+
+      structuredResume = preferRicherCanonicalSections(await structureResumeWithProvider(env, provider, {
+        resumeName,
+        resumeText,
+        strictPreservation: true,
+        minimumOutputCharacters: Math.max(
+          error.coverage.minimumLength,
+          Math.ceil(error.coverage.sourceLength * 0.6),
+        ),
+        retryReason: error.reason,
+      }));
+      structuredText = resumeToPlainText(structuredResume);
+
+      if (structuredText.length < MIN_RESUME_TEXT_LENGTH) {
+        throw new Error("The model did not return enough structured resume content.");
+      }
+
+      coverage = assertStructuredResumeCoverage(resumeText, structuredText);
+    }
+
+    logWorkerEvent("info", "resume_structure_succeeded", {
+      requestId,
+      provider,
+      durationMs: Date.now() - startedAt,
+      outputChars: structuredText.length,
+      summaryChars: structuredResume.summary.length,
+      experienceRoles: structuredResume.experience.length,
+      skillsCount: structuredResume.skills.length,
+      educationCount: structuredResume.education.length,
+      sectionsCount: structuredResume.sections?.length ?? 0,
+      coverage,
+    });
+
+    await recordAiUsage(env, user, "structure_resume", {
+      provider,
+      model: getProviderModel(env, provider),
+      inputChars: resumeText.length,
+      outputChars: structuredText.length,
+    });
+
+    return json({ resume: structuredResume, text: structuredText }, { headers });
+  } catch (error) {
+    logWorkerEvent("warn", "resume_structure_failed", {
+      requestId,
+      provider,
+      durationMs: Date.now() - startedAt,
+      inputChars: resumeText.length,
+      error: error instanceof Error ? error.message : "Unknown structure failure",
+      ...(error instanceof StructuredResumeCoverageError
+        ? {
+            reason: error.reason,
+            coverage: error.coverage,
+          }
+        : {}),
+    });
+    throw error;
+  }
 }
 
 async function handleReviseSection(request: Request, env: Env, headers: Headers): Promise<Response> {
@@ -517,9 +686,19 @@ async function handleReviseSection(request: Request, env: Env, headers: Headers)
     return json({ error: "Missing job description or section text." }, { status: 400, headers });
   }
 
+  if (isLikelyOutOfScopeRevisionInstruction(instruction)) {
+    return json(
+      {
+        type: "out_of_scope",
+        message: "This AI box only revises the selected resume section.",
+      },
+      { headers },
+    );
+  }
+
   await assertAiActionAllowed(env, user, "revise_section");
 
-  const revisedText = await reviseSectionWithProvider(env, provider, {
+  const revision = await reviseSectionWithProvider(env, provider, {
     jobDescription,
     resume: normalizeStructuredResume(body.resume),
     sectionLabel,
@@ -527,14 +706,31 @@ async function handleReviseSection(request: Request, env: Env, headers: Headers)
     instruction,
   });
 
+  if (revision.type === "out_of_scope") {
+    await recordAiUsage(env, user, "revise_section", {
+      provider,
+      model: getProviderModel(env, provider),
+      inputChars: jobDescription.length + sectionText.length + instruction.length,
+      outputChars: 0,
+    });
+
+    return json(
+      {
+        type: "out_of_scope",
+        message: "This AI box only revises the selected resume section.",
+      },
+      { headers },
+    );
+  }
+
   await recordAiUsage(env, user, "revise_section", {
     provider,
     model: getProviderModel(env, provider),
     inputChars: jobDescription.length + sectionText.length + instruction.length,
-    outputChars: revisedText.length,
+    outputChars: revision.text.length,
   });
 
-  return json({ revisedText }, { headers });
+  return json({ type: "revision", revisedText: revision.text }, { headers });
 }
 
 async function handleGenerateCoverLetter(
@@ -1503,6 +1699,79 @@ async function handleRecordExport(request: Request, env: Env, headers: Headers):
   return json({ ok: true }, { headers });
 }
 
+async function handleRenderPdfExport(request: Request, env: Env, headers: Headers): Promise<Response> {
+  await requireSession(request, env);
+
+  if (!env.BROWSER) {
+    throw new HttpError("PDF rendering is not configured.", 503);
+  }
+
+  const body = await readJson(request);
+  const html = asNonEmptyString(body.html);
+  const templateId = asNonEmptyString(body.templateId);
+  const fileName = sanitizePdfFileName(asNonEmptyString(body.fileName) || "syncresume-resume.pdf");
+
+  if (!html) {
+    return json({ error: "Rendered resume HTML is required." }, { status: 400, headers });
+  }
+
+  if (html.length > MAX_EXPORT_HTML_CHARS) {
+    return json({ error: "Rendered resume is too large to export." }, { status: 413, headers });
+  }
+
+  if (!RESUME_TEMPLATE_IDS.has(templateId)) {
+    return json({ error: "Unsupported resume template." }, { status: 400, headers });
+  }
+
+  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
+  let pdfBytes: Uint8Array;
+
+  try {
+    browser = await puppeteer.launch(env.BROWSER);
+    const page = await browser.newPage();
+    await page.setJavaScriptEnabled(false);
+    await page.setViewport({ width: 816, height: 1056, deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: "networkidle0", timeout: 60000 });
+    await page.waitForSelector("#syncresume-pdf-root .resume-template-preview", {
+      visible: true,
+      timeout: 15000,
+    });
+    await page.emulateMediaType("print");
+    pdfBytes = await page.pdf({
+      format: "letter",
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: "0",
+        right: "0",
+        bottom: "0",
+        left: "0",
+      },
+      tagged: true,
+      timeout: 60000,
+    });
+  } finally {
+    await browser?.close();
+  }
+
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Content-Type", "application/pdf");
+  responseHeaders.set("Content-Disposition", `attachment; filename="${sanitizeDispositionFileName(fileName)}"`);
+  responseHeaders.set("Cache-Control", "no-store");
+  responseHeaders.set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type");
+
+  return new Response(bytesToArrayBuffer(pdfBytes), {
+    status: 200,
+    headers: responseHeaders,
+  });
+}
+
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 async function requireSession(
   request: Request,
   env: Env,
@@ -2049,6 +2318,16 @@ async function readJson(request: Request): Promise<JsonRecord> {
   return body && typeof body === "object" && !Array.isArray(body) ? body as JsonRecord : {};
 }
 
+async function readResponseErrorMessage(response: Response): Promise<string> {
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (contentType.includes("application/json")) {
+    const payload = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
+    return payload.error ?? payload.message ?? "";
+  }
+
+  return response.text().catch(() => "");
+}
+
 type ResumeInput = {
   name: string;
   fileType: "pdf" | "docx" | "text";
@@ -2131,6 +2410,27 @@ function json(
     ...init,
     headers,
   });
+}
+
+type WorkerLogLevel = "info" | "warn" | "error";
+
+function logWorkerEvent(level: WorkerLogLevel, event: string, data: Record<string, unknown>): void {
+  const payload = JSON.stringify({
+    event,
+    ...data,
+  });
+
+  if (level === "error") {
+    console.error(payload);
+    return;
+  }
+
+  if (level === "warn") {
+    console.warn(payload);
+    return;
+  }
+
+  console.info(payload);
 }
 
 function mapResume(row: ResumeRow): JsonRecord {
@@ -2251,33 +2551,101 @@ function sanitizeFileName(name: string): string {
   return name.trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-") || "resume.txt";
 }
 
+function sanitizePdfFileName(name: string): string {
+  const sanitized = sanitizeFileName(name || "syncresume-resume.pdf");
+  if (sanitized.toLowerCase().endsWith(".pdf")) return sanitized;
+  return `${sanitized.replace(/\.[^.]+$/, "") || "syncresume-resume"}.pdf`;
+}
+
 function sanitizeDispositionFileName(name: string): string {
   return sanitizeFileName(name).replace(/"/g, "");
 }
 
-function assertStructuredResumeCoverage(sourceText: string, structuredText: string): void {
+function assertStructuredResumeCoverage(sourceText: string, structuredText: string): StructuredResumeCoverage {
+  const coverage = analyzeStructuredResumeCoverage(sourceText, structuredText);
+
+  if (
+    coverage.sourceLength >= 500 &&
+    coverage.structuredLength < coverage.minimumLength &&
+    coverage.termCoverageRatio < STRUCTURED_RESUME_MIN_TERM_COVERAGE_RATIO
+  ) {
+    throw new StructuredResumeCoverageError(
+      "The model returned an incomplete structured resume. Retry the upload or paste the resume text directly.",
+      "low_length_and_term_coverage",
+      coverage,
+    );
+  }
+
+  if (coverage.hasSourceExperience && !coverage.hasStructuredExperience) {
+    throw new StructuredResumeCoverageError(
+      "The model returned a structured resume without the experience section. Retry the upload or paste the resume text directly.",
+      "missing_experience_section",
+      coverage,
+    );
+  }
+
+  return coverage;
+}
+
+function shouldRetryStructuredResumeCoverage(error: StructuredResumeCoverageError): boolean {
+  return error.reason === "low_length_and_term_coverage";
+}
+
+function analyzeStructuredResumeCoverage(sourceText: string, structuredText: string): StructuredResumeCoverage {
   const sourceLength = normalizeCoverageText(sourceText).length;
   const structuredLength = normalizeCoverageText(structuredText).length;
   const minimumLength = Math.max(
     MIN_RESUME_TEXT_LENGTH,
     Math.floor(sourceLength * STRUCTURED_RESUME_MIN_COVERAGE_RATIO),
   );
+  const sourceTerms = extractCoverageTerms(sourceText);
+  const structuredTerms = new Set(extractCoverageTerms(structuredText));
+  const matchedTermCount = sourceTerms.filter((term) => structuredTerms.has(term)).length;
+  const sourceTermCount = sourceTerms.length;
 
-  if (sourceLength >= 500 && structuredLength < minimumLength) {
-    throw new Error(
-      "The model returned an incomplete structured resume. Retry the upload or paste the resume text directly.",
-    );
-  }
-
-  if (hasLikelyExperienceHeading(sourceText) && !hasLikelyExperienceHeading(structuredText)) {
-    throw new Error(
-      "The model returned a structured resume without the experience section. Retry the upload or paste the resume text directly.",
-    );
-  }
+  return {
+    sourceLength,
+    structuredLength,
+    minimumLength,
+    lengthRatio: ratio(structuredLength, sourceLength),
+    sourceTermCount,
+    matchedTermCount,
+    termCoverageRatio: sourceTermCount > 0 ? ratio(matchedTermCount, sourceTermCount) : 1,
+    hasSourceExperience: hasLikelyExperienceHeading(sourceText),
+    hasStructuredExperience: hasLikelyExperienceHeading(structuredText),
+  };
 }
 
 function normalizeCoverageText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function extractCoverageTerms(value: string): string[] {
+  const normalized = value
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/\b[\w.+-]+@[\w.-]+\.\w+\b/g, " ");
+  const terms = normalized.match(/[a-z0-9][a-z0-9.+#-]{1,}/g) ?? [];
+  const uniqueTerms = new Set<string>();
+
+  for (const term of terms) {
+    const cleaned = term.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "");
+    if (!isCoverageTerm(cleaned)) continue;
+    uniqueTerms.add(cleaned);
+  }
+
+  return [...uniqueTerms];
+}
+
+function isCoverageTerm(term: string): boolean {
+  if (term.length < 3 && !/\d/.test(term)) return false;
+  if (COVERAGE_STOP_WORDS.has(term)) return false;
+  return /[a-z0-9]/.test(term);
+}
+
+function ratio(numerator: number, denominator: number): number {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 1000) / 1000;
 }
 
 function hasLikelyExperienceHeading(value: string): boolean {

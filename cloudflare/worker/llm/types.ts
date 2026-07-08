@@ -21,6 +21,9 @@ export type OptimizeInput = {
 export type StructureResumeInput = {
   resumeName?: string;
   resumeText: string;
+  strictPreservation?: boolean;
+  minimumOutputCharacters?: number;
+  retryReason?: string;
 };
 
 export type ReviseSectionInput = {
@@ -31,6 +34,15 @@ export type ReviseSectionInput = {
   instruction: string;
 };
 
+export type ReviseSectionResult =
+  | {
+      type: "revision";
+      text: string;
+    }
+  | {
+      type: "out_of_scope";
+    };
+
 export type CoverLetterInput = {
   jobDescription: string;
   resumeText: string;
@@ -40,6 +52,6 @@ export type CoverLetterInput = {
 export type LLMProvider = {
   optimize(env: LLMEnv, input: OptimizeInput): Promise<StructuredResume>;
   structureResume(env: LLMEnv, input: StructureResumeInput): Promise<StructuredResume>;
-  reviseSection(env: LLMEnv, input: ReviseSectionInput): Promise<string>;
+  reviseSection(env: LLMEnv, input: ReviseSectionInput): Promise<ReviseSectionResult>;
   generateCoverLetter(env: LLMEnv, input: CoverLetterInput): Promise<string>;
 };

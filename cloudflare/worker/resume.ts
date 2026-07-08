@@ -211,6 +211,84 @@ export function structuredResumeSectionsWithCanonicalFallbacks(
     .map((section, index) => ({ ...section, order: index }));
 }
 
+export function preferRicherCanonicalSections(resume: StructuredResume): StructuredResume {
+  if (!resume.sections?.length) return resume;
+
+  let sections = resume.sections.slice();
+  sections = preferRicherCanonicalSection(
+    sections,
+    "summary",
+    "Summary",
+    resume.summary,
+    "paragraph",
+  );
+
+  sections = preferRicherCanonicalSection(
+    sections,
+    "experience",
+    "Professional Experience",
+    resume.experience.map(experienceRoleToText).filter(Boolean).join("\n\n"),
+    "paragraph",
+  );
+
+  sections = preferRicherCanonicalSection(
+    sections,
+    "skills",
+    "Skills",
+    resume.skills.join(", "),
+    "paragraph",
+  );
+
+  sections = preferRicherCanonicalSection(
+    sections,
+    "education",
+    "Education",
+    resume.education.join("\n"),
+    "paragraph",
+  );
+
+  return { ...resume, sections };
+}
+
+function preferRicherCanonicalSection(
+  sections: StructuredResumeSection[],
+  type: string,
+  fallbackTitle: string,
+  candidateContent: string,
+  contentKind: "paragraph" | "bullets",
+): StructuredResumeSection[] {
+  const candidate = candidateContent.trim();
+  if (!candidate) return sections;
+
+  const index = sections.findIndex((section) => sectionMatchesCanonicalType(section, type));
+  if (index < 0) return sections;
+
+  const existing = sections[index];
+  if (!isSubstantiallyRicherCanonicalContent(candidate, existing.content)) return sections;
+
+  const nextSections = sections.slice();
+  nextSections[index] = {
+    ...existing,
+    title: existing.title.trim() || fallbackTitle,
+    content: candidate,
+    contentKind,
+  };
+  return nextSections;
+}
+
+function isSubstantiallyRicherCanonicalContent(candidate: string, existing: string): boolean {
+  const candidateLength = normalizeContentLength(candidate);
+  const existingLength = normalizeContentLength(existing);
+  if (candidateLength < MIN_RICHER_CANONICAL_SECTION_LENGTH) return false;
+  return candidateLength >= existingLength + 200 || candidateLength >= existingLength * 1.35;
+}
+
+const MIN_RICHER_CANONICAL_SECTION_LENGTH = 120;
+
+function normalizeContentLength(value: string): number {
+  return value.replace(/\s+/g, " ").trim().length;
+}
+
 function makeCanonicalSection(
   type: string,
   title: string,

@@ -118,6 +118,23 @@ export async function cloudflareBlobRequest(path: string): Promise<Blob> {
   return response.blob();
 }
 
+export async function cloudflareBlobPostRequest(path: string, body: Record<string, unknown>): Promise<Blob> {
+  const headers = await getAuthHeaders();
+  headers.set("Content-Type", "application/json");
+
+  const response = await fetch(getCloudflareRequestUrl(path), {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.blob();
+}
+
 export function createBillingCheckoutSession(): Promise<BillingSessionResponse> {
   return cloudflareRequest<BillingSessionResponse>("/api/billing/checkout", {
     method: "POST",

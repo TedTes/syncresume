@@ -12,6 +12,7 @@ import type {
   ReviseSectionInput,
   StructureResumeInput,
 } from "../types";
+import { parseReviseSectionResult, revisionBoundaryInstruction } from "../revision";
 
 type CreateMessageOptions = {
   input: string;
@@ -71,7 +72,17 @@ async function optimize(env: LLMEnv, { jobDescription, resumeText }: OptimizeInp
   return parseStructuredResumeText(text);
 }
 
-async function structureResume(env: LLMEnv, { resumeName, resumeText }: StructureResumeInput) {
+async function structureResume(
+  env: LLMEnv,
+  {
+    resumeName,
+    resumeText,
+    strictPreservation,
+    minimumOutputCharacters,
+    retryReason,
+  }: StructureResumeInput,
+) {
+  const strictRules = strictResumeStructureRules(strictPreservation, minimumOutputCharacters, retryReason);
   const text = await createTextResponse(env, {
     system: [
       "You are an expert resume parser.",
@@ -85,6 +96,7 @@ async function structureResume(env: LLMEnv, { resumeName, resumeText }: Structur
       "Keep clear section boundaries. Do not mix languages with education, projects with experience, or contact details with summary.",
       "Unknown section headings should be returned as type custom with the original heading as title.",
       "Return only valid JSON matching this shape: { summary: string, experience: [{ id, title, company, location, dates, bullets: string[] }], skills: string[], education: string[], sections: [{ id, type, title, content, contentKind, order }] }.",
+      ...strictRules.system,
     ].join(" "),
     input: [
       resumeName ? `RESUME FILE NAME: ${resumeName}` : "",
@@ -105,6 +117,7 @@ async function structureResume(env: LLMEnv, { resumeName, resumeText }: Structur
       "- Use type custom for any valid section that does not fit the known categories.",
       "- contentKind must be paragraph or bullets.",
       "- Return only the JSON object. Do not wrap it in Markdown.",
+      ...strictRules.input,
     ].filter(Boolean).join("\n"),
     maxOutputTokens: 12000,
     timeoutMs: 90000,
@@ -113,17 +126,40 @@ async function structureResume(env: LLMEnv, { resumeName, resumeText }: Structur
   return parseStructuredResumeText(text);
 }
 
+function strictResumeStructureRules(
+  strictPreservation?: boolean,
+  minimumOutputCharacters?: number,
+  retryReason?: string,
+): { system: string[]; input: string[] } {
+  if (!strictPreservation) return { system: [], input: [] };
+
+  return {
+    system: [
+      "Strict preservation retry mode: a previous parse was rejected because it omitted too much source content.",
+      "Your priority is faithful categorization, not brevity.",
+      "Copy every original role, bullet, project, skill, education line, certification, award, publication, volunteer item, and custom section into the structured output.",
+      "If a line is readable but hard to categorize, keep it in a custom section instead of dropping it.",
+    ],
+    input: [
+      retryReason ? `Previous failure reason: ${retryReason}` : "",
+      minimumOutputCharacters
+        ? `The represented plain-text resume should be at least ${minimumOutputCharacters} normalized characters unless the source contains unreadable extraction noise.`
+        : "",
+      "- Preserve all readable lines. Do not compress multiple bullets into one sentence.",
+      "- Keep every experience role and every bullet under that role.",
+      "- Keep every skills/category line instead of merging away uncommon tools.",
+      "- Keep every later-page section even if it looks less important.",
+      "- Do not return a shortened resume for visual fit; fitting happens later in templates.",
+    ].filter(Boolean),
+  };
+}
+
 async function reviseSection(
   env: LLMEnv,
   { jobDescription, resume, sectionLabel, sectionText, instruction }: ReviseSectionInput,
 ) {
-  return createTextResponse(env, {
-    system: [
-      "You revise exactly one resume section at a time.",
-      "Follow the user's instruction while aligning the section to the job description.",
-      "Do not fabricate employers, titles, dates, degrees, certifications, tools, metrics, responsibilities, or achievements.",
-      "Return only replacement text for the requested section. No Markdown fences or commentary.",
-    ].join(" "),
+  const text = await createTextResponse(env, {
+    system: revisionBoundaryInstruction,
     input: [
       `SECTION: ${sectionLabel}`,
       "",
@@ -142,6 +178,8 @@ async function reviseSection(
     maxOutputTokens: 1200,
     timeoutMs: 45000,
   });
+
+  return parseReviseSectionResult(text);
 }
 
 async function generateCoverLetter(
