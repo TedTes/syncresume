@@ -13,10 +13,12 @@ import {
   Columns2,
   Download,
   Eye,
+  Check,
   LayoutTemplate,
   ListTodo,
   Loader2,
   Plus,
+  RotateCcw,
   Save,
   Send,
   Type,
@@ -291,6 +293,14 @@ const ADDABLE_RESUME_SECTION_TYPE_OPTIONS = RESUME_SECTION_TYPE_OPTIONS.filter(
   (option) => option.type !== "contact" && option.type !== "custom",
 );
 
+type PendingRevisionReview = {
+  sectionId: string;
+  sectionTitle: string;
+  instruction: string;
+  beforeText: string;
+  afterText: string;
+};
+
 export function ResumeReview({
   jobDescription,
   originalResumeText,
@@ -312,6 +322,8 @@ export function ResumeReview({
   const [assistantSectionId, setAssistantSectionId] = useState("summary");
   const [assistantInstruction, setAssistantInstruction] = useState("");
   const [revisingSectionId, setRevisingSectionId] = useState("");
+  const [activeRevisionInstruction, setActiveRevisionInstruction] = useState("");
+  const [pendingRevisionReview, setPendingRevisionReview] = useState<PendingRevisionReview | null>(null);
   const [revisionStatus, setRevisionStatus] = useState("");
   const [revisionError, setRevisionError] = useState("");
   const [exportError, setExportError] = useState("");
@@ -372,8 +384,12 @@ export function ResumeReview({
 
     setResumeDocument(incomingResumeDocument);
     localDocumentSignatureRef.current = incomingSignature;
-    const firstEditableSection = incomingResumeDocument.sections[0];
+    const firstEditableSection =
+      incomingResumeDocument.sections.find((section) => section.type !== "contact") ??
+      incomingResumeDocument.sections[0];
     setAssistantSectionId(firstEditableSection?.id ?? "");
+    setPendingRevisionReview(null);
+    setActiveRevisionInstruction("");
   }, [incomingResumeDocument]);
 
   const sectionComparisons = useMemo(
@@ -385,11 +401,18 @@ export function ResumeReview({
     id: section.id,
     label: section.type === "contact" ? "Header" : section.title,
   }));
-  const selectedAssistantSection =
-    sections.find((section) => section.id === assistantSectionId) ?? sections[0];
-  const selectedDocumentSection = resumeDocument.sections.find(
-    (section) => section.id === selectedAssistantSection?.id,
-  );
+  const defaultDocumentSection =
+    resumeDocument.sections.find((section) => section.type !== "contact") ??
+    resumeDocument.sections[0];
+  const selectedDocumentSection =
+    resumeDocument.sections.find((section) => section.id === assistantSectionId) ??
+    defaultDocumentSection;
+  const selectedAssistantSection = selectedDocumentSection
+    ? sections.find((section) => section.id === selectedDocumentSection.id) ?? {
+        id: selectedDocumentSection.id,
+        label: selectedDocumentSection.type === "contact" ? "Header" : selectedDocumentSection.title,
+      }
+    : undefined;
   const removableBodySectionCount = resumeDocument.sections.filter(
     (section) => section.type !== "contact",
   ).length;
@@ -437,9 +460,12 @@ export function ResumeReview({
     setRevisionStatus("");
   }
 
+  function clearPendingRevisionForSection(sectionId: string) {
+    setPendingRevisionReview((current) => (current?.sectionId === sectionId ? null : current));
+  }
+
   async function handleAssistantRevise(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedAssistantSection || !selectedDocumentSection) return;
 
     const instruction = assistantInstruction.trim();
 
@@ -454,19 +480,26 @@ export function ResumeReview({
       return;
     }
 
-    // Guard: if the header/contact section is selected, check whether the
-    // instruction is actually about a different section in this document.
-    if (selectedDocumentSection.type === "contact") {
-      const mentionedSection = mentionedSectionFromInstruction(instruction, resumeDocument.sections);
-      if (mentionedSection) {
-        setRevisionError(
-          `Select the "${mentionedSection.title}" section to revise it, then try again.`,
-        );
-        return;
-      }
+    const mentionedSection = mentionedSectionFromInstruction(instruction, resumeDocument.sections);
+    const targetDocumentSection = mentionedSection ?? selectedDocumentSection;
+    const targetAssistantSection = targetDocumentSection
+      ? sections.find((section) => section.id === targetDocumentSection.id) ?? {
+          id: targetDocumentSection.id,
+          label: targetDocumentSection.type === "contact" ? "Header" : targetDocumentSection.title,
+        }
+      : undefined;
+
+    if (!targetAssistantSection || !targetDocumentSection) {
+      setRevisionError("No editable resume section is available.");
+      return;
     }
 
-    setRevisingSectionId(selectedAssistantSection.id);
+    if (targetAssistantSection.id !== assistantSectionId) {
+      setAssistantSectionId(targetAssistantSection.id);
+    }
+
+    setRevisingSectionId(targetAssistantSection.id);
+    setActiveRevisionInstruction(instruction);
     setRevisionStatus("");
     setRevisionError("");
 
@@ -475,8 +508,8 @@ export function ResumeReview({
         provider,
         jobDescription,
         resume: documentToStructuredResume(resumeDocument, resume),
-        sectionLabel: selectedAssistantSection.label,
-        sectionText: selectedDocumentSection.content,
+        sectionLabel: targetAssistantSection.label,
+        sectionText: targetDocumentSection.content,
         instruction,
       });
 
@@ -489,7 +522,7 @@ export function ResumeReview({
 
       // Guard: reject AI output that includes another section heading. This
       // keeps responses like "Header...\n\nSkills\n..." from merging sections.
-      if (revisionOutputHasUnexpectedBodyHeading(revisedText, selectedDocumentSection.title)) {
+      if (revisionOutputHasUnexpectedBodyHeading(revisedText, targetDocumentSection.title)) {
         setRevisionError(
           "The AI returned content for a different resume section. Select that section and try again.",
         );
@@ -498,23 +531,37 @@ export function ResumeReview({
 
       // Strip a duplicate section heading if the AI echoes it back at the top
       // (e.g. returning "Skills\nProgramming Languages: ..." for the Skills section).
-      revisedText = stripDuplicateSectionHeading(selectedDocumentSection.title, revisedText);
+      revisedText = stripDuplicateSectionHeading(targetDocumentSection.title, revisedText);
+
+      if (normalizeRevisionText(revisedText) === normalizeRevisionText(targetDocumentSection.content)) {
+        setRevisionError("The AI did not make a meaningful change. Try a more specific instruction.");
+        return;
+      }
 
       commitResumeDocumentChange(
-        updateResumeDocumentSection(resumeDocument, selectedAssistantSection.id, revisedText),
-        selectedAssistantSection.id,
+        updateResumeDocumentSection(resumeDocument, targetAssistantSection.id, revisedText),
+        targetAssistantSection.id,
       );
       setSaveReviewStatus("");
-      setRevisionStatus("Done.");
+      setPendingRevisionReview({
+        sectionId: targetAssistantSection.id,
+        sectionTitle: targetDocumentSection.title,
+        instruction,
+        beforeText: targetDocumentSection.content,
+        afterText: revisedText,
+      });
+      setRevisionStatus("Review the AI changes.");
       setAssistantInstruction("");
     } catch (error) {
       setRevisionError(openAIErrorMessage(error));
     } finally {
       setRevisingSectionId("");
+      setActiveRevisionInstruction("");
     }
   }
 
   function handleInlineSectionChange(sectionId: string, value: string) {
+    clearPendingRevisionForSection(sectionId);
     commitResumeDocumentChange(updateResumeDocumentSection(resumeDocument, sectionId, value), sectionId);
   }
 
@@ -522,6 +569,7 @@ export function ResumeReview({
     sectionId: string,
     contentKind: ResumeSectionContentKind,
   ) {
+    clearPendingRevisionForSection(sectionId);
     commitResumeDocumentChange(
       updateResumeDocumentSectionContentKind(resumeDocument, sectionId, contentKind),
       sectionId,
@@ -533,6 +581,7 @@ export function ResumeReview({
     content: string,
     contentKind: ResumeSectionContentKind,
   ) {
+    clearPendingRevisionForSection(sectionId);
     commitResumeDocumentChange(
       updateResumeDocumentSectionContentKind(
         updateResumeDocumentSection(resumeDocument, sectionId, content),
@@ -549,6 +598,7 @@ export function ResumeReview({
     content: string,
     contentKind: ResumeSectionContentKind,
   ) {
+    setPendingRevisionReview(null);
     const previousSectionIds = new Set(resumeDocument.sections.map((section) => section.id));
     const nextSectionType = inferResumeSectionTypeFromTitle(title);
     const nextDocument = addResumeDocumentSection(resumeDocument, nextSectionType, afterSectionId, {
@@ -564,6 +614,7 @@ export function ResumeReview({
   function handleRemoveSectionById(sectionId: string) {
     if (removableBodySectionCount <= 1) return;
 
+    clearPendingRevisionForSection(sectionId);
     const currentIndex = sections.findIndex((section) => section.id === sectionId);
     const nextDocument = removeResumeDocumentSection(resumeDocument, sectionId);
     const nextSections = nextDocument.sections;
@@ -575,6 +626,26 @@ export function ResumeReview({
     setAssistantSectionId(sectionId);
     setRevisionStatus("");
     setRevisionError("");
+  }
+
+  function handleKeepPendingRevision() {
+    setPendingRevisionReview(null);
+    setRevisionStatus("AI changes kept.");
+  }
+
+  function handleUndoPendingRevision() {
+    if (!pendingRevisionReview) return;
+
+    commitResumeDocumentChange(
+      updateResumeDocumentSection(
+        resumeDocument,
+        pendingRevisionReview.sectionId,
+        pendingRevisionReview.beforeText,
+      ),
+      pendingRevisionReview.sectionId,
+    );
+    setPendingRevisionReview(null);
+    setRevisionStatus("AI changes undone.");
   }
 
   function toggleExportType(type: ExportType) {
@@ -777,6 +848,8 @@ export function ResumeReview({
               selectedSectionId={selectedAssistantSection?.id ?? ""}
               selectedSectionType={selectedDocumentSection?.type}
               instruction={assistantInstruction}
+              activeInstruction={activeRevisionInstruction}
+              pendingRevision={pendingRevisionReview}
               inputRef={assistantInputRef}
               isRevising={Boolean(revisingSectionId)}
               onInstructionChange={(value) => {
@@ -785,6 +858,8 @@ export function ResumeReview({
                 setRevisionError("");
               }}
               onSubmit={handleAssistantRevise}
+              onKeepPendingRevision={handleKeepPendingRevision}
+              onUndoPendingRevision={handleUndoPendingRevision}
             />
           }
         />
@@ -1313,18 +1388,26 @@ function InlineRevisionBar({
   selectedSectionId,
   selectedSectionType,
   instruction,
+  activeInstruction,
+  pendingRevision,
   inputRef,
   isRevising,
   onInstructionChange,
   onSubmit,
+  onKeepPendingRevision,
+  onUndoPendingRevision,
 }: {
   selectedSectionId: string;
   selectedSectionType?: ResumeSectionType;
   instruction: string;
+  activeInstruction: string;
+  pendingRevision: PendingRevisionReview | null;
   inputRef: RefObject<HTMLTextAreaElement | null>;
   isRevising: boolean;
   onInstructionChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+  onKeepPendingRevision: () => void;
+  onUndoPendingRevision: () => void;
 }) {
   const [isSuggestionListOpen, setIsSuggestionListOpen] = useState(false);
   const compactSuggestions = useMemo(
@@ -1361,6 +1444,19 @@ function InlineRevisionBar({
 
   return (
     <div className="review-inline-revision-card">
+      {isRevising && activeInstruction && (
+        <div className="review-inline-revision-prompt" role="status">
+          <span>Revising selected section</span>
+          <strong>{activeInstruction}</strong>
+        </div>
+      )}
+      {!isRevising && pendingRevision && (
+        <PendingRevisionReviewCard
+          revision={pendingRevision}
+          onKeep={onKeepPendingRevision}
+          onUndo={onUndoPendingRevision}
+        />
+      )}
       {selectedSectionId && !isRevising && compactSuggestions.length > 0 && (
         <div className="review-inline-suggestion-shell">
           <div className="review-inline-suggestions" aria-label="Suggested resume edit actions">
@@ -1432,6 +1528,52 @@ function InlineRevisionBar({
   );
 }
 
+function PendingRevisionReviewCard({
+  revision,
+  onKeep,
+  onUndo,
+}: {
+  revision: PendingRevisionReview;
+  onKeep: () => void;
+  onUndo: () => void;
+}) {
+  const tokens = useMemo(
+    () => diffWords(revision.beforeText, revision.afterText),
+    [revision.afterText, revision.beforeText],
+  );
+
+  return (
+    <section className="review-pending-revision" aria-label="AI revision changes">
+      <div className="review-pending-revision-header">
+        <div>
+          <span>AI revised {revision.sectionTitle}</span>
+          <strong>{revision.instruction}</strong>
+        </div>
+        <div className="review-pending-revision-actions">
+          <button className="btn btn-ghost btn-sm" type="button" onClick={onUndo}>
+            <RotateCcw aria-hidden="true" />
+            Undo
+          </button>
+          <button className="btn btn-primary btn-sm" type="button" onClick={onKeep}>
+            <Check aria-hidden="true" />
+            Keep
+          </button>
+        </div>
+      </div>
+      <div className="review-pending-revision-diff" aria-label="Revision diff">
+        {tokens.map((token, index) => (
+          <span
+            key={`${token.type}-${index}-${token.value.slice(0, 12)}`}
+            className={`review-pending-revision-token review-pending-revision-token-${token.type}`}
+          >
+            {token.value}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function getRevisionSuggestions(
   query: string,
   sectionType: ResumeSectionType | undefined,
@@ -1483,6 +1625,10 @@ function getRevisionInstructionValidationError(instruction: string): string {
   }
 
   return "";
+}
+
+function normalizeRevisionText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function isLikelyInvalidRevisionInstruction(instruction: string): boolean {

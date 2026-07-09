@@ -481,6 +481,109 @@
   pointer-events: auto;
 }
 
+.review-inline-revision-prompt,
+.review-pending-revision {
+  box-sizing: border-box;
+  width: min(880px, 100%);
+  min-width: 0;
+  pointer-events: auto;
+}
+
+.review-inline-revision-prompt {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid rgba(52, 211, 153, 0.26);
+  border-radius: 10px;
+  background: rgba(6, 78, 59, 0.74);
+  color: rgba(236, 253, 245, 0.95);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+}
+
+.review-inline-revision-prompt span,
+.review-pending-revision-header span {
+  color: rgba(209, 250, 229, 0.72);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.review-inline-revision-prompt strong,
+.review-pending-revision-header strong {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-pending-revision {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(52, 211, 153, 0.24);
+  border-radius: 12px;
+  background: rgba(18, 18, 20, 0.96);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+}
+
+.review-pending-revision-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-pending-revision-header > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.review-pending-revision-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.review-pending-revision-actions .btn {
+  gap: 6px;
+}
+
+.review-pending-revision-actions svg {
+  width: 14px;
+  height: 14px;
+}
+
+.review-pending-revision-diff {
+  max-height: min(150px, 22vh);
+  overflow: auto;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(244, 244, 245, 0.88);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.review-pending-revision-token-added {
+  border-radius: 3px;
+  background: rgba(16, 185, 129, 0.22);
+  color: rgba(167, 243, 208, 0.98);
+}
+
+.review-pending-revision-token-removed {
+  border-radius: 3px;
+  background: rgba(248, 113, 113, 0.18);
+  color: rgba(254, 202, 202, 0.98);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
 .review-inline-suggestions {
   box-sizing: border-box;
   display: flex;
@@ -663,6 +766,18 @@
 
   .review-inline-add-fields {
     grid-template-columns: 1fr;
+  }
+
+  .review-pending-revision-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .review-pending-revision-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
   }
 
 }
