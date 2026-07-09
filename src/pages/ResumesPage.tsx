@@ -765,7 +765,7 @@ export default function ResumesPage({ embedded = false }: ResumesPageProps) {
               <span className="resume-row-meta">
                 {isTailored
                   ? `Tailored${resume.tailoredFor ? ` for ${resume.tailoredFor}` : ""} · ${resume.matchScore ?? "—"}% match · ${formatDate(resume.uploadedAt)}`
-                  : `Uploaded ${formatDate(resume.uploadedAt)} · ${resume.characterCount.toLocaleString()} chars · used in ${resume.usageCount} runs`}
+                  : `Uploaded ${formatDate(resume.uploadedAt)} · ${resume.characterCount.toLocaleString()} chars · used in ${resume.usageCount} run(s)`}
               </span>
             </span>
           </div>

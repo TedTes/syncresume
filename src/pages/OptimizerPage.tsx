@@ -883,7 +883,7 @@ export default function OptimizerPage({
                     <>
                       <h1>{activeResume.name}</h1>
                       <p>
-                        {activeResume.characterCount.toLocaleString()} chars · used in {activeResume.usageCount} runs
+                        {activeResume.characterCount.toLocaleString()} chars · used in {activeResume.usageCount} run(s)
                       </p>
                     </>
                   ) : (
