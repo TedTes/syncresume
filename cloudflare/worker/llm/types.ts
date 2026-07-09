@@ -16,6 +16,8 @@ export type LLMEnv = {
 export type OptimizeInput = {
   jobDescription: string;
   resumeText: string;
+  strictPreservation?: boolean;
+  retryReason?: string;
 };
 
 export type StructureResumeInput = {

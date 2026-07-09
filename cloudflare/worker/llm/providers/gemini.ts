@@ -44,16 +44,28 @@ export const geminiProvider: LLMProvider = {
   generateCoverLetter,
 };
 
-async function optimize(env: LLMEnv, { jobDescription, resumeText }: OptimizeInput) {
+async function optimize(
+  env: LLMEnv,
+  { jobDescription, resumeText, strictPreservation, retryReason }: OptimizeInput,
+) {
   const text = await createTextResponse(env, {
     system: [
       "You are an expert resume optimizer for ATS-friendly resumes.",
       "Rewrite the resume to match the job description language while preserving truthfulness.",
-      "Adjust the summary, rewrite bullets, inject matching keywords, and reorder skills by relevance.",
+      "Optimize existing content only: adjust wording, reorder skills, and align language to the job without deleting accomplishments.",
+      "Preserve every original role, accomplishment, responsibility, project, metric, tool, employer, title, date, education item, and certification unless it is clearly duplicated.",
+      "Do not remove accomplishments to improve ATS score; rewrite or reorganize them while keeping the underlying evidence.",
       "Do not fabricate employers, titles, dates, degrees, certifications, tools, metrics, responsibilities, or achievements.",
       "If a detail is not present in the original resume, do not add it.",
+      ...(strictPreservation
+        ? [
+            "STRICT RETRY: The previous optimized output omitted too much source resume content.",
+            "This attempt must retain all non-duplicative accomplishments and responsibilities from the original resume.",
+            retryReason ? `Retry reason: ${retryReason}` : "",
+          ]
+        : []),
       "Return only valid JSON matching this shape: { summary: string, experience: [{ id, title, company, location, dates, bullets: string[] }], skills: string[], education: string[] }.",
-    ].join(" "),
+    ].filter(Boolean).join(" "),
     input: [
       "JOB DESCRIPTION:",
       jobDescription.trim(),
@@ -64,7 +76,9 @@ async function optimize(env: LLMEnv, { jobDescription, resumeText }: OptimizeInp
       "Required output notes:",
       "- Preserve the candidate's real experience and education.",
       "- Convert experience into roles with stable ids role-1, role-2, etc.",
-      "- Use concise, impact-oriented bullets without inventing metrics.",
+      "- Keep every original role and all non-duplicative accomplishment/responsibility bullets. If a bullet is weak, improve it instead of dropping it.",
+      "- Use concise, impact-oriented bullets without inventing metrics or removing evidence.",
+      "- You may combine only clearly duplicate bullets; do not compress unrelated accomplishments into vague summaries.",
       "- Keep the resume ATS-safe and single-column friendly.",
       "- Return only the JSON object. Do not wrap it in Markdown.",
     ].join("\n"),

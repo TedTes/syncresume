@@ -15,6 +15,7 @@ import {
   preferRicherCanonicalSections,
   resumeToPlainText,
 } from "./resume";
+import type { StructuredResume } from "./resume";
 import { getClerkEmail, verifyClerkRequest } from "./auth/clerk";
 
 type JsonBody = Record<string, unknown> | Array<unknown>;
@@ -123,11 +124,34 @@ class StructuredResumeCoverageError extends HttpError {
   }
 }
 
+type OptimizationPreservationCoverage = {
+  sourceAccomplishmentCount: number;
+  matchedAccomplishmentCount: number;
+  accomplishmentCoverageRatio: number;
+  optimizedLengthRatio: number;
+  sourceLength: number;
+  optimizedLength: number;
+};
+
+class OptimizationPreservationError extends HttpError {
+  reason: string;
+  coverage: OptimizationPreservationCoverage;
+
+  constructor(message: string, reason: string, coverage: OptimizationPreservationCoverage) {
+    super(message, 502);
+    this.name = "OptimizationPreservationError";
+    this.reason = reason;
+    this.coverage = coverage;
+  }
+}
+
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
 const MAX_EXPORT_HTML_CHARS = 2_500_000;
 const MIN_RESUME_TEXT_LENGTH = 20;
 const STRUCTURED_RESUME_MIN_COVERAGE_RATIO = 0.45;
 const STRUCTURED_RESUME_MIN_TERM_COVERAGE_RATIO = 0.5;
+const OPTIMIZED_RESUME_MIN_ACCOMPLISHMENT_COVERAGE_RATIO = 0.72;
+const OPTIMIZED_RESUME_MIN_LENGTH_RATIO = 0.55;
 const RESUME_TEMPLATE_IDS = new Set<string>(ALL_RESUME_TEMPLATE_IDS);
 const RESUME_VERSION_TYPES = new Set(["base", "tailored"]);
 const BILLING_PLAN_FREE = "Free";
@@ -209,6 +233,22 @@ const COVERAGE_STOP_WORDS = new Set([
   "work",
   "you",
   "your",
+]);
+const ACCOMPLISHMENT_MATCH_STOP_WORDS = new Set([
+  ...COVERAGE_STOP_WORDS,
+  "software",
+  "engineer",
+  "developer",
+  "manager",
+  "company",
+  "team",
+  "teams",
+  "system",
+  "systems",
+  "application",
+  "applications",
+  "service",
+  "services",
 ]);
 
 type StructuredResumeCoverage = {
@@ -493,10 +533,31 @@ async function handleOptimize(request: Request, env: Env, headers: Headers): Pro
 
   await assertAiActionAllowed(env, user, "optimize_resume");
 
-  const optimizedResume = await optimizeResumeWithProvider(env, provider, {
+  let optimizedResume = await optimizeResumeWithProvider(env, provider, {
     jobDescription,
     resumeText,
   });
+
+  try {
+    assertOptimizedResumePreservesAccomplishments(resumeText, optimizedResume);
+  } catch (error) {
+    if (!(error instanceof OptimizationPreservationError)) throw error;
+
+    logWorkerEvent("warn", "optimize_preservation_retry", {
+      provider,
+      reason: error.reason,
+      coverage: error.coverage,
+    });
+
+    optimizedResume = await optimizeResumeWithProvider(env, provider, {
+      jobDescription,
+      resumeText,
+      strictPreservation: true,
+      retryReason: error.reason,
+    });
+    assertOptimizedResumePreservesAccomplishments(resumeText, optimizedResume);
+  }
+
   const snapshot = buildResumeReviewSnapshot({
     jobDescription,
     originalResumeText: resumeText,
@@ -706,7 +767,7 @@ async function handleReviseSection(request: Request, env: Env, headers: Headers)
     return json(
       {
         type: "out_of_scope",
-        message: "This AI box only revises the selected resume section.",
+        message: "Choose a resume edit prompt or type a specific resume edit.",
       },
       { headers },
     );
@@ -733,7 +794,7 @@ async function handleReviseSection(request: Request, env: Env, headers: Headers)
     return json(
       {
         type: "out_of_scope",
-        message: "This AI box only revises the selected resume section.",
+        message: "Choose a resume edit prompt or type a specific resume edit.",
       },
       { headers },
     );
@@ -2650,6 +2711,126 @@ function assertStructuredResumeCoverage(sourceText: string, structuredText: stri
 
 function shouldRetryStructuredResumeCoverage(error: StructuredResumeCoverageError): boolean {
   return error.reason === "low_length_and_term_coverage";
+}
+
+function assertOptimizedResumePreservesAccomplishments(
+  sourceText: string,
+  optimizedResume: StructuredResume,
+): OptimizationPreservationCoverage {
+  const optimizedText = resumeToPlainText(optimizedResume);
+  const coverage = analyzeOptimizationPreservation(sourceText, optimizedText);
+
+  if (coverage.sourceAccomplishmentCount < 4) {
+    return coverage;
+  }
+
+  if (
+    coverage.optimizedLengthRatio < OPTIMIZED_RESUME_MIN_LENGTH_RATIO &&
+    coverage.accomplishmentCoverageRatio < OPTIMIZED_RESUME_MIN_ACCOMPLISHMENT_COVERAGE_RATIO
+  ) {
+    throw new OptimizationPreservationError(
+      "The optimizer removed too much source resume content. Retry with a more complete resume or paste the resume text directly.",
+      "low_length_and_accomplishment_coverage",
+      coverage,
+    );
+  }
+
+  if (coverage.accomplishmentCoverageRatio < 0.55) {
+    throw new OptimizationPreservationError(
+      "The optimizer removed too many accomplishments from the resume.",
+      "low_accomplishment_coverage",
+      coverage,
+    );
+  }
+
+  return coverage;
+}
+
+function analyzeOptimizationPreservation(
+  sourceText: string,
+  optimizedText: string,
+): OptimizationPreservationCoverage {
+  const sourceLength = normalizeCoverageText(sourceText).length;
+  const optimizedLength = normalizeCoverageText(optimizedText).length;
+  const optimizedTerms = new Set(extractCoverageTerms(optimizedText));
+  const sourceAccomplishments = extractAccomplishmentEvidenceLines(sourceText);
+  const matchedAccomplishments = sourceAccomplishments.filter((line) =>
+    accomplishmentLineMatchesOptimizedText(line, optimizedTerms),
+  );
+
+  return {
+    sourceAccomplishmentCount: sourceAccomplishments.length,
+    matchedAccomplishmentCount: matchedAccomplishments.length,
+    accomplishmentCoverageRatio:
+      sourceAccomplishments.length > 0
+        ? ratio(matchedAccomplishments.length, sourceAccomplishments.length)
+        : 1,
+    optimizedLengthRatio: ratio(optimizedLength, sourceLength),
+    sourceLength,
+    optimizedLength,
+  };
+}
+
+function extractAccomplishmentEvidenceLines(value: string): string[] {
+  const seen = new Set<string>();
+  const lines = value
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const result: string[] = [];
+
+  for (const line of lines) {
+    const normalized = normalizeCoverageText(line).toLowerCase();
+    if (seen.has(normalized)) continue;
+    if (!isLikelyAccomplishmentEvidenceLine(line)) continue;
+
+    seen.add(normalized);
+    result.push(line);
+  }
+
+  return result;
+}
+
+function isLikelyAccomplishmentEvidenceLine(line: string): boolean {
+  const normalized = line.toLowerCase();
+  const stripped = normalized.replace(/^[-•*‣◦]\s*/, "").trim();
+  const terms = extractCoverageTerms(stripped);
+
+  if (stripped.length < 28 || terms.length < 4) return false;
+  if (isLikelyResumeHeading(stripped)) return false;
+  if (isLikelyContactOnlyLine(stripped)) return false;
+
+  return (
+    /^[-•*‣◦]\s+/.test(line) ||
+    /\b\d+[%+$kmb]?\b/i.test(stripped) ||
+    /\b(achieved|architected|automated|built|created|delivered|designed|developed|drove|enabled|established|generated|implemented|improved|increased|integrated|launched|led|managed|migrated|optimized|owned|reduced|refactored|shipped|supported|streamlined)\b/.test(
+      stripped,
+    )
+  );
+}
+
+function isLikelyResumeHeading(value: string): boolean {
+  return /^(summary|professional summary|experience|professional experience|work experience|skills|technical skills|education|projects|selected projects|certifications|awards|publications|languages)$/i.test(
+    value.trim(),
+  );
+}
+
+function isLikelyContactOnlyLine(value: string): boolean {
+  if (/\b[\w.+-]+@[\w.-]+\.\w+\b/.test(value)) return true;
+  if (/https?:\/\/|linkedin\.com|github\.com/.test(value)) return true;
+  if (/\+?\d[\d\s().-]{7,}/.test(value) && value.length < 80) return true;
+  return false;
+}
+
+function accomplishmentLineMatchesOptimizedText(line: string, optimizedTerms: Set<string>): boolean {
+  const terms = extractCoverageTerms(line).filter((term) => !ACCOMPLISHMENT_MATCH_STOP_WORDS.has(term));
+  if (terms.length < 4) return false;
+
+  const importantTerms = terms.filter((term) => /\d/.test(term) || term.length >= 4).slice(0, 14);
+  const requiredMatches = Math.max(2, Math.ceil(Math.min(importantTerms.length, 8) * 0.45));
+  const matchedCount = importantTerms.filter((term) => optimizedTerms.has(term)).length;
+
+  return matchedCount >= requiredMatches;
 }
 
 function analyzeStructuredResumeCoverage(sourceText: string, structuredText: string): StructuredResumeCoverage {
