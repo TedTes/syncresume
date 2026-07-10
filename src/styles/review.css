@@ -388,6 +388,11 @@
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Without an explicit row track, auto rows size to content, creating a
+     circular dependency with height: 100% on grid items and breaking the
+     overflow-y: auto scroll on the pane.  minmax(0, 1fr) expands the single
+     row to fill the grid's own bounded height instead. */
+  grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   gap: 16px;
   width: 100%;
@@ -934,24 +939,7 @@
 }
 
 /* Cover letter document-stage — active artifact in review workspace */
-.cover-letter-artifact-mode {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.cover-letter-artifact-mode > .input-col {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-  max-width: none;
-}
-
-.saved-application-review .cover-letter-active,
-.cover-letter-artifact-mode .cover-letter-active {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
+.saved-application-review .cover-letter-active {
   max-width: none;
   margin-top: 0;
   margin-inline: unset;
@@ -962,8 +950,7 @@
   gap: 0;
 }
 
-.saved-application-review .cover-letter-active .cover-letter-textarea,
-.cover-letter-artifact-mode .cover-letter-active .cover-letter-textarea {
+.saved-application-review .cover-letter-active .cover-letter-textarea {
   display: block;
   width: min(760px, 100%);
   min-height: min(1040px, calc(100vh - 160px));
@@ -980,15 +967,13 @@
   field-sizing: content;
 }
 
-.saved-application-review .cover-letter-active .cover-letter-textarea:focus,
-.cover-letter-artifact-mode .cover-letter-active .cover-letter-textarea:focus {
+.saved-application-review .cover-letter-active .cover-letter-textarea:focus {
   border: none;
   outline: none;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
 }
 
-.saved-application-review .cover-letter-active .cover-letter-textarea::placeholder,
-.cover-letter-artifact-mode .cover-letter-active .cover-letter-textarea::placeholder {
+.saved-application-review .cover-letter-active .cover-letter-textarea::placeholder {
   color: rgba(55, 65, 81, 0.44);
 }
 
@@ -1028,13 +1013,11 @@
 
 @media (max-width: 640px) {
   .saved-application-review .cover-letter-active,
-  .cover-letter-artifact-mode .cover-letter-active,
   .saved-application-review .job-description-active {
     padding: 16px 12px 48px;
   }
 
   .saved-application-review .cover-letter-active .cover-letter-textarea,
-  .cover-letter-artifact-mode .cover-letter-active .cover-letter-textarea,
   .saved-application-review .job-description-active .cover-letter-textarea {
     padding: 36px 28px;
   }

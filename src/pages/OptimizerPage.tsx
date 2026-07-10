@@ -318,7 +318,6 @@ export default function OptimizerPage({
       coverLetterError ||
       coverLetterStatus,
   );
-  const isCoverLetterArtifact = activeArtifact === "cover-letter" && shouldShowCoverLetterPanel;
   const shouldShowResumeReview = Boolean(
     optimizedResume && activeArtifact === "resume",
   );
@@ -867,7 +866,7 @@ export default function OptimizerPage({
       <ContentTag
         className={`page-content optimizer-page${embedded ? " workspace-job-section" : ""}${
           isSavedReviewMode ? " saved-application-review" : ""
-        }${isCoverLetterArtifact ? " cover-letter-artifact-mode" : ""}`}
+        }`}
       >
         {shouldShowSavedReviewLoader ? (
           <div className="review-loading saved-review-loading">
@@ -884,7 +883,7 @@ export default function OptimizerPage({
                     <>
                       <h1>{activeResume.name}</h1>
                       <p>
-                        {activeResume.characterCount.toLocaleString()} chars · used in {activeResume.usageCount} run(s)
+                        {activeResume.characterCount.toLocaleString()} chars · used in {activeResume.usageCount} runs
                       </p>
                     </>
                   ) : (
@@ -984,7 +983,7 @@ export default function OptimizerPage({
             );
           })()}
 
-          {jobAddMode && !shouldShowJobDescriptionArtifact && !isCoverLetterArtifact && (!optimizedResume || !isJobReferenceCollapsed) && (
+          {jobAddMode && !shouldShowJobDescriptionArtifact && (!optimizedResume || !isJobReferenceCollapsed) && (
             <div
               className={`job-entry-panel${isJobReferenceCollapsed ? " is-collapsed" : ""}${
                 isSwitcherOpen ? " is-switcher-open" : ""

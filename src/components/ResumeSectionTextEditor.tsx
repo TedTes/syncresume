@@ -43,25 +43,6 @@ export function ResumeSectionTextEditor({
     return () => resizeObserver.disconnect();
   }, []);
 
-  useLayoutEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    // Browsers may intercept wheel events on textareas even when the textarea
-    // cannot scroll (overflow: hidden, height == scrollHeight). Forward those
-    // events to the nearest scrollable pane so vertical/horizontal scroll works
-    // while the cursor is over editable sections.
-    const el: HTMLTextAreaElement = textarea;
-    function handleWheel(event: WheelEvent) {
-      const pane = el.closest<HTMLElement>(".template-comparison-pane");
-      if (!pane) return;
-      event.preventDefault();
-      pane.scrollBy({ left: event.deltaX, top: event.deltaY });
-    }
-
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleWheel);
-  }, []);
 
   function applyContentKind(nextKind: ResumeSectionContentKind) {
     const textarea = textareaRef.current;

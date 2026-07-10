@@ -297,7 +297,7 @@
     justify-content: flex-start;
     max-width: 100%;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: auto;
     padding-inline: 2px;
     -webkit-overflow-scrolling: touch;
   }
@@ -540,7 +540,7 @@
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: auto;
     padding-inline: 2px;
     -webkit-overflow-scrolling: touch;
   }
