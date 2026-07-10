@@ -144,6 +144,7 @@ export default function OptimizerPage({
   const [coverLetterStatus, setCoverLetterStatus] = useState("");
   const [coverLetterError, setCoverLetterError] = useState("");
   const [isCoverLetterPanelOpen, setIsCoverLetterPanelOpen] = useState(false);
+  const [isCLExportOpen, setIsCLExportOpen] = useState(false);
   const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false);
   const [isSavingCoverLetter, setIsSavingCoverLetter] = useState(false);
   const [activeArtifact, setActiveArtifact] = useState<WorkspaceArtifact>(preferredArtifact);
@@ -307,6 +308,7 @@ export default function OptimizerPage({
   const canGenerateCoverLetter =
     hasJD && Boolean(activeResume) && !isGeneratingCoverLetter && !isOptimizing && !isFetchingJD;
   const isJobReferenceCollapsed = Boolean(optimizedResume && isJobPanelCollapsed);
+  const isCoverLetterFullPage = activeArtifact === "cover-letter";
   const shouldShowSavedReviewLoader = Boolean(
     reviewRunId && isLoadingSavedReview && currentRunId !== reviewRunId,
   );
@@ -865,8 +867,8 @@ export default function OptimizerPage({
 
       <ContentTag
         className={`page-content optimizer-page${embedded ? " workspace-job-section" : ""}${
-          isSavedReviewMode ? " saved-application-review" : ""
-        }`}
+          isSavedReviewMode || isCoverLetterFullPage ? " saved-application-review" : ""
+        }${isCoverLetterFullPage ? " cover-letter-view" : ""}`}
       >
         {shouldShowSavedReviewLoader ? (
           <div className="review-loading saved-review-loading">
@@ -983,7 +985,7 @@ export default function OptimizerPage({
             );
           })()}
 
-          {jobAddMode && !shouldShowJobDescriptionArtifact && (!optimizedResume || !isJobReferenceCollapsed) && (
+          {jobAddMode && !shouldShowJobDescriptionArtifact && !isCoverLetterFullPage && (!optimizedResume || !isJobReferenceCollapsed) && (
             <div
               className={`job-entry-panel${isJobReferenceCollapsed ? " is-collapsed" : ""}${
                 isSwitcherOpen ? " is-switcher-open" : ""
@@ -1185,87 +1187,6 @@ export default function OptimizerPage({
             </div>
           )}
 
-          {shouldShowCoverLetterPanel && (() => {
-            const clSubtitle = optimizedResume
-              ? "Generated from the tailored resume and target job."
-              : "Generated from the selected resume and target job.";
-
-            const clActions = (
-              <>
-                <button className="btn btn-primary btn-sm" type="button" disabled={!canGenerateCoverLetter} onClick={handleGenerateCoverLetter}>
-                  {isGeneratingCoverLetter ? <Loader2 className="spin" aria-hidden="true" /> : <Mail aria-hidden="true" />}
-                  {coverLetter ? "Regenerate" : "Generate"}
-                </button>
-                <button className="btn btn-secondary btn-sm" type="button" disabled={isSavingCoverLetter || !coverLetter.trim()} onClick={handleSaveCoverLetter}>
-                  {isSavingCoverLetter ? <Loader2 className="spin" aria-hidden="true" /> : <FileText aria-hidden="true" />}
-                  Save
-                </button>
-                <button className="btn btn-secondary btn-sm" type="button" disabled={!coverLetter.trim()} onClick={() => void handleDownloadCoverLetter("docx")}>
-                  <FileText aria-hidden="true" />
-                  DOCX
-                </button>
-                <button className="btn btn-secondary btn-sm" type="button" disabled={!coverLetter.trim()} onClick={() => void handleDownloadCoverLetter("pdf")}>
-                  <Download aria-hidden="true" />
-                  PDF
-                </button>
-                <button className="btn btn-secondary btn-sm" type="button" disabled={!coverLetter.trim()} onClick={handleCopyCoverLetter}>
-                  <ClipboardCopy aria-hidden="true" />
-                  Copy
-                </button>
-              </>
-            );
-
-            const usePortal = Boolean(reviewToolbarHost && activeArtifact === "cover-letter");
-
-            return (
-              <>
-                {usePortal && reviewToolbarHost && createPortal(
-                  <div className="review-topbar">
-                    <button className="btn btn-ghost btn-sm review-back-button" type="button" onClick={handleReviewBack}>
-                      <ArrowLeft aria-hidden="true" />
-                      Back
-                    </button>
-                    <div className="review-topbar-context">
-                      <strong>Cover letter</strong>
-                      <span>{clSubtitle}</span>
-                    </div>
-                    <div className="review-topbar-actions">{clActions}</div>
-                  </div>,
-                  reviewToolbarHost,
-                )}
-
-                <section className={`job-cover-panel job-document-panel${usePortal ? " cover-letter-active" : ""}`} aria-label="Cover letter" ref={coverLetterPanelRef}>
-                  {!usePortal && (
-                    <div className="cover-letter-header">
-                      <div>
-                        <p className="section-label">Cover letter</p>
-                        <h3>{clSubtitle}</h3>
-                      </div>
-                      <div className="cover-letter-actions">
-                        {reviewRunId && activeArtifact === "cover-letter" && (
-                          <button className="btn btn-secondary" type="button" onClick={handleReviewBack}>
-                            <ArrowLeft aria-hidden="true" />
-                            Back
-                          </button>
-                        )}
-                        {clActions}
-                      </div>
-                    </div>
-                  )}
-
-                  <textarea
-                    className="cover-letter-textarea job-cover-textarea job-document-textarea"
-                    value={coverLetter}
-                    disabled={isGeneratingCoverLetter}
-                    onChange={(event) => setCoverLetter(event.target.value)}
-                    placeholder="Write your cover letter here, or use Generate to draft one from the selected resume and job."
-                    spellCheck
-                  />
-                </section>
-              </>
-            );
-          })()}
-
           {isLoadingSavedReview && (
             <div className="review-loading">
               <Loader2 className="spin" aria-hidden="true" />
@@ -1274,7 +1195,139 @@ export default function OptimizerPage({
           )}
             </section>
 
-            {!optimizedResume && !reviewRunId && resumeVersions.length > 0 && (
+            {shouldShowCoverLetterPanel && (() => {
+              const clSubtitle = optimizedResume
+                ? "Generated from the tailored resume and target job."
+                : "Generated from the selected resume and target job.";
+
+              const clActions = (
+                <>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    type="button"
+                    disabled={!canGenerateCoverLetter}
+                    onClick={handleGenerateCoverLetter}
+                  >
+                    {isGeneratingCoverLetter ? (
+                      <Loader2 className="spin" aria-hidden="true" />
+                    ) : (
+                      <Sparkles aria-hidden="true" />
+                    )}
+                    {isGeneratingCoverLetter ? "Generating…" : coverLetter ? "Regenerate" : "Generate"}
+                  </button>
+                  <span className="cl-toolbar-sep" aria-hidden="true" />
+                  <button
+                    className="btn btn-secondary btn-sm review-icon-action"
+                    type="button"
+                    data-tooltip="Save"
+                    aria-label="Save cover letter"
+                    disabled={isSavingCoverLetter || !coverLetter.trim()}
+                    onClick={handleSaveCoverLetter}
+                  >
+                    {isSavingCoverLetter ? (
+                      <Loader2 className="spin" aria-hidden="true" />
+                    ) : (
+                      <FileText aria-hidden="true" />
+                    )}
+                    <span className="review-action-label">Save</span>
+                  </button>
+                  <div className="review-export-group">
+                    <button
+                      className="btn btn-secondary btn-sm review-icon-action"
+                      type="button"
+                      data-tooltip="Download"
+                      aria-label="Download cover letter"
+                      disabled={!coverLetter.trim()}
+                      onClick={() => setIsCLExportOpen((o) => !o)}
+                    >
+                      <Download aria-hidden="true" />
+                      <span className="review-action-label">Download</span>
+                    </button>
+                    {isCLExportOpen && coverLetter.trim() && (
+                      <div className="export-format-menu" aria-label="Download format">
+                        <button
+                          type="button"
+                          className="export-format-toggle"
+                          onClick={() => { void handleDownloadCoverLetter("docx"); setIsCLExportOpen(false); }}
+                        >
+                          DOCX
+                        </button>
+                        <button
+                          type="button"
+                          className="export-format-toggle"
+                          onClick={() => { void handleDownloadCoverLetter("pdf"); setIsCLExportOpen(false); }}
+                        >
+                          PDF
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className="btn btn-secondary btn-sm review-icon-action"
+                    type="button"
+                    data-tooltip="Copy text"
+                    aria-label="Copy cover letter text"
+                    disabled={!coverLetter.trim()}
+                    onClick={handleCopyCoverLetter}
+                  >
+                    <ClipboardCopy aria-hidden="true" />
+                    <span className="review-action-label">Copy</span>
+                  </button>
+                </>
+              );
+
+              const usePortal = Boolean(reviewToolbarHost && isCoverLetterFullPage);
+
+              return (
+                <>
+                  {usePortal && reviewToolbarHost && createPortal(
+                    <div className="review-topbar">
+                      <button className="btn btn-ghost btn-sm review-back-button" type="button" onClick={handleReviewBack}>
+                        <ArrowLeft aria-hidden="true" />
+                        Back
+                      </button>
+                      <div className="review-topbar-context">
+                        <strong>Cover letter</strong>
+                        <span>{clSubtitle}</span>
+                      </div>
+                      <div className="review-topbar-actions">{clActions}</div>
+                    </div>,
+                    reviewToolbarHost,
+                  )}
+
+                  <section className={`job-cover-panel job-document-panel${isCoverLetterFullPage ? " cover-letter-active" : ""}`} aria-label="Cover letter" ref={coverLetterPanelRef}>
+                    {!usePortal && (
+                      <div className="cover-letter-header">
+                        <div>
+                          <p className="section-label">Cover letter</p>
+                          <h3>{clSubtitle}</h3>
+                        </div>
+                        <div className="cover-letter-actions">
+                          {reviewRunId && isCoverLetterFullPage && (
+                            <button className="btn btn-secondary" type="button" onClick={handleReviewBack}>
+                              <ArrowLeft aria-hidden="true" />
+                              Back
+                            </button>
+                          )}
+                          {clActions}
+                        </div>
+                      </div>
+                    )}
+
+                    <textarea
+                      className="cover-letter-textarea job-cover-textarea job-document-textarea"
+                      value={coverLetter}
+                      disabled={isGeneratingCoverLetter}
+                      onChange={(event) => setCoverLetter(event.target.value)}
+                      placeholder="Write your cover letter here, or use Generate to draft one from the selected resume and job."
+                      spellCheck
+                    />
+                  </section>
+                </>
+              );
+            })()}
+
+            {!optimizedResume && !reviewRunId && !isCoverLetterFullPage && resumeVersions.length > 0 && (
               <section className="workspace-versions" aria-label="Tailored versions">
                 <h3 className="workspace-versions-heading">Tailored versions</h3>
                 <div className="workspace-versions-list">

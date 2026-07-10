@@ -264,6 +264,16 @@
   color: var(--accent-strong);
 }
 
+.cl-toolbar-sep {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+  align-self: center;
+  margin-inline: 2px;
+}
+
 .review-export-group {
   position: relative;
   display: inline-flex;
@@ -323,6 +333,17 @@
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
+}
+
+button.export-format-toggle {
+  width: 100%;
+  border: none;
+  background: transparent;
+}
+
+button.export-format-toggle:hover:not(:disabled) {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.06));
+  color: var(--ink);
 }
 
 .export-format-toggle input {
@@ -939,21 +960,33 @@
 }
 
 /* Cover letter document-stage — active artifact in review workspace */
+@keyframes clStageIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes clCardIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .saved-application-review .cover-letter-active {
   max-width: none;
   margin-top: 0;
   margin-inline: unset;
-  padding: 24px 20px 64px;
+  /* top padding pushed down so the paper card has clear air beneath the header */
+  padding: 48px 20px 80px;
   background: #1e1e1b;
   border: none;
   border-radius: 0;
   gap: 0;
+  animation: clStageIn 0.18s ease both;
 }
 
 .saved-application-review .cover-letter-active .cover-letter-textarea {
   display: block;
   width: min(760px, 100%);
-  min-height: min(1040px, calc(100vh - 160px));
+  min-height: min(1040px, calc(100vh - 180px));
   margin: 0 auto;
   padding: 60px 72px;
   background: #ffffff;
@@ -965,6 +998,7 @@
   line-height: 1.8;
   resize: none;
   field-sizing: content;
+  animation: clCardIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .saved-application-review .cover-letter-active .cover-letter-textarea:focus {
@@ -1009,6 +1043,13 @@
 
 .saved-application-review .job-description-active .cover-letter-textarea::placeholder {
   color: rgba(55, 65, 81, 0.44);
+}
+
+/* Reset page-content's centering/padding when cover letter occupies the full stage */
+.saved-application-review.cover-letter-view {
+  padding: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 @media (max-width: 640px) {
