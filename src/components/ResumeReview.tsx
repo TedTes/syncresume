@@ -1261,6 +1261,20 @@ function ResultsTab({
     [sections],
   );
   const lastBodySectionId = [...sections].reverse().find((s) => s.type !== "contact")?.id;
+  const addSectionFooter =
+    !isCompareMode && lastBodySectionId ? (
+      <div className="review-template-add-section-footer">
+        <InlineAddSectionControl
+          availableSectionTitles={availableAddSectionTitles}
+          isAddSectionOpen={addSectionAfterId === lastBodySectionId}
+          onAddSection={(title, content, contentKind) =>
+            onAddSection(lastBodySectionId, title, content, contentKind)
+          }
+          onOpenAddSection={() => onOpenAddSection(lastBodySectionId)}
+          onCloseAddSection={onCloseAddSection}
+        />
+      </div>
+    ) : null;
 
   useEffect(() => {
     const comparison = comparisonRef.current;
@@ -1334,7 +1348,14 @@ function ResultsTab({
               document={optimizedDocument}
               templateId={templateId}
               fontId={fontId}
-              afterPreviewContent={!isCompareMode ? revisionBar : undefined}
+              afterPreviewContent={
+                !isCompareMode ? (
+                  <>
+                    {addSectionFooter}
+                    {revisionBar}
+                  </>
+                ) : undefined
+              }
               renderContactSectionContent={
                 isCompareMode
                   ? undefined
@@ -1364,16 +1385,6 @@ function ResultsTab({
                       onAfterSectionFormatChange,
                       canRemoveAfterSection,
                       onRemoveAfterSection,
-                      section.id === lastBodySectionId
-                        ? {
-                            availableSectionTitles: availableAddSectionTitles,
-                            isAddSectionOpen: addSectionAfterId === section.id,
-                            onAddSection: (title, content, contentKind) =>
-                              onAddSection(section.id, title, content, contentKind),
-                            onOpenAddSection: () => onOpenAddSection(section.id),
-                            onCloseAddSection,
-                          }
-                        : undefined,
                     )
               }
             />
@@ -1862,13 +1873,6 @@ function renderEditableAfterSectionContent(
   ) => void,
   canRemoveAfterSection: boolean,
   onRemoveAfterSection: (sectionId: string) => void,
-  addSectionControl?: {
-    availableSectionTitles: string[];
-    isAddSectionOpen: boolean;
-    onAddSection: (title: string, content: string, contentKind: ResumeSectionContentKind) => void;
-    onOpenAddSection: () => void;
-    onCloseAddSection: () => void;
-  },
 ) {
   if (section.type === "contact" || section.id === "contact") {
     if (section.id !== selectedSectionId) {
@@ -1951,7 +1955,6 @@ function renderEditableAfterSectionContent(
         }
         textareaClassName="review-document-textarea"
       />
-      {addSectionControl && <InlineAddSectionControl {...addSectionControl} />}
     </div>
   );
 }

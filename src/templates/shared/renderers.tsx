@@ -390,14 +390,12 @@ export function TimelinePreview({
   bodySections,
   renderSectionContent,
 }: TemplatePreviewProps) {
-  const TRACK_TYPES = new Set(["experience", "projects", "education"]);
-  const preSections = bodySections.filter((s) =>
-    ["summary", "skills", "languages"].includes(s.type),
-  );
-  const trackSections = bodySections.filter((s) => TRACK_TYPES.has(s.type));
-  const postSections = bodySections.filter(
-    (s) => !TRACK_TYPES.has(s.type) && !["summary", "skills", "languages"].includes(s.type),
-  );
+  const PRE_TYPES = new Set(["summary", "skills", "languages"]);
+  const preSections = bodySections.filter((s) => PRE_TYPES.has(s.type));
+  // Everything not rendered before the track goes into the track — this
+  // includes experience/projects/education as well as any user-added section
+  // (awards, certifications, publications, volunteering, custom, etc.).
+  const trackSections = bodySections.filter((s) => !PRE_TYPES.has(s.type));
 
   return (
     <article
@@ -425,9 +423,6 @@ export function TimelinePreview({
           ))}
         </div>
       )}
-      {postSections.map((s) => (
-        <TemplateSection section={s} key={s.id} renderSectionContent={renderSectionContent} />
-      ))}
     </article>
   );
 }
