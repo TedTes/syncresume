@@ -7,9 +7,9 @@
     "dev": "astro dev",
     "dev:app": "vite",
     "dev:marketing": "astro dev",
-    "build": "tsc -b && astro build && SYNCRESUME_APP_BUILD=1 vite build --base=/app/ --outDir dist/app --emptyOutDir=false",
-    "build:app": "tsc -b && SYNCRESUME_APP_BUILD=1 vite build --base=/app/ --outDir dist/app",
-    "build:marketing": "astro build",
+    "build": "tsc -b && astro build",
+    "build:app": "tsc -b && SYNCRESUME_APP_BUILD=1 vite build --outDir dist/app && node scripts/prepare-app-pages-output.mjs",
+    "build:marketing": "tsc -b && astro build",
     "preview": "vite preview",
     "cf:types": "WRANGLER_WRITE_LOGS=false wrangler types cloudflare/worker/worker-configuration.d.ts --include-runtime false --env-file cloudflare/typegen.env",
     "cf:types:check": "WRANGLER_WRITE_LOGS=false wrangler types cloudflare/worker/worker-configuration.d.ts --include-runtime false --env-file cloudflare/typegen.env --check",
@@ -18,7 +18,8 @@
     "cf:deploy": "WRANGLER_WRITE_LOGS=false wrangler deploy --keep-vars",
     "cf:d1:apply:local": "WRANGLER_WRITE_LOGS=false wrangler d1 migrations apply syncresume --local",
     "cf:d1:apply": "WRANGLER_WRITE_LOGS=false wrangler d1 migrations apply syncresume --remote",
-    "cf:pages:deploy": "npm run build && WRANGLER_WRITE_LOGS=false wrangler pages deploy dist --project-name syncresume"
+    "cf:pages:deploy": "npm run build && WRANGLER_WRITE_LOGS=false wrangler pages deploy dist --project-name syncresume",
+    "cf:pages:deploy:app": "npm run build:app && WRANGLER_WRITE_LOGS=false wrangler pages deploy dist/app --project-name syncresume-app"
   },
   "dependencies": {
     "@astrojs/react": "^6.0.1",
