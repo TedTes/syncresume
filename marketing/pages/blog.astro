@@ -1,5 +1,6 @@
 ---
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../lib/urls";
 
 const year = new Date().getFullYear();
 
@@ -96,7 +97,7 @@ const POSTS = [
           <a href="/templates">Templates</a>
           <a href="/pricing">Pricing</a>
         </nav>
-        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">Start tailoring free</a>
+        <a class="btn btn-primary btn-sm" href={APP_WORKSPACE_URL}>Start tailoring free</a>
       </div>
     </header>
 

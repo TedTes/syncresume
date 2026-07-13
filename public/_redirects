@@ -5,4 +5,6 @@
 /resumes /app/resumes 301
 /settings /app/settings 301
 /optimizer /app/workspace/optimize 301
+/app /app/index.html 200
+/app/ /app/index.html 200
 /app/* /app/index.html 200

@@ -1,5 +1,6 @@
 ---
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../lib/urls";
 import { ResumeTemplateThumbnail } from "../../src/components/ResumeTemplateThumbnail";
 import type { ResumeTemplateId } from "../../src/templates/registry";
 
@@ -44,7 +45,7 @@ const TEMPLATES: Array<{ id: ResumeTemplateId; name: string }> = [
           <a href="/templates" aria-current="page">Templates</a>
           <a href="/pricing">Pricing</a>
         </nav>
-        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">
+        <a class="btn btn-primary btn-sm" href={APP_WORKSPACE_URL}>
           Start tailoring free
         </a>
       </div>
@@ -67,9 +68,9 @@ const TEMPLATES: Array<{ id: ResumeTemplateId; name: string }> = [
               class="landing-template-tile"
             >
               <ResumeTemplateThumbnail templateId={id} />
-              <span>{name}</span>
+              <span class="landing-template-name">{name}</span>
               <a
-                href="/app/workspace/optimize"
+                href={APP_WORKSPACE_URL}
                 class="landing-template-hit"
                 aria-label={`Use ${name} template`}
               ></a>
@@ -99,7 +100,7 @@ const TEMPLATES: Array<{ id: ResumeTemplateId; name: string }> = [
             <p class="landing-eyebrow">Try any template</p>
             <h2>Start with your resume. Switch templates freely inside the app.</h2>
           </div>
-          <a class="btn btn-primary" href="/app/workspace/optimize">
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>
             Get started free
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>

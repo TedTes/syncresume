@@ -1,5 +1,6 @@
 ---
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../lib/urls";
 const year = new Date().getFullYear();
 
 const FREE_FEATURES = [
@@ -39,7 +40,7 @@ const FREE_FEATURES = [
           <a href="/templates">Templates</a>
           <a href="/pricing" aria-current="page">Pricing</a>
         </nav>
-        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">
+        <a class="btn btn-primary btn-sm" href={APP_WORKSPACE_URL}>
           Start tailoring free
         </a>
       </div>
@@ -74,7 +75,7 @@ const FREE_FEATURES = [
                 </div>
               ))}
             </div>
-            <a class="btn btn-primary" href="/app/workspace/optimize" style="width:100%;justify-content:center;">
+            <a class="btn btn-primary" href={APP_WORKSPACE_URL} style="width:100%;justify-content:center;">
               Get started — it's free
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
@@ -105,7 +106,7 @@ const FREE_FEATURES = [
             <p class="landing-eyebrow">Start now</p>
             <h2>Tailor your first resume in under two minutes.</h2>
           </div>
-          <a class="btn btn-primary" href="/app/workspace/optimize">
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>
             Start tailoring free
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>

@@ -1,5 +1,6 @@
 ---
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../lib/urls";
 const year = new Date().getFullYear();
 ---
 
@@ -30,7 +31,7 @@ const year = new Date().getFullYear();
           <a href="/templates">Templates</a>
           <a href="/pricing">Pricing</a>
         </nav>
-        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">
+        <a class="btn btn-primary btn-sm" href={APP_WORKSPACE_URL}>
           Start tailoring free
         </a>
       </div>
@@ -48,7 +49,7 @@ const year = new Date().getFullYear();
               SyncResume reads the job posting and rewrites your resume to match — keywords extracted, bullets reworded, ATS score lifted. One paste, one click.
             </p>
             <div class="landing-hero-actions">
-              <a class="btn btn-primary" href="/app/workspace/optimize">
+              <a class="btn btn-primary" href={APP_WORKSPACE_URL}>
                 Tailor your resume
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
@@ -120,7 +121,7 @@ const year = new Date().getFullYear();
             <p class="landing-eyebrow">Tailor your first resume</p>
             <h2>Paste a job description and see the difference.</h2>
           </div>
-          <a class="btn btn-primary" href="/app/workspace/optimize">
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>
             Start now — it's free
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
