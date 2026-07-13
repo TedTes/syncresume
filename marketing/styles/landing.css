@@ -1000,11 +1000,11 @@ a {
   display: block;
   position: relative;
   z-index: 1;
-  color: var(--ink);
-  font-size: 0.9rem;
-  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
   text-align: center;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .landing-template-hit {
