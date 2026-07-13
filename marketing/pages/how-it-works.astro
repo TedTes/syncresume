@@ -1,0 +1,165 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+
+const year = new Date().getFullYear();
+
+const STEPS = [
+  {
+    label: "01",
+    title: "Add your resume",
+    body: "Upload a PDF or DOCX resume, or paste text directly. SyncResume structures the content into editable resume sections.",
+  },
+  {
+    label: "02",
+    title: "Paste the job description",
+    body: "Add the role description or fetch it from a job URL. The app identifies requirements, keywords, and role signals.",
+  },
+  {
+    label: "03",
+    title: "Review the tailored version",
+    body: "Compare before and after, revise specific sections with AI, and keep the accomplishments you want to preserve.",
+  },
+  {
+    label: "04",
+    title: "Export and apply",
+    body: "Choose a template, adjust the final resume, generate a cover letter, and export to PDF or DOCX.",
+  },
+];
+---
+
+<MarketingLayout
+  title="How SyncResume Works - Tailor a Resume to Any Job"
+  description="Learn how SyncResume turns your resume and a job description into a tailored resume, cover letter, ATS score, and export-ready application bundle."
+  canonicalPath="/how-it-works"
+>
+  <div class="landing">
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <a class="landing-brand" href="/">
+          <div class="landing-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+              <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
+              <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+              <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+              <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+              <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+              <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+            </svg>
+          </div>
+          <span class="landing-brand-name">SyncResume</span>
+        </a>
+        <nav class="landing-nav-links" aria-label="Site">
+          <a href="/how-it-works" aria-current="page">How it works</a>
+          <a href="/templates">Templates</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">Start tailoring free</a>
+      </div>
+    </header>
+
+    <section class="landing-hero">
+      <div class="landing-container">
+        <div class="landing-hero-content">
+          <div class="landing-hero-text">
+            <p class="landing-eyebrow">How it works</p>
+            <h1 class="landing-hero-headline">
+              Tailor a resume to any job — without rewriting from scratch.
+            </h1>
+            <p class="landing-hero-sub">
+              Import your resume, paste a job description, review the AI rewrites, and export a polished application bundle in one workflow.
+            </p>
+            <div class="landing-hero-actions">
+              <a class="btn btn-primary" href="/app/workspace/optimize">
+                Start tailoring free
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <div aria-hidden="true" style="border:1px solid var(--border);border-radius:14px;background:rgba(24,24,27,0.72);overflow:hidden;">
+            {STEPS.map((step, i) => (
+              <div style={`display:flex;align-items:flex-start;gap:16px;padding:18px 22px;${i < STEPS.length - 1 ? "border-bottom:1px solid var(--border);" : ""}`}>
+                <span style="flex-shrink:0;min-width:28px;height:28px;border-radius:50%;border:1px solid rgba(34,197,94,0.35);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:rgba(34,197,94,0.85);letter-spacing:0.04em;">
+                  {step.label}
+                </span>
+                <div>
+                  <p style="margin:0 0 3px;font-size:0.875rem;font-weight:600;color:var(--ink);line-height:1.3;">{step.title}</p>
+                  <p style="margin:0;font-size:0.78rem;color:var(--muted);line-height:1.5;">{step.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section landing-section-alt">
+      <div class="landing-container">
+        <div class="landing-detail-grid">
+          {STEPS.map((step) => (
+            <article class="landing-detail-card">
+              <span class="landing-detail-index">{step.label}</span>
+              <h2>{step.title}</h2>
+              <p>{step.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section">
+      <div class="landing-container">
+        <div class="landing-positioning">
+          <p class="landing-eyebrow">Built for review</p>
+          <h2>See what changed before you export.</h2>
+          <p>
+            The optimized resume stays editable. You can compare the original and tailored versions, revise individual sections, switch templates, and keep a history of application versions.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-final-cta">
+      <div class="landing-container">
+        <div class="landing-final-cta-card">
+          <div>
+            <p class="landing-eyebrow">Start now</p>
+            <h2>Try the full resume tailoring workflow.</h2>
+          </div>
+          <a class="btn btn-primary" href="/app/workspace/optimize">Start tailoring free</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-inner">
+          <a class="landing-brand" href="/" aria-label="SyncResume home">
+            <div class="landing-brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+                <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
+                <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+                <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+                <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+                <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+                <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+              </svg>
+            </div>
+            <span class="landing-brand-name">SyncResume</span>
+          </a>
+          <div class="landing-footer-links" aria-label="Footer navigation">
+            <a href="/how-it-works">How it works</a>
+            <a href="/templates">Templates</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/blog">Blog</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </div>
+          <p class="landing-footer-copy">© {year} SyncResume</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+</MarketingLayout>

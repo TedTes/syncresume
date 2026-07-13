@@ -7,7 +7,6 @@ import { SettingsProvider } from "./context/SettingsContext";
 import { ToastProvider } from "./context/ToastContext";
 import ApplicationPage from "./pages/ApplicationPage";
 import DashboardPage from "./pages/DashboardPage";
-import LandingPage from "./pages/LandingPage";
 import ResumesPage from "./pages/ResumesPage";
 import SettingsPage from "./pages/SettingsPage";
 import WorkspacePage from "./pages/WorkspacePage";
@@ -20,8 +19,7 @@ export default function App() {
           <SettingsProvider>
             <AppDataProvider>
               <Routes>
-                {/* Public landing page */}
-                <Route path="/" element={<LandingPage />} />
+                <Route path="/" element={<Navigate to="/workspace/optimize" replace />} />
 
                 {/* Authenticated app — AppShell is a pathless layout route */}
                 <Route element={<AppShell />}>

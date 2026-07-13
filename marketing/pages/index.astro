@@ -1,0 +1,585 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { ResumeTemplateThumbnail } from "../../src/components/ResumeTemplateThumbnail";
+import type { ResumeTemplateId } from "../../src/templates/registry";
+
+const year = new Date().getFullYear();
+
+const STEPS = [
+  {
+    num: "01",
+    label: "Upload your resume",
+    desc: "Import your existing resume. We parse the structure and keep your content intact.",
+  },
+  {
+    num: "02",
+    label: "Paste the job posting",
+    desc: "Drop in any job description. We extract the requirements and keywords automatically.",
+  },
+  {
+    num: "03",
+    label: "Review the changes",
+    desc: "Compare original and tailored versions side by side. Accept or refine any edits.",
+  },
+  {
+    num: "04",
+    label: "Export and apply",
+    desc: "Download as PDF or DOCX. Your resume, cover letter, and job description are saved as a bundle.",
+  },
+];
+
+const TEMPLATES: Array<{ id: ResumeTemplateId; name: string }> = [
+  { id: "classic",   name: "Classic" },
+  { id: "modern",    name: "Modern" },
+  { id: "executive", name: "Executive" },
+  { id: "metro",     name: "Metro" },
+];
+
+const FAQS = [
+  {
+    q: "Does this work with ATS?",
+    a: "Yes. SyncResume only rewrites text — keywords, phrasing, bullet emphasis. No columns, no text boxes, no formatting that breaks parsers. Every template is ATS-safe by design.",
+  },
+  {
+    q: "Is my resume data private?",
+    a: "Your data is used only to generate your tailored output and is never shared or sold. <a href=\"/privacy\">See our privacy policy →</a>",
+  },
+  {
+    q: "Can I edit the AI output before downloading?",
+    a: "Yes. Every change is shown as a side-by-side diff. You can accept, reject, or rewrite any bullet individually before downloading.",
+  },
+  {
+    q: "Can I export as PDF or DOCX?",
+    a: "Both formats are available. PDF is formatted to your chosen template; DOCX is clean and editable.",
+  },
+  {
+    q: "Does it remove my accomplishments or metrics?",
+    a: "No. SyncResume rewrites phrasing to match the job's language but keeps your experience, numbers, and achievements intact.",
+  },
+];
+
+const FEATURES = [
+  {
+    label: "ATS-safe templates",
+    desc: "Clean layouts built to parse correctly through applicant tracking systems — no tables, no text boxes.",
+    wide: true,
+    icon: "file-check",
+  },
+  {
+    label: "Job-specific tailoring",
+    desc: "Rewrites bullets and skills sections to match the language and priorities of each role.",
+    wide: false,
+    icon: "wand",
+  },
+  {
+    label: "Cover letter included",
+    desc: "Generates a targeted cover letter alongside every tailored resume — not a generic template.",
+    wide: false,
+    icon: "mail",
+  },
+  {
+    label: "Application bundles",
+    desc: "Every run saves a complete package: tailored resume, cover letter, and the job description used to create it.",
+    wide: true,
+    icon: "package",
+  },
+];
+---
+
+<MarketingLayout
+  title="SyncResume — Tailor every resume to the job"
+  description="Paste a job description and get a tailored resume that speaks the job's language — keywords matched, bullets rewritten, score lifted."
+  canonicalPath="/"
+>
+  <div class="landing">
+
+    <!-- Nav -->
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <a class="landing-brand" href="/">
+          <div class="landing-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+              <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
+              <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+              <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+              <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+              <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+              <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+            </svg>
+          </div>
+          <span class="landing-brand-name">SyncResume</span>
+        </a>
+        <nav class="landing-nav-links" aria-label="Landing page">
+          <a href="/how-it-works">How it works</a>
+          <a href="/templates">Templates</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">
+          Start tailoring free
+        </a>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="landing-hero">
+      <div class="landing-container">
+        <div class="landing-hero-content">
+          <div class="landing-hero-text">
+            <h1 class="landing-hero-headline">
+              Tailor every resume<br />to the job.
+            </h1>
+            <p class="landing-hero-sub">
+              Paste a job description and get a tailored resume that speaks the job's language — keywords matched, bullets rewritten, score lifted.
+            </p>
+            <div class="landing-hero-actions">
+              <a class="btn btn-primary" href="/app/workspace/optimize">
+                Start tailoring free
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </a>
+              <a class="landing-text-link" href="#templates">View templates</a>
+            </div>
+          </div>
+
+          <div class="landing-peel-demo" aria-hidden="true">
+            <div class="landing-peel-label">
+              <span></span>
+              Tailored reveal
+            </div>
+            <div class="landing-peel-deck">
+              <div class="landing-peel-card landing-peel-card-depth"></div>
+
+              <!-- Tailored card (underneath) -->
+              <div class="landing-peel-card landing-peel-card-tailored">
+                <div class="landing-peel-card-header">
+                  <div>
+                    <span>Tailored resume</span>
+                    <strong>Senior Backend Engineer</strong>
+                  </div>
+                  <div class="landing-peel-score" data-score-ring>
+                    <strong data-score-value>42%</strong>
+                  </div>
+                </div>
+                <div class="landing-peel-lines">
+                  <p>
+                    Senior backend engineer delivering <mark>scalable distributed systems</mark>,
+                    <mark>Kafka-based workflows</mark>, and <mark>real-time data pipelines</mark>.
+                  </p>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="landing-peel-chips">
+                  <span>Kafka</span>
+                  <span>distributed systems</span>
+                  <span>CI/CD</span>
+                  <span>real-time pipelines</span>
+                  <span>backend</span>
+                </div>
+              </div>
+
+              <!-- Generic card (peels away) -->
+              <div class="landing-peel-card landing-peel-card-generic">
+                <div class="landing-peel-card-header">
+                  <div>
+                    <span>Generic resume</span>
+                    <strong>Software Engineer</strong>
+                  </div>
+                  <div class="landing-peel-score landing-peel-score-before">
+                    <strong>42%</strong>
+                  </div>
+                </div>
+                <div class="landing-peel-lines">
+                  <p>
+                    Senior full-stack software engineer with 8+ years building production applications and improving internal tools.
+                  </p>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="landing-peel-note">Peels away to reveal the tailored version underneath.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="landing-section landing-section-alt" id="how-it-works">
+      <div class="landing-container">
+        <div class="landing-section-header">
+          <p class="landing-eyebrow">How it works</p>
+          <h2 class="landing-section-title">Four steps, no friction.</h2>
+        </div>
+        <div class="landing-flow">
+
+          <!-- Stage 1: Upload -->
+          <div class="landing-flow-stage" style="--flow-delay: 0ms">
+            <div class="landing-flow-card" aria-hidden="true">
+              <div class="landing-flow-doc">
+                <div class="landing-flow-doc-header">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                  </svg>
+                  <span>resume.pdf</span>
+                </div>
+                <div class="landing-flow-doc-separator"></div>
+                <div class="landing-flow-doc-line"></div>
+                <div class="landing-flow-doc-line landing-flow-doc-line--short"></div>
+                <div class="landing-flow-doc-line"></div>
+                <div class="landing-flow-doc-line landing-flow-doc-line--medium"></div>
+              </div>
+            </div>
+            <p class="landing-flow-num">{STEPS[0].num}</p>
+            <h3 class="landing-flow-label">{STEPS[0].label}</h3>
+            <p class="landing-flow-desc">{STEPS[0].desc}</p>
+          </div>
+
+          <!-- Stage 2: Keywords -->
+          <div class="landing-flow-stage" style="--flow-delay: 110ms">
+            <div class="landing-flow-card" aria-hidden="true">
+              <div class="landing-flow-doc">
+                <div class="landing-flow-doc-line"></div>
+                <div class="landing-flow-doc-line landing-flow-doc-line--medium"></div>
+                <div class="landing-flow-chips">
+                  <span class="landing-flow-chip">Kafka</span>
+                  <span class="landing-flow-chip">distributed systems</span>
+                  <span class="landing-flow-chip">CI/CD</span>
+                  <span class="landing-flow-chip">real-time pipelines</span>
+                  <span class="landing-flow-chip">backend</span>
+                </div>
+              </div>
+            </div>
+            <p class="landing-flow-num">{STEPS[1].num}</p>
+            <h3 class="landing-flow-label">{STEPS[1].label}</h3>
+            <p class="landing-flow-desc">{STEPS[1].desc}</p>
+          </div>
+
+          <!-- Stage 3: Compare -->
+          <div class="landing-flow-stage" style="--flow-delay: 220ms">
+            <div class="landing-flow-card" aria-hidden="true">
+              <div class="landing-flow-compare">
+                <div class="landing-flow-compare-col">
+                  <p class="landing-flow-compare-label">Before</p>
+                  <div class="landing-flow-doc-line"></div>
+                  <div class="landing-flow-doc-line landing-flow-doc-line--removed"></div>
+                  <div class="landing-flow-doc-line landing-flow-doc-line--short"></div>
+                  <div class="landing-flow-doc-line landing-flow-doc-line--removed landing-flow-doc-line--medium"></div>
+                </div>
+                <div class="landing-flow-compare-divider"></div>
+                <div class="landing-flow-compare-col">
+                  <p class="landing-flow-compare-label landing-flow-compare-label--after">After</p>
+                  <div class="landing-flow-doc-line"></div>
+                  <div class="landing-flow-doc-line landing-flow-doc-line--added"></div>
+                  <div class="landing-flow-doc-line landing-flow-doc-line--short"></div>
+                  <div class="landing-flow-doc-line landing-flow-doc-line--added landing-flow-doc-line--medium"></div>
+                </div>
+              </div>
+            </div>
+            <p class="landing-flow-num">{STEPS[2].num}</p>
+            <h3 class="landing-flow-label">{STEPS[2].label}</h3>
+            <p class="landing-flow-desc">{STEPS[2].desc}</p>
+          </div>
+
+          <!-- Stage 4: Export bundle -->
+          <div class="landing-flow-stage" style="--flow-delay: 330ms">
+            <div class="landing-flow-card" aria-hidden="true">
+              <div class="landing-flow-bundle">
+                <div class="landing-flow-bundle-file">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                  </svg>
+                  <span>Resume.pdf</span>
+                </div>
+                <div class="landing-flow-bundle-file">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                  </svg>
+                  <span>Cover letter</span>
+                </div>
+                <div class="landing-flow-bundle-file">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="2" y="7" width="20" height="14" rx="2"/>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                  </svg>
+                  <span>Job description</span>
+                </div>
+              </div>
+            </div>
+            <p class="landing-flow-num">{STEPS[3].num}</p>
+            <h3 class="landing-flow-label">{STEPS[3].label}</h3>
+            <p class="landing-flow-desc">{STEPS[3].desc}</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Real example -->
+    <section class="landing-section">
+      <div class="landing-container">
+        <div class="landing-section-header">
+          <p class="landing-eyebrow">Real example</p>
+          <h2 class="landing-section-title">See exactly what changed.</h2>
+        </div>
+        <div class="landing-example-card">
+          <div class="landing-example-score">
+            <div class="landing-example-score-compare">
+              <div class="landing-example-score-num landing-example-score-num--before">
+                <strong>42%</strong>
+                <span>before</span>
+              </div>
+              <div class="landing-example-score-bar">
+                <div class="landing-example-score-fill"></div>
+              </div>
+              <div class="landing-example-score-num landing-example-score-num--after">
+                <strong>84%</strong>
+                <span>after</span>
+              </div>
+            </div>
+            <div class="landing-example-score-stats">
+              <div class="landing-example-score-lift">
+                <strong>+42</strong>
+                <span>pts</span>
+              </div>
+              <div class="landing-example-score-kw">
+                <strong>15</strong>
+                <span>keywords matched</span>
+              </div>
+            </div>
+          </div>
+          <div class="landing-example-vdivider"></div>
+          <div class="landing-example-diff">
+            <div class="landing-example-diff-meta">
+              <span>Summary section</span>
+              <span>Tailored for: Senior Backend Engineer</span>
+            </div>
+            <p class="landing-example-diff-text">
+              Senior
+              <s>full-stack software engineer</s>
+              <mark>backend engineer</mark>
+              with 8+ years
+              <s>building production applications. Experience in Node.js, React, and cloud tools. Delivered systems for internal teams and improved operational workflows.</s>
+              <mark>delivering scalable distributed systems, real-time data pipelines, and Kafka-based workflows. Deep experience improving reliability across cloud infrastructure and CI/CD delivery.</mark>
+            </p>
+            <div class="landing-example-keywords">
+              <span>Kafka</span>
+              <span>distributed systems</span>
+              <span>CI/CD</span>
+              <span>real-time pipelines</span>
+              <span>backend</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Positioning -->
+    <section class="landing-section landing-section-alt">
+      <div class="landing-container">
+        <div class="landing-positioning">
+          <p class="landing-eyebrow">Why SyncResume</p>
+          <h2>Transparent AI rewriting, not a black-box resume score.</h2>
+          <p>
+            SyncResume shows the before and after, the keywords that changed, and the application bundle it created.
+            You can review the rewrite, refine the wording, pick a template, and keep every job-specific version
+            attached to the role it was made for.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Template showcase -->
+    <section class="landing-section" id="templates">
+      <div class="landing-container">
+        <div class="landing-section-header">
+          <p class="landing-eyebrow">Template showcase</p>
+          <h2 class="landing-section-title">Choose a layout after the content is right.</h2>
+        </div>
+        <div class="landing-template-wall" style="--template-thumbnail-scale: 0.265">
+          {TEMPLATES.map(({ id, name }) => (
+            <div
+              class="landing-template-tile"
+            >
+              <ResumeTemplateThumbnail templateId={id} />
+              <span>{name}</span>
+              <a
+                href="/app/workspace/optimize"
+                class="landing-template-hit"
+                aria-label={`Use ${name} template`}
+              ></a>
+            </div>
+          ))}
+        </div>
+        <div class="landing-template-cta-row">
+          <div>
+            <strong>ATS-safe templates</strong>
+            <span>Every format, every style — pick yours inside the app</span>
+          </div>
+          <a class="btn btn-secondary" href="/templates">
+            Browse all templates
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="landing-section landing-section-alt">
+      <div class="landing-container">
+        <div class="landing-section-header">
+          <p class="landing-eyebrow">What's included</p>
+          <h2 class="landing-section-title">Everything you need to apply smarter.</h2>
+        </div>
+        <div class="landing-features">
+          {FEATURES.map(({ label, desc, wide, icon }) => (
+            <div class={`landing-feature${wide ? " landing-feature--wide" : ""}`}>
+              <div class="landing-feature-top">
+                <div class="landing-feature-icon" aria-hidden="true">
+                  {icon === "file-check" && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <polyline points="9 15 11 17 15 13"/>
+                    </svg>
+                  )}
+                  {icon === "wand" && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m5 3 2 2M3 5l2 2M13 3l-2 2M15 5l-2 2M3 13l2-2M5 15l2-2"/>
+                      <path d="M9 11l9 9a1.41 1.41 0 0 1-2 2L7 13"/>
+                    </svg>
+                  )}
+                  {icon === "mail" && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  )}
+                  {icon === "package" && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                      <line x1="12" y1="22.08" x2="12" y2="12"/>
+                    </svg>
+                  )}
+                </div>
+                <h3 class="landing-feature-label">{label}</h3>
+              </div>
+              <p class="landing-feature-desc">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ / Objection handling -->
+    <section class="landing-section landing-section-alt">
+      <div class="landing-container">
+        <div class="landing-section-header">
+          <p class="landing-eyebrow">Common questions</p>
+          <h2 class="landing-section-title">Everything you're probably wondering.</h2>
+        </div>
+        <div class="landing-faq">
+          {FAQS.map(({ q, a }) => (
+            <details>
+              <summary>{q}</summary>
+              <p class="landing-faq-answer" set:html={a} />
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="landing-final-cta">
+      <div class="landing-container">
+        <div class="landing-final-cta-card">
+          <div>
+            <p class="landing-eyebrow">Ready to tailor one?</p>
+            <h2>Start with a resume and a job description.</h2>
+          </div>
+          <a class="btn btn-primary" href="/app/workspace/optimize">
+            Start tailoring free
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-inner">
+          <a class="landing-brand" href="/" aria-label="SyncResume home">
+            <div class="landing-brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+                <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
+                <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+                <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+                <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+                <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+                <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+              </svg>
+            </div>
+            <span class="landing-brand-name">SyncResume</span>
+          </a>
+          <div class="landing-footer-links" aria-label="Footer navigation">
+            <a href="/how-it-works">How it works</a>
+            <a href="/templates">Templates</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/blog">Blog</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </div>
+          <p class="landing-footer-copy">© {year} SyncResume</p>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+</MarketingLayout>
+
+<script>
+  const scoreValue = document.querySelector<HTMLElement>("[data-score-value]");
+  const scoreRing = document.querySelector<HTMLElement>("[data-score-ring]");
+
+  if (scoreValue && scoreRing) {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduceMotion) {
+      scoreValue.textContent = "84%";
+      scoreRing.style.setProperty("--landing-score", "84%");
+    } else {
+      const cycleMs = 5800;
+      const climbStartMs = 1550;
+      const climbDurationMs = 1650;
+      const startedAt = performance.now();
+
+      const tick = (now: number) => {
+        const elapsed = (now - startedAt) % cycleMs;
+        const rawProgress = Math.min(1, Math.max(0, (elapsed - climbStartMs) / climbDurationMs));
+        const eased = 1 - Math.pow(1 - rawProgress, 3);
+        const score = Math.round(42 + (84 - 42) * eased);
+        scoreValue.textContent = `${score}%`;
+        scoreRing.style.setProperty("--landing-score", `${score}%`);
+        requestAnimationFrame(tick);
+      };
+
+      requestAnimationFrame(tick);
+    }
+  }
+</script>

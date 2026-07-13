@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /app
+Disallow: /app/
+Disallow: /workspace
+Disallow: /workspace/
+Disallow: /workspace/review/
+Disallow: /resumes
+Disallow: /settings
+Disallow: /optimizer
+
+Sitemap: https://syncresume.io/sitemap-index.xml

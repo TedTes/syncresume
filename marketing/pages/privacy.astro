@@ -1,0 +1,89 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+
+const year = new Date().getFullYear();
+---
+
+<MarketingLayout
+  title="Privacy Policy | SyncResume"
+  description="Read how SyncResume handles resume content, account information, billing data, and AI processing."
+  canonicalPath="/privacy"
+>
+  <div class="landing">
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <a class="landing-brand" href="/">
+          <span class="landing-brand-name">SyncResume</span>
+        </a>
+        <nav class="landing-nav-links" aria-label="Site">
+          <a href="/how-it-works">How it works</a>
+          <a href="/templates">Templates</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">Open app</a>
+      </div>
+    </header>
+
+    <main class="landing-section landing-legal">
+      <div class="landing-container">
+        <p class="landing-eyebrow">Privacy</p>
+        <h1>Privacy Policy</h1>
+        <p class="landing-legal-muted">Effective date: July 13, 2026</p>
+
+        <h2>Information we collect</h2>
+        <p>
+          SyncResume collects information you provide to use the product, including account details, resume files or pasted resume text, job descriptions, generated resumes, cover letters, and application history.
+        </p>
+
+        <h2>How we use information</h2>
+        <p>
+          We use this information to provide resume tailoring, cover letter generation, resume storage, export features, billing, product support, abuse prevention, and product improvement.
+        </p>
+
+        <h2>AI processing</h2>
+        <p>
+          Resume and job description content may be sent to AI providers to structure resumes, tailor content, revise sections, and generate cover letters. Do not upload information you do not want processed for these product features.
+        </p>
+
+        <h2>Service providers</h2>
+        <p>
+          We use third-party providers for hosting, authentication, payments, storage, analytics, and AI processing. These providers process data only as needed to operate SyncResume.
+        </p>
+
+        <h2>Payments</h2>
+        <p>
+          Payments are processed by Stripe. SyncResume does not store full card numbers. Stripe may collect billing details and payment information according to its own terms and privacy policy.
+        </p>
+
+        <h2>Data retention</h2>
+        <p>
+          We retain account and workspace data while your account is active or as needed to provide the service. You can delete resumes and generated application data from the app where supported.
+        </p>
+
+        <h2>Contact</h2>
+        <p>
+          For privacy questions, contact the SyncResume team through the support channel listed in the product.
+        </p>
+      </div>
+    </main>
+
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-inner">
+          <a class="landing-brand" href="/" aria-label="SyncResume home">
+            <span class="landing-brand-name">SyncResume</span>
+          </a>
+          <div class="landing-footer-links" aria-label="Footer navigation">
+            <a href="/how-it-works">How it works</a>
+            <a href="/templates">Templates</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/blog">Blog</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </div>
+          <p class="landing-footer-copy">© {year} SyncResume</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+</MarketingLayout>

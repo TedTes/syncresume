@@ -7,6 +7,7 @@ import { getClerkPublishableKey } from "./lib/clerk/client";
 import "./styles.css";
 
 const clerkPublishableKey = getClerkPublishableKey();
+const routerBasename = import.meta.env.BASE_URL === "/app/" ? "/app" : undefined;
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -19,7 +20,7 @@ createRoot(document.getElementById("root")!).render(
         signUp: { start: { title: "Create your SyncResume account" } },
       }}
     >
-      <BrowserRouter>
+      <BrowserRouter basename={routerBasename}>
         <App />
       </BrowserRouter>
     </ClerkProvider>

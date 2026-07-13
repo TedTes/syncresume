@@ -459,15 +459,18 @@ export default function LandingPage() {
           </div>
           <div className="landing-template-wall">
             {SHOWCASE_TEMPLATE_IDS.map((id) => RESUME_TEMPLATES.find((t) => t.id === id)).filter((t): t is NonNullable<typeof t> => t !== undefined).map((template) => (
-              <Link
+              <div
                 key={template.id}
-                to="/workspace/optimize"
                 className="landing-template-tile"
-                aria-label={`Use ${template.name} template`}
               >
                 <ResumeTemplateThumbnail templateId={template.id} />
                 <span>{template.name}</span>
-              </Link>
+                <Link
+                  to="/workspace/optimize"
+                  className="landing-template-hit"
+                  aria-label={`Use ${template.name} template`}
+                />
+              </div>
             ))}
           </div>
           <div className="landing-template-cta-row">

@@ -1,0 +1,89 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+
+const year = new Date().getFullYear();
+---
+
+<MarketingLayout
+  title="Terms of Service | SyncResume"
+  description="Read the terms for using SyncResume's resume tailoring, cover letter, export, billing, and account features."
+  canonicalPath="/terms"
+>
+  <div class="landing">
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <a class="landing-brand" href="/">
+          <span class="landing-brand-name">SyncResume</span>
+        </a>
+        <nav class="landing-nav-links" aria-label="Site">
+          <a href="/how-it-works">How it works</a>
+          <a href="/templates">Templates</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">Open app</a>
+      </div>
+    </header>
+
+    <main class="landing-section landing-legal">
+      <div class="landing-container">
+        <p class="landing-eyebrow">Terms</p>
+        <h1>Terms of Service</h1>
+        <p class="landing-legal-muted">Effective date: July 13, 2026</p>
+
+        <h2>Use of SyncResume</h2>
+        <p>
+          SyncResume helps users tailor resumes, generate cover letters, manage application versions, and export documents. You are responsible for the content you upload, edit, generate, and submit to employers.
+        </p>
+
+        <h2>No guarantee of employment</h2>
+        <p>
+          SyncResume can improve resume workflow and presentation, but it does not guarantee interviews, job offers, salary outcomes, or ATS results.
+        </p>
+
+        <h2>Your content</h2>
+        <p>
+          You retain ownership of the resume, job description, and application content you provide. You grant SyncResume permission to process that content as needed to operate the service.
+        </p>
+
+        <h2>Acceptable use</h2>
+        <p>
+          Do not use SyncResume to upload unlawful content, infringe others' rights, attack the service, bypass usage limits, or generate misleading application materials.
+        </p>
+
+        <h2>Subscriptions and billing</h2>
+        <p>
+          Paid plans renew according to the billing period shown at checkout. You can manage or cancel subscriptions through the billing portal where available. Fees already paid may be non-refundable unless required by law.
+        </p>
+
+        <h2>Availability</h2>
+        <p>
+          We aim to keep SyncResume reliable, but the service may change, pause, or experience downtime. Features may evolve as the product improves.
+        </p>
+
+        <h2>Contact</h2>
+        <p>
+          For terms or billing questions, contact the SyncResume team through the support channel listed in the product.
+        </p>
+      </div>
+    </main>
+
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-inner">
+          <a class="landing-brand" href="/" aria-label="SyncResume home">
+            <span class="landing-brand-name">SyncResume</span>
+          </a>
+          <div class="landing-footer-links" aria-label="Footer navigation">
+            <a href="/how-it-works">How it works</a>
+            <a href="/templates">Templates</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/blog">Blog</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </div>
+          <p class="landing-footer-copy">© {year} SyncResume</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+</MarketingLayout>

@@ -1,0 +1,74 @@
+---
+import "../../src/styles/tokens.css";
+import "../../src/styles/templates/panel.css";
+import "../../src/styles/templates/base.css";
+import "../../src/styles/templates/themes.css";
+import "../../src/styles/templates/extended-themes.css";
+import "../styles/landing.css";
+
+export interface Props {
+  title: string;
+  description: string;
+  canonicalPath: string;
+}
+
+const { title, description, canonicalPath } = Astro.props;
+const siteUrl = "https://syncresume.io";
+const canonical = `${siteUrl}${canonicalPath}`;
+const ogImage = `${siteUrl}/og-image.png`;
+
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "SyncResume",
+  url: siteUrl,
+  description,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+    description: "Free tier available",
+  },
+});
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:site_name" content="SyncResume" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <!-- JSON-LD -->
+    <script type="application/ld+json" set:html={jsonLd} />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

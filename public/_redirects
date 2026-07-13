@@ -1,0 +1,8 @@
+/dashboard /app/dashboard 301
+/applications/* /app/applications/:splat 301
+/workspace /app/workspace 301
+/workspace/* /app/workspace/:splat 301
+/resumes /app/resumes 301
+/settings /app/settings 301
+/optimizer /app/workspace/optimize 301
+/app/* /app/index.html 200

@@ -1,0 +1,141 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { ResumeTemplateThumbnail } from "../../src/components/ResumeTemplateThumbnail";
+import type { ResumeTemplateId } from "../../src/templates/registry";
+
+const year = new Date().getFullYear();
+
+const TEMPLATES: Array<{ id: ResumeTemplateId; name: string }> = [
+  { id: "classic", name: "Classic" },
+  { id: "modern", name: "Modern" },
+  { id: "leadership", name: "Leadership" },
+  { id: "executive", name: "Executive" },
+  { id: "metro", name: "Metro" },
+  { id: "product", name: "Product" },
+  { id: "retro", name: "Retro" },
+  { id: "outline", name: "Outline" },
+];
+---
+
+<MarketingLayout
+  title="ATS-Safe Resume Templates — All Styles | SyncResume"
+  description="Browse SyncResume's library of ATS-safe resume templates. Clean layouts built to parse correctly through applicant tracking systems."
+  canonicalPath="/templates"
+>
+  <div class="landing">
+
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <a class="landing-brand" href="/">
+          <div class="landing-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+              <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
+              <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+              <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+              <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+              <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+              <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+            </svg>
+          </div>
+          <span class="landing-brand-name">SyncResume</span>
+        </a>
+        <nav class="landing-nav-links" aria-label="Site">
+          <a href="/how-it-works">How it works</a>
+          <a href="/templates" aria-current="page">Templates</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">
+          Start tailoring free
+        </a>
+      </div>
+    </header>
+
+    <section class="landing-section" style="border-top: none; padding-top: 64px;">
+      <div class="landing-container">
+        <div class="landing-section-header">
+          <p class="landing-eyebrow">ATS-safe templates</p>
+          <h1 class="landing-section-title" style="font-size: clamp(1.8rem, 3.5vw, 2.5rem);">
+            Every style. Every format.<br />All ATS-safe.
+          </h1>
+          <p style="color: var(--muted); font-size: 1rem; line-height: 1.65; margin-top: 10px; max-width: 520px;">
+            No tables, no text boxes, no columns that break parsers. Every template is built to read cleanly through applicant tracking systems.
+          </p>
+        </div>
+        <div class="landing-template-wall" style="--template-thumbnail-scale: 0.265">
+          {TEMPLATES.map(({ id, name }) => (
+            <div
+              class="landing-template-tile"
+            >
+              <ResumeTemplateThumbnail templateId={id} />
+              <span>{name}</span>
+              <a
+                href="/app/workspace/optimize"
+                class="landing-template-hit"
+                aria-label={`Use ${name} template`}
+              ></a>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section landing-section-alt">
+      <div class="landing-container">
+        <div class="landing-positioning">
+          <p class="landing-eyebrow">Why template choice matters less than you think</p>
+          <h2>Get the content right first. Then pick your layout.</h2>
+          <p>
+            ATS systems read plain text, not design. The template affects how humans read your resume after it clears the filter.
+            SyncResume tailors the content first, then lets you switch templates instantly — same data, different look.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-final-cta">
+      <div class="landing-container">
+        <div class="landing-final-cta-card">
+          <div>
+            <p class="landing-eyebrow">Try any template</p>
+            <h2>Start with your resume. Switch templates freely inside the app.</h2>
+          </div>
+          <a class="btn btn-primary" href="/app/workspace/optimize">
+            Get started free
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-inner">
+          <a class="landing-brand" href="/" aria-label="SyncResume home">
+            <div class="landing-brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+                <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
+                <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+                <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+                <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+                <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+                <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+              </svg>
+            </div>
+            <span class="landing-brand-name">SyncResume</span>
+          </a>
+          <div class="landing-footer-links" aria-label="Footer navigation">
+            <a href="/how-it-works">How it works</a>
+            <a href="/templates">Templates</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/blog">Blog</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </div>
+          <p class="landing-footer-copy">© {year} SyncResume</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+</MarketingLayout>

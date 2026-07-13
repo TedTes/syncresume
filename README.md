@@ -1,6 +1,9 @@
 # SyncResume
 
-SyncResume is a resume optimization workspace. Users keep a resume library, add a target job description, run an LLM optimization, review structured sections, and export ATS-safe files.
+SyncResume is a resume optimization workspace. Users keep a resume library, add a target job description, run an LLM optimization, review structured sections, and export polished files.
+
+The public marketing site is built with Astro and served from `https://syncresume.io`.
+The authenticated React app is built with Vite and served from `https://syncresume.io/app`.
 
 ## Implementation checkpoints
 
@@ -23,6 +26,8 @@ npm run dev
 npm run build
 ```
 
+Use `npm run dev:marketing` to work on the static marketing pages.
+
 Create `.env.local` from `.env.example` before running the frontend:
 
 ```bash
@@ -33,7 +38,8 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
 ## Cloudflare Environment
 
 The backend lives in `cloudflare/` and is configured by `wrangler.toml`. The
-frontend is deployed to Cloudflare Pages from `dist/`.
+frontend is deployed to Cloudflare Pages from `dist/`. Production builds contain
+Astro marketing pages at the root and the React app under `/app`.
 
 Local development uses the frontend dev server plus a local Worker:
 
@@ -42,7 +48,8 @@ Local development uses the frontend dev server plus a local Worker:
 
 Production uses Cloudflare-hosted domains:
 
-- Frontend: `https://syncresume.io`
+- Marketing: `https://syncresume.io`
+- App: `https://syncresume.io/app`
 - API Worker: `https://api.syncresume.io`
 
 ```bash
@@ -100,4 +107,12 @@ For production, set the Pages build variables:
 ```bash
 VITE_CLOUDFLARE_API_URL=https://api.syncresume.io
 VITE_CLERK_PUBLISHABLE_KEY=pk_live_your_clerk_publishable_key
+```
+
+If billing redirect vars are set explicitly, use the app path:
+
+```bash
+BILLING_SUCCESS_URL=https://syncresume.io/app/settings?billing=success
+BILLING_CANCEL_URL=https://syncresume.io/app/settings?billing=cancelled
+BILLING_PORTAL_RETURN_URL=https://syncresume.io/app/settings
 ```

@@ -1,0 +1,162 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+const year = new Date().getFullYear();
+---
+
+<MarketingLayout
+  title="AI Resume Tailoring — Match Every Job Description | SyncResume"
+  description="SyncResume rewrites your resume bullets and skills to match each job posting's language, keywords, and priorities — instantly."
+  canonicalPath="/resume-tailoring"
+>
+  <div class="landing">
+
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <a class="landing-brand" href="/">
+          <div class="landing-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+              <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
+              <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+              <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+              <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+              <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+              <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+            </svg>
+          </div>
+          <span class="landing-brand-name">SyncResume</span>
+        </a>
+        <nav class="landing-nav-links" aria-label="Site">
+          <a href="/how-it-works">How it works</a>
+          <a href="/templates">Templates</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="/app/workspace/optimize">
+          Start tailoring free
+        </a>
+      </div>
+    </header>
+
+    <section class="landing-hero">
+      <div class="landing-container">
+        <div class="landing-hero-content">
+          <div class="landing-hero-text">
+            <p class="landing-eyebrow">Resume tailoring</p>
+            <h1 class="landing-hero-headline">
+              Every job needs<br />a different resume.
+            </h1>
+            <p class="landing-hero-sub">
+              SyncResume reads the job posting and rewrites your resume to match — keywords extracted, bullets reworded, ATS score lifted. One paste, one click.
+            </p>
+            <div class="landing-hero-actions">
+              <a class="btn btn-primary" href="/app/workspace/optimize">
+                Tailor your resume
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+          <div aria-hidden="true" style="display:flex;flex-direction:column;gap:10px;padding:20px;border:1px solid var(--border);border-radius:14px;background:rgba(24,24,27,0.72);">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <div style="flex:1;height:7px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;">
+                <div style="width:42%;height:100%;background:rgba(231,233,238,0.2);border-radius:4px;"></div>
+              </div>
+              <span style="font-size:0.72rem;color:var(--muted);font-weight:700;">Before: 42%</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="flex:1;height:7px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;">
+                <div style="width:84%;height:100%;background:linear-gradient(90deg,rgba(34,197,94,0.4),#22c55e);border-radius:4px;animation:landingScoreBarFill 0.9s var(--ease-out) 0.6s both;"></div>
+              </div>
+              <span style="font-size:0.72rem;color:var(--accent);font-weight:700;">After: 84%</span>
+            </div>
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
+              {["Keyword extraction", "Bullet rewriting", "Skills alignment", "ATS score boost"].map(f => (
+                <div style="display:flex;align-items:center;gap:10px;font-size:0.82rem;color:var(--ink);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                  {f}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section landing-section-alt">
+      <div class="landing-container">
+        <div class="landing-section-header">
+          <p class="landing-eyebrow">How tailoring works</p>
+          <h2 class="landing-section-title">From generic to matched in seconds.</h2>
+        </div>
+        <div class="landing-features">
+          {[
+            { label: "Keyword extraction", desc: "We scan the job description and pull every skill, tool, and phrase that matters to the hiring team.", icon: "●" },
+            { label: "Bullet rewriting", desc: "Your experience bullets are rewritten to surface relevant achievements and match the posting's language.", icon: "●" },
+            { label: "Side-by-side review", desc: "Compare the original and tailored versions side by side. Accept or refine any change before downloading.", icon: "●", wide: true },
+            { label: "Diff view", desc: "Every change is highlighted so you know exactly what moved, what was added, and what was removed.", icon: "●" },
+          ].map(({ label, desc, wide }) => (
+            <div class={`landing-feature${wide ? " landing-feature--wide" : ""}`}>
+              <div class="landing-feature-top">
+                <div class="landing-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <polyline points="9 15 11 17 15 13"/>
+                  </svg>
+                </div>
+                <h3 class="landing-feature-label">{label}</h3>
+              </div>
+              <p class="landing-feature-desc">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-final-cta">
+      <div class="landing-container">
+        <div class="landing-final-cta-card">
+          <div>
+            <p class="landing-eyebrow">Tailor your first resume</p>
+            <h2>Paste a job description and see the difference.</h2>
+          </div>
+          <a class="btn btn-primary" href="/app/workspace/optimize">
+            Start now — it's free
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-inner">
+          <a class="landing-brand" href="/" aria-label="SyncResume home">
+            <div class="landing-brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+                <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
+                <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+                <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+                <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+                <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+                <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
+              </svg>
+            </div>
+            <span class="landing-brand-name">SyncResume</span>
+          </a>
+          <div class="landing-footer-links" aria-label="Footer navigation">
+            <a href="/how-it-works">How it works</a>
+            <a href="/templates">Templates</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/blog">Blog</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </div>
+          <p class="landing-footer-copy">© {year} SyncResume</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+</MarketingLayout>

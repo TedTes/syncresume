@@ -19,10 +19,10 @@ export function ResumeTemplateThumbnail({
   const previewDocument = document ?? DEFAULT_TEMPLATE_PREVIEW_DOCUMENT;
 
   return (
-    <span className={`template-thumbnail template-thumbnail-normalized ${template.thumbnailClassName}`} aria-hidden="true">
-      <span className="template-thumbnail-page">
+    <div className={`template-thumbnail template-thumbnail-normalized ${template.thumbnailClassName}`} aria-hidden="true">
+      <div className="template-thumbnail-page">
         <ResumeTemplatePreview document={previewDocument} templateId={templateId} fontId={fontId} />
-      </span>
-    </span>
+      </div>
+    </div>
   );
 }
