@@ -896,8 +896,8 @@ async function handleCreateBillingCheckout(
   }
 
   const customerId = await getOrCreateStripeCustomer(env, user);
-  const successUrl = resolveAppUrl(env.BILLING_SUCCESS_URL, env.APP_ORIGIN, "/settings?billing=success");
-  const cancelUrl = resolveAppUrl(env.BILLING_CANCEL_URL, env.APP_ORIGIN, "/settings?billing=cancelled");
+  const successUrl = resolveAppUrl(env.BILLING_SUCCESS_URL, env.APP_ORIGIN, "/app/settings?billing=success");
+  const cancelUrl = resolveAppUrl(env.BILLING_CANCEL_URL, env.APP_ORIGIN, "/app/settings?billing=cancelled");
   const session = await stripePost(env, "/checkout/sessions", {
     mode: "subscription",
     customer: customerId,
@@ -933,7 +933,7 @@ async function handleCreateBillingPortal(
 
   const session = await stripePost(env, "/billing_portal/sessions", {
     customer: user.stripe_customer_id,
-    return_url: resolveAppUrl(env.BILLING_PORTAL_RETURN_URL, env.APP_ORIGIN, "/settings"),
+    return_url: resolveAppUrl(env.BILLING_PORTAL_RETURN_URL, env.APP_ORIGIN, "/app/settings"),
   });
   const url = asNonEmptyString(session.url);
 
