@@ -19,7 +19,7 @@
     "cf:d1:apply:local": "WRANGLER_WRITE_LOGS=false wrangler d1 migrations apply syncresume --local",
     "cf:d1:apply": "WRANGLER_WRITE_LOGS=false wrangler d1 migrations apply syncresume --remote",
     "cf:pages:deploy": "npm run build && WRANGLER_WRITE_LOGS=false wrangler pages deploy dist --project-name syncresume",
-    "cf:pages:deploy:app": "VITE_CLOUDFLARE_API_URL=https://api.syncresume.io npm run build:app && WRANGLER_WRITE_LOGS=false wrangler pages deploy dist/app --project-name syncresume-app"
+    "cf:pages:deploy:app": "VITE_CLOUDFLARE_API_URL=https://api.syncresume.io node scripts/validate-app-prod-env.mjs && VITE_CLOUDFLARE_API_URL=https://api.syncresume.io npm run build:app && WRANGLER_WRITE_LOGS=false wrangler pages deploy dist/app --project-name syncresume-app"
   },
   "dependencies": {
     "@astrojs/react": "^6.0.1",
