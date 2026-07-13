@@ -1866,7 +1866,17 @@ async function requireSession(
   try {
     claims = await verifyClerkRequest(request, env);
   } catch (error) {
-    throw new HttpError(error instanceof Error ? error.message : "Sign in before continuing.", 401);
+    const message = error instanceof Error ? error.message : "Sign in before continuing.";
+    console.warn(JSON.stringify({
+      event: "clerk_auth_failed",
+      reason: message,
+      origin: request.headers.get("Origin") ?? "",
+      referer: request.headers.get("Referer") ?? "",
+      hasAuthorizationHeader: Boolean(request.headers.get("Authorization")),
+      configuredIssuer: env.CLERK_ISSUER || "",
+      configuredAuthorizedParties: env.CLERK_AUTHORIZED_PARTIES || env.APP_ORIGIN || "",
+    }));
+    throw new HttpError(message, 401);
   }
 
   const email = getClerkEmail(claims);
