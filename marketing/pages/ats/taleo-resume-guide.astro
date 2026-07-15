@@ -1,0 +1,95 @@
+---
+import MarketingNav from "../../components/MarketingNav.astro";
+import MarketingFooter from "../../components/MarketingFooter.astro";
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+---
+
+<MarketingLayout
+  title="Taleo Resume Guide — How to Format Your Resume for Taleo ATS | SyncResume"
+  description="Taleo is one of the most widely deployed ATS systems at large enterprises. Learn what breaks Taleo parsing and how to optimize your resume for it."
+  canonicalPath="/ats/taleo-resume-guide"
+>
+  <div class="landing">
+    <MarketingNav />
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">ATS guides</p>
+        <h1 class="landing-page-title">How to format your resume for Taleo ATS</h1>
+        <p class="landing-page-lede">
+          Taleo (now Oracle Taleo) is deployed at many Fortune 500 companies, government agencies, and large enterprise employers. It has a reputation for strict parsing requirements and lengthy application workflows — but you can prepare for both.
+        </p>
+        <p class="landing-article-meta">Applies to Oracle Taleo Enterprise Edition and Taleo Business Edition (TBE).</p>
+
+        <div class="landing-article-body">
+          <h2>Why Taleo is different from other ATS platforms</h2>
+          <p>
+            Taleo was built for large organizations with complex hiring workflows, compliance requirements, and high applicant volumes. Its parsing engine has historically been stricter about formatting than modern alternatives like Greenhouse or Lever. Additionally, many Taleo application flows require you to manually re-enter information even after uploading a resume — so the parsed profile supplements a form rather than replacing it.
+          </p>
+          <p>
+            Understanding this ahead of time removes the frustration: bring a clean resume file and expect to spend time on the form itself.
+          </p>
+
+          <h2>Date format requirements</h2>
+          <p>
+            Taleo's parser is particularly sensitive to date formats. The most reliably parsed formats are:
+          </p>
+          <ul>
+            <li><strong>Month Year</strong> — e.g., January 2022, March 2024</li>
+            <li><strong>Abbreviated Month Year</strong> — e.g., Jan 2022, Mar 2024</li>
+            <li><strong>MM/YYYY</strong> — e.g., 01/2022, 03/2024</li>
+          </ul>
+          <p>
+            Date ranges that use an en dash or em dash without spaces (Jan 2021–Mar 2023) can cause the range to parse as a single unrecognized value. Use "Jan 2021 – Mar 2023" or "Jan 2021 to Mar 2023" instead.
+          </p>
+
+          <h2>What Taleo parses — and what it drops</h2>
+          <ul>
+            <li><strong>Parses reliably:</strong> Contact info at the top as plain text, standard section headers (Work Experience, Education, Skills, Summary), single-column bullet lists, degree names and graduation years.</li>
+            <li><strong>Often misses or drops:</strong> Content inside text boxes, headers and footers, tables used for layout, two-column arrangements that cause text to interleave, and graphics used in place of text labels.</li>
+            <li><strong>Section names matter:</strong> Taleo maps parsed content to fixed fields. Sections with non-standard titles such as "Career History" or "Professional Background" may not map correctly. Stick to "Work Experience" or "Professional Experience."</li>
+          </ul>
+
+          <h2>Keyword matching in Taleo</h2>
+          <p>
+            Taleo allows recruiters to filter and search applicant pools by keyword. Requisition-level keyword requirements are sometimes set at the system level and used for initial screening before a human reviews the file. If the job description includes specific technical skills, certifications, or regulated terminology (e.g., PMP, Six Sigma, SOX compliance), these terms should appear verbatim in your resume.
+          </p>
+          <p>
+            For roles with formal requirements — clearance levels, specific degrees, or years of experience — Taleo may use knock-out questions tied to those criteria. Answer those accurately in the application form; they are separate from resume parsing.
+          </p>
+
+          <h2>Practical tips for Taleo applications</h2>
+          <ul>
+            <li>Use a plain, single-column resume template. Decorative layouts cause the most parsing failures in Taleo.</li>
+            <li>Save a copy of all form entries before submitting — Taleo sessions can time out, losing your progress.</li>
+            <li>Upload a text-based PDF or DOCX. If using DOCX, remove headers, footers, and text boxes beforehand.</li>
+            <li>Keep your bullet points concise. Very long paragraphs can overflow field character limits in Taleo's parsed output.</li>
+            <li>If the form has a free-text resume field in addition to the upload, paste your plain text resume there as well.</li>
+          </ul>
+
+          <h2>Related guides</h2>
+          <ul>
+            <li><a href="/ats/workday-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Workday ATS</a></li>
+            <li><a href="/ats/greenhouse-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Greenhouse ATS</a></li>
+            <li><a href="/ats/lever-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Lever ATS</a></li>
+            <li><a href="/blog/how-to-tailor-resume-to-job-description" style="color:#70e7af;text-underline-offset:2px;">How to tailor a resume to a job description</a></li>
+            <li><a href="/blog/best-resume-formats-for-ats" style="color:#70e7af;text-underline-offset:2px;">The best resume formats for ATS</a></li>
+          </ul>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>Check your resume against the job description before submitting to Taleo.</h2>
+            <p>Identify keyword gaps and rewrite the relevant bullets — it takes less time than re-entering a form that got rejected.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+
+    <MarketingFooter />
+  </div>
+</MarketingLayout>

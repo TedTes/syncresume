@@ -1,7 +1,8 @@
 ---
+import MarketingNav from "../components/MarketingNav.astro";
+import MarketingFooter from "../components/MarketingFooter.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { APP_WORKSPACE_URL } from "../lib/urls";
-const year = new Date().getFullYear();
 ---
 
 <MarketingLayout
@@ -11,31 +12,7 @@ const year = new Date().getFullYear();
 >
   <div class="landing">
 
-    <header class="landing-nav">
-      <div class="landing-nav-inner">
-        <a class="landing-brand" href="/">
-          <div class="landing-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
-              <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
-              <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
-              <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
-              <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
-              <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
-              <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
-            </svg>
-          </div>
-          <span class="landing-brand-name">SyncResume</span>
-        </a>
-        <nav class="landing-nav-links" aria-label="Site">
-          <a href="/how-it-works">How it works</a>
-          <a href="/templates">Templates</a>
-          <a href="/pricing">Pricing</a>
-        </nav>
-        <a class="btn btn-primary btn-sm" href={APP_WORKSPACE_URL}>
-          Start tailoring free
-        </a>
-      </div>
-    </header>
+    <MarketingNav />
 
     <section class="landing-hero">
       <div class="landing-container">
@@ -127,33 +104,7 @@ const year = new Date().getFullYear();
       </div>
     </section>
 
-    <footer class="landing-footer">
-      <div class="landing-container">
-        <div class="landing-footer-inner">
-          <a class="landing-brand" href="/" aria-label="SyncResume home">
-            <div class="landing-brand-mark" aria-hidden="true">
-              <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
-                <rect x="2.5" y="1" width="14" height="18.5" rx="2.2" stroke="rgba(255,255,255,0.18)" stroke-width="1.1" transform="rotate(7 9.5 10.25)" />
-                <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
-                <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
-                <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
-                <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
-                <rect x="4" y="15.5" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.22)" />
-              </svg>
-            </div>
-            <span class="landing-brand-name">SyncResume</span>
-          </a>
-          <div class="landing-footer-links" aria-label="Footer navigation">
-            <a href="/how-it-works">How it works</a>
-            <a href="/templates">Templates</a>
-            <a href="/pricing">Pricing</a>
-            <a href="/blog">Blog</a>
-            <a href="/privacy">Privacy</a>
-            <a href="/terms">Terms</a>
-          </div>
-          <p class="landing-footer-copy">© {year} SyncResume</p>
-        </div>
-      </div>
-    </footer>
+
+    <MarketingFooter />
   </div>
 </MarketingLayout>

@@ -1,0 +1,107 @@
+---
+import MarketingNav from "../../components/MarketingNav.astro";
+import MarketingFooter from "../../components/MarketingFooter.astro";
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+const GUIDES = [
+  {
+    platform: "Workday",
+    href: "/ats/workday-resume-guide",
+    desc: "Large enterprises across finance, healthcare, and tech. Strict date formats, sensitive to two-column layouts.",
+  },
+  {
+    platform: "Greenhouse",
+    href: "/ats/greenhouse-resume-guide",
+    desc: "Popular at technology companies and growth-stage startups. Human-reviewed pipeline with keyword search across all candidates.",
+  },
+  {
+    platform: "Lever",
+    href: "/ats/lever-resume-guide",
+    desc: "CRM and ATS combined. Candidates stay searchable across job openings — keyword visibility matters long-term.",
+  },
+  {
+    platform: "Taleo",
+    href: "/ats/taleo-resume-guide",
+    desc: "Oracle Taleo is deployed at Fortune 500s and government agencies. Strict parser, often requires manual form entry alongside upload.",
+  },
+];
+---
+
+<MarketingLayout
+  title="ATS Resume Guides — Workday, Greenhouse, Lever, Taleo | SyncResume"
+  description="Platform-specific guides for formatting your resume to parse correctly in the most common applicant tracking systems."
+  canonicalPath="/ats"
+>
+  <div class="landing">
+    <MarketingNav />
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">Platform guides</p>
+        <h1 class="landing-page-title">Format your resume for any ATS</h1>
+        <p class="landing-page-lede">
+          Every ATS platform parses resumes differently. The same resume that clears Greenhouse cleanly may lose entire sections in Taleo. These guides cover what each system actually does and how to format your resume for it.
+        </p>
+
+        <div class="landing-article-body">
+          <h2>Why platform-specific formatting matters</h2>
+          <p>
+            Most resume formatting advice is generic. It tells you to avoid tables and text boxes — which is correct — but does not explain that Workday requires specific date formats, that Taleo often asks you to re-enter data manually regardless of your upload, or that Lever stores all applicants in a searchable database that recruiters query months after the original application.
+          </p>
+          <p>
+            The guides below focus on what each system does with your resume file, what commonly causes parsing failures, and how to tailor keywords for the way recruiters actually search within each platform.
+          </p>
+        </div>
+
+        <div class="landing-ats-grid">
+          {GUIDES.map(({ platform, href, desc }) => (
+            <a class="landing-ats-card" href={href}>
+              <div class="landing-ats-card-header">
+                <span class="landing-eyebrow" style="margin-bottom:0;">{platform}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="16" height="16" style="color:var(--muted);flex-shrink:0;">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </div>
+              <h2>{platform} resume guide</h2>
+              <p>{desc}</p>
+            </a>
+          ))}
+        </div>
+
+        <div class="landing-article-body" style="margin-top:48px;">
+          <h2>General ATS formatting rules</h2>
+          <p>
+            These apply regardless of which system an employer uses:
+          </p>
+          <ul>
+            <li>Use a single-column layout. Two-column designs cause parsers to interleave content from separate sections.</li>
+            <li>Write contact information as plain text at the top — name, email, phone, city, LinkedIn. No icons without visible labels.</li>
+            <li>Keep dates consistent: Month YYYY or MM/YYYY throughout. Avoid ordinal formats (Q1 2023) and ranges without clear separators.</li>
+            <li>Use standard section headers: Work Experience, Education, Skills, Summary, Certifications. Avoid clever labels.</li>
+            <li>Export as a text-based PDF or DOCX. Verify you can select all text in the PDF before submitting.</li>
+            <li>Match the exact terminology from the job description for any skill or tool you actually have.</li>
+          </ul>
+
+          <h2>Related guides</h2>
+          <ul>
+            <li><a href="/blog/how-ats-systems-parse-resumes" style="color:#70e7af;text-underline-offset:2px;">How ATS systems actually parse your resume</a></li>
+            <li><a href="/blog/how-to-tailor-resume-to-job-description" style="color:#70e7af;text-underline-offset:2px;">How to tailor a resume to a job description</a></li>
+            <li><a href="/blog/best-resume-formats-for-ats" style="color:#70e7af;text-underline-offset:2px;">The best resume formats for ATS</a></li>
+            <li><a href="/resume-keywords/software-engineer" style="color:#70e7af;text-underline-offset:2px;">Resume keywords for software engineers</a></li>
+          </ul>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>Check your resume before you submit.</h2>
+            <p>Paste the job description and see which keywords are missing — before the ATS filters you out.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+    <MarketingFooter />
+  </div>
+</MarketingLayout>

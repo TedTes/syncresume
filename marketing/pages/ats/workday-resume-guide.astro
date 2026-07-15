@@ -1,0 +1,87 @@
+---
+import MarketingNav from "../../components/MarketingNav.astro";
+import MarketingFooter from "../../components/MarketingFooter.astro";
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+---
+
+<MarketingLayout
+  title="Workday Resume Guide — How to Format Your Resume for Workday ATS | SyncResume"
+  description="Learn how Workday parses resume data, what formatting breaks it, and how to write keywords that help recruiters find your application."
+  canonicalPath="/ats/workday-resume-guide"
+>
+  <div class="landing">
+    <MarketingNav />
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">ATS guides</p>
+        <h1 class="landing-page-title">How to format your resume for Workday ATS</h1>
+        <p class="landing-page-lede">
+          Workday is one of the most widely deployed ATS platforms, used by large enterprises across finance, healthcare, retail, and tech. Getting your resume to parse cleanly is the first step before any human sees it.
+        </p>
+        <p class="landing-article-meta">Applies to Workday Recruiting (formerly Workday HCM applicant tracking).</p>
+
+        <div class="landing-article-body">
+          <h2>What Workday does with your resume</h2>
+          <p>
+            When you upload a resume in Workday, it attempts to extract your contact details, work history (employer, title, dates, descriptions), education, and skills into structured profile fields. Recruiters then search, filter, and review those parsed fields — not the original document. If the parser misreads a section, the information either lands in the wrong field or disappears from search results entirely.
+          </p>
+
+          <h2>What Workday parses well</h2>
+          <ul>
+            <li>Standard section headers: Work Experience, Professional Experience, Education, Skills, Summary, Certifications.</li>
+            <li>Dates written as <strong>Month YYYY</strong> (e.g., January 2023) or <strong>MM/YYYY</strong> (e.g., 01/2023).</li>
+            <li>Contact information at the top as plain text — name, email, phone, city/state.</li>
+            <li>Bullet points listed under each role as simple text items.</li>
+            <li>Single-column layouts where the reading order is unambiguous.</li>
+          </ul>
+
+          <h2>What commonly breaks Workday parsing</h2>
+          <ul>
+            <li><strong>Two-column layouts.</strong> Workday often reads columns left-to-right across both columns simultaneously, merging content from unrelated sections.</li>
+            <li><strong>Tables for contact info or skills.</strong> Table cell content is extracted without context, causing fields to map incorrectly.</li>
+            <li><strong>Text boxes and headers/footers in DOCX files.</strong> Content inside these elements may be skipped entirely.</li>
+            <li><strong>Date ranges separated by an em dash without spaces</strong> (e.g., Jan 2021–Mar 2023). Adding spaces or using "to" helps: Jan 2021 – Mar 2023.</li>
+            <li><strong>Abbreviations for months.</strong> "Feb" parses reliably, but non-English month names and ordinal formats (1st quarter 2022) often do not.</li>
+            <li><strong>Non-standard section titles.</strong> "Where I've Worked" will not map to the Work Experience field. Use recognizable labels.</li>
+          </ul>
+
+          <h2>Keywords and recruiter search</h2>
+          <p>
+            Workday stores your parsed resume content as searchable text. Recruiters run keyword searches across applicant pools — searching for specific job titles, technical skills, tools, or industry terms. If a required skill from the job description does not appear in your resume, you may not surface in a filtered search, even if you have that skill.
+          </p>
+          <p>
+            The most reliable approach is to include the exact terminology from the job description in your skills list and in the descriptions of roles where those skills were actually used.
+          </p>
+
+          <h2>PDF vs. DOCX for Workday</h2>
+          <p>
+            Workday supports both formats. Text-based PDFs (not scanned images) parse comparably to DOCX in most Workday versions. The safest test: open the PDF in your browser and confirm you can select and copy all text. If any text is non-selectable, the parser will miss it. DOCX files parse reliably when they avoid text boxes and complex tables.
+          </p>
+
+          <h2>Related guides</h2>
+          <ul>
+            <li><a href="/ats/greenhouse-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Greenhouse ATS</a></li>
+            <li><a href="/ats/lever-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Lever ATS</a></li>
+            <li><a href="/ats/taleo-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Taleo ATS</a></li>
+            <li><a href="/blog/how-to-tailor-resume-to-job-description" style="color:#70e7af;text-underline-offset:2px;">How to tailor a resume to a job description</a></li>
+            <li><a href="/blog/how-ats-systems-parse-resumes" style="color:#70e7af;text-underline-offset:2px;">How ATS systems actually parse your resume</a></li>
+          </ul>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>Check your resume against the Workday job description.</h2>
+            <p>Paste the posting, run a match score, and see which keywords are missing before you apply.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+
+    <MarketingFooter />
+  </div>
+</MarketingLayout>

@@ -1,8 +1,9 @@
 ---
+import MarketingNav from "../components/MarketingNav.astro";
+import MarketingFooter from "../components/MarketingFooter.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { APP_WORKSPACE_URL } from "../lib/urls";
 
-const year = new Date().getFullYear();
 ---
 
 <MarketingLayout
@@ -11,19 +12,7 @@ const year = new Date().getFullYear();
   canonicalPath="/terms"
 >
   <div class="landing">
-    <header class="landing-nav">
-      <div class="landing-nav-inner">
-        <a class="landing-brand" href="/">
-          <span class="landing-brand-name">SyncResume</span>
-        </a>
-        <nav class="landing-nav-links" aria-label="Site">
-          <a href="/how-it-works">How it works</a>
-          <a href="/templates">Templates</a>
-          <a href="/pricing">Pricing</a>
-        </nav>
-        <a class="btn btn-primary btn-sm" href={APP_WORKSPACE_URL}>Open app</a>
-      </div>
-    </header>
+    <MarketingNav />
 
     <main class="landing-section landing-legal">
       <div class="landing-container">
@@ -68,23 +57,7 @@ const year = new Date().getFullYear();
       </div>
     </main>
 
-    <footer class="landing-footer">
-      <div class="landing-container">
-        <div class="landing-footer-inner">
-          <a class="landing-brand" href="/" aria-label="SyncResume home">
-            <span class="landing-brand-name">SyncResume</span>
-          </a>
-          <div class="landing-footer-links" aria-label="Footer navigation">
-            <a href="/how-it-works">How it works</a>
-            <a href="/templates">Templates</a>
-            <a href="/pricing">Pricing</a>
-            <a href="/blog">Blog</a>
-            <a href="/privacy">Privacy</a>
-            <a href="/terms">Terms</a>
-          </div>
-          <p class="landing-footer-copy">© {year} SyncResume</p>
-        </div>
-      </div>
-    </footer>
+
+    <MarketingFooter />
   </div>
 </MarketingLayout>

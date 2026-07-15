@@ -1,0 +1,123 @@
+---
+import MarketingNav from "../../components/MarketingNav.astro";
+import MarketingFooter from "../../components/MarketingFooter.astro";
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+---
+
+<MarketingLayout
+  title="How to Tailor a Resume to a Job Description | SyncResume"
+  description="A practical, repeatable process for tailoring your resume to any job posting — extracting keywords, finding gaps, rewriting bullets, and checking your match score."
+  canonicalPath="/blog/how-to-tailor-resume-to-job-description"
+>
+  <div class="landing">
+    <MarketingNav />
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">Tailoring</p>
+        <h1 class="landing-page-title">How to tailor a resume to a job description</h1>
+        <p class="landing-page-lede">
+          Sending the same resume to every job is the single most common reason qualified candidates get filtered out before anyone reads their application. Tailoring is a specific, repeatable process — not a rewrite from scratch.
+        </p>
+        <p class="landing-article-meta">A practical process that works for any role, ATS system, or industry.</p>
+
+        <div class="landing-article-body">
+          <h2>What tailoring actually means</h2>
+          <p>
+            Tailoring a resume means adjusting the language, emphasis, and keyword presence of your existing experience to match what a specific job description asks for. It does not mean fabricating experience you do not have. The goal is to make genuine overlap visible — so that both an ATS keyword scan and a recruiter reading quickly can see the connection between what you have done and what the role requires.
+          </p>
+          <p>
+            Most resumes contain relevant experience that never surfaces in screening because it is described using different words than the job posting uses.
+          </p>
+
+          <h2>Step 1: Extract the requirements from the job description</h2>
+          <p>
+            Read through the full job posting and identify two types of requirements:
+          </p>
+          <ul>
+            <li><strong>Hard requirements</strong> — skills, tools, or credentials that appear as "required," "must have," or are listed as minimum qualifications. These are non-negotiable keywords to include if they are true for you.</li>
+            <li><strong>Preferred requirements</strong> — things listed as "nice to have," "preferred," or "a plus." Include these when accurate; they differentiate you from candidates who only meet the minimum.</li>
+          </ul>
+          <p>
+            Pay particular attention to technical terms and tool names — ATS systems match on exact strings. "Kubernetes" and "K8s" are the same thing to a human but may be different tokens to a keyword filter.
+          </p>
+
+          <h2>Step 2: Compare the requirements to your current resume</h2>
+          <p>
+            Go through the extracted list and mark which requirements appear in your resume versus which are missing. This gap list is what you will address. You are looking for two patterns:
+          </p>
+          <ul>
+            <li>Requirements you genuinely have experience with but have not mentioned.</li>
+            <li>Requirements you have described using different terminology than the job posting uses.</li>
+          </ul>
+          <p>
+            Both are fixable. The first requires adding content. The second just requires rewriting a phrase.
+          </p>
+
+          <h2>Step 3: Rewrite bullets to include missing terms naturally</h2>
+          <p>
+            For each gap, find the role in your work history where you used that skill, tool, or handled that responsibility. Rewrite the bullet to include the exact term — in the same context where you actually used it.
+          </p>
+          <p>Before:</p>
+          <p style="border-left:2px solid var(--border);padding-left:16px;margin-left:4px;color:var(--muted);font-size:0.92rem;line-height:1.7;">
+            "Worked on infrastructure improvements to reduce system downtime and improve response times"
+          </p>
+          <p>After (for a role that requires Kubernetes and AWS):</p>
+          <p style="border-left:2px solid rgba(34,197,94,0.4);padding-left:16px;margin-left:4px;color:rgba(231,233,238,0.88);font-size:0.92rem;line-height:1.7;">
+            "Migrated deployment infrastructure from EC2 bare instances to Kubernetes on AWS EKS, reducing average deployment time from 45 minutes to under 8 minutes and eliminating recurring OOM-related downtime"
+          </p>
+          <p>
+            The rewrite is still accurate — it just uses the specific terms that the job description requires, and adds the measurable outcome that makes it credible.
+          </p>
+
+          <h2>Step 4: Update your skills section</h2>
+          <p>
+            A skills section should list the tools, languages, frameworks, and methodologies that appear in the requirements and that you can demonstrate in a conversation. Remove things you would not want to be asked about in an interview. Reorganize so the most relevant skills for this particular role appear first.
+          </p>
+
+          <h2>Step 5: Check your match score</h2>
+          <p>
+            Once you have made changes, compare your revised resume against the job description using a keyword match tool. A higher score indicates better term alignment — but the goal is not a perfect score. A score in the 70–90% range typically indicates strong alignment for a role where you meet the core requirements. Above 90% can sometimes mean over-optimization where keyword density feels unnatural.
+          </p>
+          <p>
+            More importantly, read the resume back as a recruiter would. Does it tell a clear story about why you are a good fit for this specific role?
+          </p>
+
+          <h2>How long this should take</h2>
+          <p>
+            For roles that are a strong match for your background, a thorough tailoring pass takes 20–40 minutes. If you are targeting a role that requires significant pivoting from your current title or industry, the rewrite is larger and closer to 60–90 minutes. For most applications, a fast tailoring pass focused only on the highest-priority keyword gaps can be done in under 15 minutes.
+          </p>
+
+          <h2>What not to do</h2>
+          <ul>
+            <li>Do not add keywords you cannot back up in an interview. Keyword stuffing is visible to experienced recruiters and creates problems at the screening stage.</li>
+            <li>Do not change your job titles to match the posting. ATS systems cross-reference titles with your work history. Mismatches raise flags.</li>
+            <li>Do not paste the job description invisibly into the resume as white text. This was never reliable and modern ATS systems filter for it.</li>
+          </ul>
+
+          <h2>Related guides</h2>
+          <ul>
+            <li><a href="/ats/workday-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Workday ATS</a></li>
+            <li><a href="/ats/greenhouse-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Greenhouse ATS</a></li>
+            <li><a href="/ats/taleo-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Taleo ATS</a></li>
+            <li><a href="/resume-keywords/software-engineer" style="color:#70e7af;text-underline-offset:2px;">Resume keywords for software engineers</a></li>
+            <li><a href="/blog/what-ats-score-measures" style="color:#70e7af;text-underline-offset:2px;">What does your ATS score actually measure?</a></li>
+          </ul>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>Tailor your resume in minutes instead of hours.</h2>
+            <p>Paste your resume and the job description — SyncResume extracts the keywords, shows you the gaps, and rewrites the relevant bullets.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+
+    <MarketingFooter />
+  </div>
+</MarketingLayout>

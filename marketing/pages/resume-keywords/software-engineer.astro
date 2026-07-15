@@ -1,0 +1,172 @@
+---
+import MarketingNav from "../../components/MarketingNav.astro";
+import MarketingFooter from "../../components/MarketingFooter.astro";
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+---
+
+<MarketingLayout
+  title="Resume Keywords for Software Engineers | SyncResume"
+  description="The skills, tools, frameworks, and action verbs that appear most in software engineering job descriptions — organized by category, with example bullets."
+  canonicalPath="/resume-keywords/software-engineer"
+>
+  <div class="landing">
+    <MarketingNav />
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">Role keywords</p>
+        <h1 class="landing-page-title">Resume keywords for software engineers</h1>
+        <p class="landing-page-lede">
+          Software engineering job descriptions use highly specific language. Matching that language in your resume — with terms you can genuinely speak to — is one of the highest-leverage changes you can make before applying.
+        </p>
+        <p class="landing-article-meta">Drawn from common patterns in software engineering job descriptions across backend, frontend, and full-stack roles.</p>
+
+        <div class="landing-article-body">
+          <h2>Why keywords matter more for software roles</h2>
+          <p>
+            Technical job descriptions are usually written by engineers, not recruiters, and they enumerate specific requirements in a way that other disciplines do not. A job posting for a senior backend engineer might list ten distinct technologies by name. ATS systems at companies that handle high application volumes use these exact strings to filter candidates, and recruiters who manually review applications often scan for them first.
+          </p>
+          <p>
+            The implication: if you use "SQL databases" but the posting says "PostgreSQL," you may not match a filtered search even though the experience is the same. Use the exact terminology from the posting for the skills you have.
+          </p>
+
+          <h2>Languages and core technologies</h2>
+          <p>Include only the languages and tools you can discuss fluently in an interview. Use the same capitalisation and abbreviation as the posting when it matters (e.g., TypeScript vs. JavaScript, Go vs. Golang).</p>
+          <div class="landing-example-keywords" style="margin-top:12px;">
+            <span>Python</span>
+            <span>TypeScript</span>
+            <span>JavaScript</span>
+            <span>Go</span>
+            <span>Java</span>
+            <span>Rust</span>
+            <span>C++</span>
+            <span>Ruby</span>
+            <span>SQL</span>
+            <span>Bash</span>
+          </div>
+
+          <h2>Frontend frameworks and libraries</h2>
+          <div class="landing-example-keywords" style="margin-top:12px;">
+            <span>React</span>
+            <span>Next.js</span>
+            <span>Vue</span>
+            <span>Angular</span>
+            <span>Svelte</span>
+            <span>Tailwind CSS</span>
+            <span>Vite</span>
+            <span>Webpack</span>
+            <span>GraphQL</span>
+            <span>REST APIs</span>
+          </div>
+
+          <h2>Backend frameworks and runtimes</h2>
+          <div class="landing-example-keywords" style="margin-top:12px;">
+            <span>Node.js</span>
+            <span>FastAPI</span>
+            <span>Django</span>
+            <span>Flask</span>
+            <span>Spring Boot</span>
+            <span>Express</span>
+            <span>gRPC</span>
+            <span>Kafka</span>
+            <span>RabbitMQ</span>
+            <span>WebSockets</span>
+          </div>
+
+          <h2>Infrastructure, cloud, and DevOps</h2>
+          <p>These terms matter especially for roles that include "full-stack," "platform," or "infrastructure" in the title. Include only what you have deployed or maintained in production.</p>
+          <div class="landing-example-keywords" style="margin-top:12px;">
+            <span>AWS</span>
+            <span>GCP</span>
+            <span>Azure</span>
+            <span>Docker</span>
+            <span>Kubernetes</span>
+            <span>Terraform</span>
+            <span>CI/CD</span>
+            <span>GitHub Actions</span>
+            <span>Datadog</span>
+            <span>Prometheus</span>
+          </div>
+
+          <h2>Databases and storage</h2>
+          <div class="landing-example-keywords" style="margin-top:12px;">
+            <span>PostgreSQL</span>
+            <span>MySQL</span>
+            <span>MongoDB</span>
+            <span>Redis</span>
+            <span>DynamoDB</span>
+            <span>Elasticsearch</span>
+            <span>Snowflake</span>
+            <span>BigQuery</span>
+            <span>S3</span>
+            <span>SQLite</span>
+          </div>
+
+          <h2>Practices and methodologies</h2>
+          <p>These appear in requirements sections, not skills lists, but should show up naturally in your bullet descriptions.</p>
+          <div class="landing-example-keywords" style="margin-top:12px;">
+            <span>Microservices</span>
+            <span>System design</span>
+            <span>Code review</span>
+            <span>TDD</span>
+            <span>Agile</span>
+            <span>Scrum</span>
+            <span>API design</span>
+            <span>Distributed systems</span>
+            <span>Event-driven architecture</span>
+            <span>Observability</span>
+          </div>
+
+          <h2>Action verbs by seniority</h2>
+          <p>
+            The verbs you use in bullets signal seniority to both ATS filters and human reviewers. Match the scope of your verbs to the scope of your actual contribution.
+          </p>
+          <ul>
+            <li><strong>Early-career:</strong> implemented, contributed to, built, shipped, fixed, integrated, maintained, tested, documented</li>
+            <li><strong>Mid-level:</strong> owned, designed, refactored, led, automated, optimized, migrated, reduced, improved, shipped end-to-end</li>
+            <li><strong>Senior:</strong> architected, defined, drove adoption of, mentored, established patterns for, reviewed, set technical direction for, reduced team-wide X by Y</li>
+            <li><strong>Staff / Principal:</strong> aligned cross-team, set standards for, introduced, authored RFC for, deprecated, responsible for reliability of</li>
+          </ul>
+
+          <h2>Before and after: how to use keywords in context</h2>
+          <p>
+            Keywords alone do not make a strong resume. They need to appear inside bullets that describe specific outcomes.
+          </p>
+          <p style="border-left:2px solid var(--border);padding-left:16px;margin-left:4px;color:var(--muted);font-size:0.92rem;line-height:1.7;">
+            <strong style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:4px;">Before</strong>
+            "Worked on backend systems to make them faster and more reliable"
+          </p>
+          <p style="border-left:2px solid rgba(34,197,94,0.4);padding-left:16px;margin-left:4px;color:rgba(231,233,238,0.88);font-size:0.92rem;line-height:1.7;margin-top:12px;">
+            <strong style="display:block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent);margin-bottom:4px;">After</strong>
+            "Migrated API layer from synchronous REST handlers to async event-driven architecture using Kafka and Go, reducing p95 latency from 340ms to 95ms under peak load"
+          </p>
+          <p style="margin-top:18px;">
+            The second version contains the exact tools (Kafka, Go), the approach (async event-driven architecture), and a measurable outcome — all of which a recruiter searching for "Kafka" or "Go" will now find.
+          </p>
+
+          <h2>Related guides</h2>
+          <ul>
+            <li><a href="/blog/how-to-tailor-resume-to-job-description" style="color:#70e7af;text-underline-offset:2px;">How to tailor a resume to a job description</a></li>
+            <li><a href="/blog/what-ats-score-measures" style="color:#70e7af;text-underline-offset:2px;">What does your ATS score actually measure?</a></li>
+            <li><a href="/ats/greenhouse-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Greenhouse ATS</a></li>
+            <li><a href="/ats/workday-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Workday ATS</a></li>
+            <li><a href="/blog/how-ats-systems-parse-resumes" style="color:#70e7af;text-underline-offset:2px;">How ATS systems actually parse your resume</a></li>
+          </ul>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>See which keywords are missing from your resume for this role.</h2>
+            <p>Paste the job description and your resume — SyncResume runs the keyword match and shows you exactly what to add.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+
+    <MarketingFooter />
+  </div>
+</MarketingLayout>

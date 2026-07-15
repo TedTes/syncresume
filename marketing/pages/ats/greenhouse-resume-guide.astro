@@ -1,0 +1,85 @@
+---
+import MarketingNav from "../../components/MarketingNav.astro";
+import MarketingFooter from "../../components/MarketingFooter.astro";
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+---
+
+<MarketingLayout
+  title="Greenhouse Resume Guide — How to Format Your Resume for Greenhouse ATS | SyncResume"
+  description="Understand how Greenhouse parses resumes, what recruiters search for, and how to write a resume that stands out in a Greenhouse pipeline."
+  canonicalPath="/ats/greenhouse-resume-guide"
+>
+  <div class="landing">
+    <MarketingNav />
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">ATS guides</p>
+        <h1 class="landing-page-title">How to format your resume for Greenhouse ATS</h1>
+        <p class="landing-page-lede">
+          Greenhouse is the ATS of choice for many technology companies, growth-stage startups, and venture-backed businesses. It is structured around pipeline stages and recruiter review, which means your resume's readability — to both the parser and a human — matters.
+        </p>
+        <p class="landing-article-meta">Applies to Greenhouse Recruiting and Greenhouse onboarding integrations.</p>
+
+        <div class="landing-article-body">
+          <h2>How Greenhouse handles your application</h2>
+          <p>
+            Greenhouse parses an uploaded resume and populates candidate profile fields: name, contact details, current title, employer history, skills, and education. Recruiters review parsed profiles and the original document side by side. Unlike highly automated systems, Greenhouse relies heavily on human review at each pipeline stage — but you still need the parser to extract your information correctly before a recruiter can act on it.
+          </p>
+
+          <h2>What Greenhouse parses reliably</h2>
+          <ul>
+            <li>Contact details at the top as plain text — name, email, phone, city, LinkedIn URL.</li>
+            <li>Work history with clear employer name, job title, and date range per role.</li>
+            <li>A dedicated skills section or inline skill mentions within role descriptions.</li>
+            <li>Education with institution, degree, field of study, and graduation year.</li>
+            <li>Single-column or simple two-column layouts where sections are clearly delineated.</li>
+          </ul>
+
+          <h2>Keywords and recruiter search in Greenhouse</h2>
+          <p>
+            Greenhouse provides candidate search across the full applicant pool. Recruiters can filter by skills, keywords from any field, or specific text that appears in the resume. This makes it important that the key technologies, methodologies, and role-specific terms from the job description appear in your resume as written text — not embedded in images, decorative icons, or unexportable design layers.
+          </p>
+          <p>
+            Greenhouse also allows recruiters to tag and score candidates manually, so your cover letter and the quality of your bullet points will be evaluated by a person, not just a keyword algorithm.
+          </p>
+
+          <h2>What to avoid in a Greenhouse application</h2>
+          <ul>
+            <li><strong>Infographic-style resume PDFs.</strong> Charts, icon-based skill ratings, and decorative elements do not translate to parseable text. Recruiter-facing fields will be empty or incorrect.</li>
+            <li><strong>Social links as icons only.</strong> If your LinkedIn or GitHub is only a clickable icon with no visible URL or label, it may not parse.</li>
+            <li><strong>Inconsistent or missing dates.</strong> Greenhouse expects clear employment timelines. Gaps are fine to explain in a cover letter; missing dates on the resume create parsing ambiguity.</li>
+            <li><strong>A summary that restates only soft skills.</strong> Greenhouse parsers and recruiters at tech companies look for technical terms in all sections, including the summary.</li>
+          </ul>
+
+          <h2>File format recommendations</h2>
+          <p>
+            Greenhouse handles PDF and DOCX well. Standard PDFs with selectable text work consistently. If you are applying through a Greenhouse-hosted job board, uploading a PDF typically preserves your intended formatting while keeping the text accessible to the parser.
+          </p>
+
+          <h2>Related guides</h2>
+          <ul>
+            <li><a href="/ats/workday-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Workday ATS</a></li>
+            <li><a href="/ats/lever-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Lever ATS</a></li>
+            <li><a href="/ats/taleo-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Taleo ATS</a></li>
+            <li><a href="/blog/how-to-tailor-resume-to-job-description" style="color:#70e7af;text-underline-offset:2px;">How to tailor a resume to a job description</a></li>
+            <li><a href="/blog/how-ats-systems-parse-resumes" style="color:#70e7af;text-underline-offset:2px;">How ATS systems actually parse your resume</a></li>
+          </ul>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>Tailor your resume to the Greenhouse job description.</h2>
+            <p>Paste the posting and get a keyword match score so you know what to add before submitting.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+
+    <MarketingFooter />
+  </div>
+</MarketingLayout>

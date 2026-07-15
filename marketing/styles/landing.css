@@ -729,6 +729,40 @@ a {
   line-height: 1.2;
 }
 
+/* --- Demo video --- */
+
+.landing-demo-section {
+  padding-top: 64px;
+}
+
+.landing-demo-lede {
+  max-width: 680px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.96rem;
+  line-height: 1.65;
+}
+
+.landing-demo-frame {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 34%),
+    rgba(24, 24, 27, 0.78);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.landing-demo-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  border: 0;
+  border-radius: 12px;
+  background: #050505;
+  object-fit: contain;
+}
+
 /* --- Real example --- */
 
 .landing-example-card {
@@ -1834,6 +1868,176 @@ a {
 .landing-legal-muted {
   color: rgba(161, 161, 170, 0.78) !important;
   font-size: 0.86rem !important;
+}
+
+/* --- Resource cards (homepage guides section) --- */
+
+.landing-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.landing-resource-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(24, 24, 27, 0.72);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--motion-fast) ease, transform var(--motion-fast) ease;
+}
+
+.landing-resource-card:hover {
+  border-color: rgba(34, 197, 94, 0.4);
+  transform: translateY(-1px);
+}
+
+.landing-resource-card > span {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(34, 197, 94, 0.8);
+}
+
+.landing-resource-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.landing-resource-card p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.6;
+  flex: 1;
+}
+
+.landing-resource-card strong {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+.landing-resource-footer {
+  margin-top: 16px;
+  text-align: right;
+}
+
+/* --- ATS platform index grid --- */
+
+.landing-ats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 40px;
+}
+
+.landing-ats-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(24, 24, 27, 0.72);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--motion-fast) ease, transform var(--motion-fast) ease;
+}
+
+.landing-ats-card:hover {
+  border-color: rgba(34, 197, 94, 0.45);
+  transform: translateY(-1px);
+}
+
+.landing-ats-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.landing-ats-card h2 {
+  margin: 0;
+  font-size: 0.97rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.landing-ats-card p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* --- Blog category grouping --- */
+
+.landing-blog-category {
+  margin-top: 40px;
+}
+
+.landing-blog-category:first-child {
+  margin-top: 0;
+}
+
+.landing-blog-category-title {
+  margin: 0 0 0;
+  padding-bottom: 12px;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.landing-blog-list--compact .landing-blog-item {
+  padding: 16px 0;
+}
+
+.landing-blog-item-title {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.landing-blog-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.landing-blog-item-body p:not(.landing-blog-item-title) {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* Non-clickable "soon" items */
+.landing-blog-item--soon {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Responsive adjustments for new grids */
+@media (max-width: 640px) {
+  .landing-resource-grid,
+  .landing-ats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* --- Footer --- */

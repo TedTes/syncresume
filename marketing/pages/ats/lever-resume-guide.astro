@@ -1,0 +1,87 @@
+---
+import MarketingNav from "../../components/MarketingNav.astro";
+import MarketingFooter from "../../components/MarketingFooter.astro";
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+---
+
+<MarketingLayout
+  title="Lever Resume Guide — How to Format Your Resume for Lever ATS | SyncResume"
+  description="Lever combines CRM and ATS features. Learn how Lever reads resumes, how recruiters search candidates, and how to make your application findable."
+  canonicalPath="/ats/lever-resume-guide"
+>
+  <div class="landing">
+    <MarketingNav />
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">ATS guides</p>
+        <h1 class="landing-page-title">How to format your resume for Lever ATS</h1>
+        <p class="landing-page-lede">
+          Lever is popular at technology companies, consumer apps, and growth-stage startups. It functions as both a candidate relationship manager and an applicant tracking system — which means your information may stay in a company's database long after you apply.
+        </p>
+        <p class="landing-article-meta">Applies to Lever TalentSuite and Lever's integrated job board applications.</p>
+
+        <div class="landing-article-body">
+          <h2>Lever as a CRM and ATS</h2>
+          <p>
+            Unlike systems that only track the current application cycle, Lever stores candidates across jobs and time periods. Recruiters can search the entire talent pool when a new role opens and surface candidates who applied previously. This means a well-formatted resume that parses cleanly in Lever may help you appear in future searches even if the role you originally applied for was filled.
+          </p>
+
+          <h2>How Lever reads your resume</h2>
+          <p>
+            Lever extracts contact information, work history, education, and skills from the uploaded file and populates a candidate profile. Recruiters view both the structured profile and the original resume during review. The parsed fields are what drive search and filtering, so the accuracy of extraction directly affects whether your application surfaces.
+          </p>
+          <ul>
+            <li>Name, email, phone, and LinkedIn URL extract reliably when placed at the top as plain text.</li>
+            <li>Job titles and employer names must be clearly separated — avoid combining them on a single line without punctuation or line breaks.</li>
+            <li>A distinct skills section helps Lever tag your profile with searchable terms.</li>
+            <li>Education with institution, degree, and year is expected in a standard format.</li>
+          </ul>
+
+          <h2>Keywords and candidate search in Lever</h2>
+          <p>
+            Lever's search indexes the full resume text in addition to parsed fields. Recruiters typically search by job title, specific skills, technologies, or companies. Including the exact terminology from the job description — particularly the technical skills and tools listed as requirements — gives your profile the best chance of appearing in a targeted search.
+          </p>
+          <p>
+            Because Lever is often used at companies with smaller recruiting teams, human review happens quickly once your profile surfaces. The quality and specificity of your bullet points matters just as much as keyword presence.
+          </p>
+
+          <h2>What to avoid in a Lever application</h2>
+          <ul>
+            <li><strong>Role titles that differ significantly from industry norms.</strong> "Growth Hacker" or "Code Ninja" may not map correctly to searchable categories. Lead with the conventional title.</li>
+            <li><strong>Complex layouts using text boxes or overlapping elements.</strong> These cause parsing failures where content is either skipped or merged into the wrong field.</li>
+            <li><strong>Skills listed only as visual bars or percentage ratings.</strong> These are presentational only — the skill name itself needs to appear as readable text.</li>
+            <li><strong>Missing LinkedIn URL.</strong> Lever surfaces LinkedIn as a candidate verification point for recruiters. Include it as a full clickable URL or plain text.</li>
+          </ul>
+
+          <h2>File format for Lever</h2>
+          <p>
+            Lever accepts PDF and DOCX. Standard PDFs with selectable text parse cleanly. If your resume was designed in Figma, Canva, or a design tool and exported as a flattened PDF, the text may not be extractable. Test by selecting all text in the PDF before uploading.
+          </p>
+
+          <h2>Related guides</h2>
+          <ul>
+            <li><a href="/ats/workday-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Workday ATS</a></li>
+            <li><a href="/ats/greenhouse-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Greenhouse ATS</a></li>
+            <li><a href="/ats/taleo-resume-guide" style="color:#70e7af;text-underline-offset:2px;">How to format your resume for Taleo ATS</a></li>
+            <li><a href="/blog/how-to-tailor-resume-to-job-description" style="color:#70e7af;text-underline-offset:2px;">How to tailor a resume to a job description</a></li>
+            <li><a href="/blog/how-ats-systems-parse-resumes" style="color:#70e7af;text-underline-offset:2px;">How ATS systems actually parse your resume</a></li>
+          </ul>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>Make sure your resume matches the Lever job posting.</h2>
+            <p>Run a keyword match before you apply and find the gaps while there is still time to fix them.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+
+    <MarketingFooter />
+  </div>
+</MarketingLayout>
