@@ -1,0 +1,93 @@
+---
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+const year = new Date().getFullYear();
+---
+
+<MarketingLayout
+  title="What an ATS Score Measures | SyncResume"
+  description="Understand what an ATS score can and cannot tell you, and how to use it while tailoring a resume to a job description."
+  canonicalPath="/blog/what-ats-score-measures"
+>
+  <div class="landing">
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <a class="landing-brand" href="/">
+          <div class="landing-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+              <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+              <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+            </svg>
+          </div>
+          <span class="landing-brand-name">SyncResume</span>
+        </a>
+        <nav class="landing-nav-links" aria-label="Site">
+          <a href="/how-it-works">How it works</a>
+          <a href="/templates">Templates</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+      </div>
+    </header>
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">ATS guides</p>
+        <h1 class="landing-page-title">What does your ATS score actually measure?</h1>
+        <p class="landing-page-lede">
+          An ATS score is a matching signal, not a guarantee. It helps you see whether your resume speaks the language of a specific job description.
+        </p>
+
+        <div class="landing-article-body">
+          <h2>The score is job-specific</h2>
+          <p>
+            A strong score for one role can be weak for another. The same resume may match a backend engineering role well and a product-focused role poorly because the required skills, tools, and responsibilities differ.
+          </p>
+
+          <h2>What usually affects the score</h2>
+          <ul>
+            <li>Required skills and technologies from the job description.</li>
+            <li>Repeated responsibilities such as migration, automation, stakeholder communication, or support.</li>
+            <li>Seniority cues, domain language, and role-specific outcomes.</li>
+            <li>Whether your strongest bullets contain the most important requirements.</li>
+          </ul>
+
+          <h2>What the score does not measure</h2>
+          <p>
+            It does not know if you will interview well, whether a recruiter likes your background, or whether a requirement is truly mandatory. It is one input. Use it to find gaps, then keep the final resume accurate and readable.
+          </p>
+
+          <h2>How to use it well</h2>
+          <p>
+            Treat the score as a diagnostic. If it is low, add missing relevant terms only when they are true to your experience. If it is high but the resume sounds generic, improve the bullets so they show specific outcomes.
+          </p>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>Get a before-and-after match score.</h2>
+            <p>Run a resume against a target role and see what changes lift alignment.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-inner">
+          <a class="landing-brand" href="/">SyncResume</a>
+          <div class="landing-footer-links" aria-label="Footer navigation">
+            <a href="/blog">Blog</a>
+            <a href="/templates">Templates</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </div>
+          <p class="landing-footer-copy">© {year} SyncResume</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+</MarketingLayout>

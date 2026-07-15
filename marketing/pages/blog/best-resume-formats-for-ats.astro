@@ -1,0 +1,93 @@
+---
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+const year = new Date().getFullYear();
+---
+
+<MarketingLayout
+  title="Best Resume Formats for ATS | SyncResume"
+  description="Choose ATS-friendly resume formats that keep your contact info, experience, skills, and education readable in modern applicant tracking systems."
+  canonicalPath="/blog/best-resume-formats-for-ats"
+>
+  <div class="landing">
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <a class="landing-brand" href="/">
+          <div class="landing-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+              <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+              <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+            </svg>
+          </div>
+          <span class="landing-brand-name">SyncResume</span>
+        </a>
+        <nav class="landing-nav-links" aria-label="Site">
+          <a href="/how-it-works">How it works</a>
+          <a href="/templates">Templates</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+      </div>
+    </header>
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">ATS guides</p>
+        <h1 class="landing-page-title">The best resume formats for ATS</h1>
+        <p class="landing-page-lede">
+          The safest resume format is the one that keeps your strongest content easy to scan for both software and people.
+        </p>
+
+        <div class="landing-article-body">
+          <h2>Start with a clear structure</h2>
+          <p>
+            Reverse-chronological experience still works best for most professional roles. Put your recent roles first, keep dates readable, and avoid burying requirements in decorative sidebars.
+          </p>
+
+          <h2>Use sections that parsers recognize</h2>
+          <ul>
+            <li>Contact information at the top, written as real text.</li>
+            <li>Summary, Skills, Professional Experience, Projects, Education, and Certifications when relevant.</li>
+            <li>Bullets under each role that describe actions, tools, and outcomes.</li>
+            <li>Simple links for GitHub, LinkedIn, portfolio, or personal website.</li>
+          </ul>
+
+          <h2>PDF or DOCX?</h2>
+          <p>
+            Many modern systems handle both. PDF is usually best when you want the layout preserved. DOCX can be useful when an employer explicitly requests it. The important part is that the exported file contains selectable text, not a screenshot of the resume.
+          </p>
+
+          <h2>Design still matters</h2>
+          <p>
+            ATS-safe does not mean plain. You can use spacing, type, color, and hierarchy as long as the resume still exports to readable text and keeps sections in the intended order.
+          </p>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>Try an ATS-safe template with your own resume.</h2>
+            <p>Tailor the content first, then switch templates without rebuilding the document.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-inner">
+          <a class="landing-brand" href="/">SyncResume</a>
+          <div class="landing-footer-links" aria-label="Footer navigation">
+            <a href="/blog">Blog</a>
+            <a href="/templates">Templates</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </div>
+          <p class="landing-footer-copy">© {year} SyncResume</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+</MarketingLayout>

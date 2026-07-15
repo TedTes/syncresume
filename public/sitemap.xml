@@ -36,6 +36,21 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://syncresume.io/blog/how-ats-systems-parse-resumes</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://syncresume.io/blog/what-ats-score-measures</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://syncresume.io/blog/best-resume-formats-for-ats</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://syncresume.io/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>

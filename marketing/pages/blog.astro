@@ -9,22 +9,19 @@ const POSTS = [
     category: "ATS guides",
     title: "How ATS systems actually parse your resume — and what breaks them",
     desc: "Most ATS failures aren't from design. They're from tables, columns, and text boxes that cause parsers to drop entire sections.",
-    href: "/blog",
-    soon: true,
+    href: "/blog/how-ats-systems-parse-resumes",
   },
   {
     category: "ATS guides",
     title: "What does your ATS score actually measure?",
     desc: "ATS scores are a keyword match percentage, not a quality rating. Here's how to read them — and what to do when yours is low.",
-    href: "/blog",
-    soon: true,
+    href: "/blog/what-ats-score-measures",
   },
   {
     category: "ATS guides",
     title: "The best resume formats for ATS in 2025",
     desc: "Single-column, reverse-chronological, saved as PDF — why this combination clears more parsers than any other layout.",
-    href: "/blog",
-    soon: true,
+    href: "/blog/best-resume-formats-for-ats",
   },
   {
     category: "Tailoring",
@@ -116,9 +113,7 @@ const POSTS = [
                 <h2>{title}</h2>
                 <p>{desc}</p>
               </div>
-              {soon && (
-                <span class="landing-blog-soon">Soon</span>
-              )}
+              <span class="landing-blog-soon">{soon ? "Soon" : "Read"}</span>
             </a>
           ))}
         </div>

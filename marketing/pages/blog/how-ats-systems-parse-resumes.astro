@@ -1,0 +1,97 @@
+---
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import { APP_WORKSPACE_URL } from "../../lib/urls";
+
+const year = new Date().getFullYear();
+---
+
+<MarketingLayout
+  title="How ATS Systems Parse Resumes | SyncResume"
+  description="Learn how applicant tracking systems parse resumes, what breaks parsing, and how to format a resume so the important content is readable."
+  canonicalPath="/blog/how-ats-systems-parse-resumes"
+>
+  <div class="landing">
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <a class="landing-brand" href="/">
+          <div class="landing-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 18 22" fill="none" aria-hidden="true">
+              <path d="M1.5 3C1.5 2.17 2.17 1.5 3 1.5H11.5L16.5 6.5V19C16.5 19.83 15.83 20.5 15 20.5H3C2.17 20.5 1.5 19.83 1.5 19V3Z" fill="rgba(34,197,94,0.07)" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+              <path d="M11.5 1.5L16.5 6.5H13C12.17 6.5 11.5 5.83 11.5 5V1.5Z" fill="#22c55e" />
+              <rect x="4" y="9.5" width="9" height="1.5" rx="0.75" fill="rgba(255,255,255,0.55)" />
+              <rect x="4" y="12.5" width="5.5" height="1.4" rx="0.7" fill="#22c55e" opacity="0.85" />
+            </svg>
+          </div>
+          <span class="landing-brand-name">SyncResume</span>
+        </a>
+        <nav class="landing-nav-links" aria-label="Site">
+          <a href="/how-it-works">How it works</a>
+          <a href="/templates">Templates</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+      </div>
+    </header>
+
+    <article class="landing-section landing-article">
+      <div class="landing-container">
+        <p class="landing-eyebrow">ATS guides</p>
+        <h1 class="landing-page-title">How ATS systems actually parse your resume</h1>
+        <p class="landing-page-lede">
+          Applicant tracking systems try to convert your resume into structured text. The risk is not that the system dislikes your design. The risk is that it cannot read important details in the first place.
+        </p>
+        <p class="landing-article-meta">Updated for modern PDF and DOCX resume workflows.</p>
+
+        <div class="landing-article-body">
+          <h2>What the parser is looking for</h2>
+          <p>
+            Most ATS tools extract contact details, section headings, job titles, company names, dates, skills, and bullet content. They use those signals to help recruiters search, filter, and compare applicants.
+          </p>
+          <p>
+            Clear section names matter. Headings such as Professional Experience, Skills, Education, Certifications, and Projects are easier to classify than clever labels that only make sense visually.
+          </p>
+
+          <h2>What breaks resume parsing</h2>
+          <ul>
+            <li>Tables and multi-column layouts that reorder text when extracted.</li>
+            <li>Text boxes, headers, footers, or images that hide content from parsers.</li>
+            <li>Icons used as the only label for phone, email, GitHub, or LinkedIn.</li>
+            <li>Highly compressed designs where dates and roles are hard to separate.</li>
+          </ul>
+
+          <h2>How to make your resume safer</h2>
+          <p>
+            Use a readable structure, write dates next to each role, keep bullet points as real text, and choose templates that preserve content order when exported. A resume can still look polished without depending on fragile layout tricks.
+          </p>
+          <p>
+            SyncResume keeps the editing workflow focused on structured resume sections first, then lets you apply templates after the content is right.
+          </p>
+        </div>
+
+        <div class="landing-article-cta">
+          <div>
+            <h2>Check how your resume reads against a job.</h2>
+            <p>Paste a job description, choose a resume, and see what should be tailored before you apply.</p>
+          </div>
+          <a class="btn btn-primary" href={APP_WORKSPACE_URL}>Start tailoring free</a>
+        </div>
+      </div>
+    </article>
+
+    <footer class="landing-footer">
+      <div class="landing-container">
+        <div class="landing-footer-inner">
+          <a class="landing-brand" href="/">SyncResume</a>
+          <div class="landing-footer-links" aria-label="Footer navigation">
+            <a href="/blog">Blog</a>
+            <a href="/templates">Templates</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+          </div>
+          <p class="landing-footer-copy">© {year} SyncResume</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+</MarketingLayout>
