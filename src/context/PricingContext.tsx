@@ -31,6 +31,12 @@ const PLAN_FEATURES = [
   "Monthly AI credits",
 ];
 
+const PRO_PLAN_LABELS: Record<BillingPlanKey, string> = {
+  monthly: "Pro Monthly",
+  six_month: "Pro 6-Month",
+  yearly: "Pro Yearly",
+};
+
 const CTA_LABELS: Partial<Record<BillingPlanKey, string>> = {
   monthly: "Start monthly",
   six_month: "Choose 6-month",
@@ -45,6 +51,8 @@ export function PricingProvider({ children }: { children: ReactNode }) {
   const [billingError, setBillingError] = useState<string | null>(null);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const isPro = profile?.plan === "Pro";
+  const currentPlanLabel =
+    isPro && profile?.billingPlanKey ? PRO_PLAN_LABELS[profile.billingPlanKey] : "Pro";
   const canCheckout = Boolean(profile?.billing?.checkoutEnabled);
   const canOpenPortal = Boolean(profile?.billing?.portalEnabled);
   const checkoutPlans = useMemo(
@@ -147,6 +155,7 @@ export function PricingProvider({ children }: { children: ReactNode }) {
 
             {showManagePanel && (
               <ProManagePanel
+                planLabel={currentPlanLabel}
                 loading={billingAction === "portal"}
                 onManage={() => void openBilling("portal")}
               />
@@ -244,9 +253,11 @@ function PricingCard({
 }
 
 function ProManagePanel({
+  planLabel,
   loading,
   onManage,
 }: {
+  planLabel: string;
   loading: boolean;
   onManage: () => void;
 }) {
@@ -256,7 +267,7 @@ function ProManagePanel({
         <Shield aria-hidden="true" />
         Pro
       </span>
-      <p className="pricing-manage-heading">You have full Pro access</p>
+      <p className="pricing-manage-heading">You have full {planLabel} access</p>
       <p className="pricing-manage-desc">
         Change plans, update your payment method, or cancel anytime through Stripe&rsquo;s secure
         billing portal.

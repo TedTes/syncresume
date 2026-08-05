@@ -12,6 +12,13 @@ import { usePricing } from "../context/PricingContext";
 import { useSettings } from "../context/SettingsContext";
 import type { UserProfileDetails } from "../lib/userProfile";
 import { RESUME_FONT_OPTIONS, type ResumeFontId } from "../templates/shared/fonts";
+import type { BillingPlanKey } from "../lib/cloudflare/client";
+
+const PRO_PLAN_LABELS: Record<BillingPlanKey, string> = {
+  monthly: "Pro Monthly",
+  six_month: "Pro 6-Month",
+  yearly: "Pro Yearly",
+};
 
 type ProfileSaveStatus = "saved" | "saving";
 
@@ -44,6 +51,9 @@ export default function SettingsPage() {
   const profileSaveTimerRef = useRef<number | null>(null);
   const usage = profile?.usage;
   const isPro = profile?.plan === "Pro";
+  const planLabel = isPro && profile?.billingPlanKey
+    ? PRO_PLAN_LABELS[profile.billingPlanKey]
+    : profile?.plan ?? "Free";
 
   useEffect(() => {
     return () => {
@@ -230,7 +240,7 @@ export default function SettingsPage() {
               <div className="settings-row-control">
                 <span className="settings-readonly-value settings-provider-badge">
                   <Zap aria-hidden="true" />
-                  {profile?.plan ?? "Free"}
+                  {planLabel}
                 </span>
                 {isPro ? (
                   <button

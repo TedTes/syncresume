@@ -25,6 +25,7 @@ type UserRow = {
   id: string;
   email: string;
   plan: string;
+  billing_plan_key?: BillingPlanKey | null;
   stripe_customer_id?: string | null;
   subscription_status?: string | null;
   subscription_current_period_end?: string | null;
@@ -94,6 +95,7 @@ type BillingCheckoutPlan = {
 
 type BillingSummary = {
   plan: string;
+  billingPlanKey: BillingPlanKey | null;
   subscriptionStatus: string;
   subscriptionCurrentPeriodEnd: string | null;
   usage: UsageSummary;
@@ -906,6 +908,8 @@ async function handleCreateBillingCheckout(
     client_reference_id: user.id,
     "metadata[user_id]": user.id,
     "metadata[plan_key]": planKey,
+    "subscription_data[metadata][user_id]": user.id,
+    "subscription_data[metadata][plan_key]": planKey,
     success_url: successUrl,
     cancel_url: cancelUrl,
     allow_promotion_codes: "true",
@@ -1886,7 +1890,7 @@ async function requireSession(
 
 async function findOrCreateUser(env: Env, clerkUserId: string, email: string): Promise<UserRow> {
   const userColumns = [
-    "id, email, plan, stripe_customer_id, subscription_status,",
+    "id, email, plan, billing_plan_key, stripe_customer_id, subscription_status,",
     "subscription_current_period_end, created_at, updated_at",
   ].join(" ");
   let user = await env.DB.prepare(
@@ -1928,6 +1932,7 @@ async function getBillingSummary(env: Env, user: UserRow): Promise<BillingSummar
 
   return {
     plan,
+    billingPlanKey: plan === BILLING_PLAN_PRO ? normalizeBillingPlanKeyOrNull(user.billing_plan_key) : null,
     subscriptionStatus: user.subscription_status || (plan === BILLING_PLAN_PRO ? "active" : "free"),
     subscriptionCurrentPeriodEnd: user.subscription_current_period_end ?? null,
     usage,
@@ -2183,14 +2188,15 @@ async function processStripeEvent(env: Env, eventType: string, object: JsonRecor
     const customerId = getString(object.customer);
 
     if (userId && customerId) {
+      const planKey = normalizeBillingPlanKeyOrNull(getMetadataValue(object, "plan_key"));
       await env.DB.prepare(
         [
           "update users",
-          "set stripe_customer_id = ?, plan = ?, subscription_status = ?, updated_at = current_timestamp",
+          "set stripe_customer_id = ?, plan = ?, billing_plan_key = ?, subscription_status = ?, updated_at = current_timestamp",
           "where id = ?",
         ].join(" "),
       )
-        .bind(customerId, BILLING_PLAN_PRO, "active", userId)
+        .bind(customerId, BILLING_PLAN_PRO, planKey, "active", userId)
         .run();
     }
     return;
@@ -2206,6 +2212,7 @@ async function syncStripeSubscription(env: Env, object: JsonRecord): Promise<voi
   const stripeCustomerId = getString(object.customer);
   const status = getString(object.status) || "unknown";
   const userIdFromMetadata = getMetadataValue(object, "user_id");
+  const billingPlanKey = inferBillingPlanKeyFromStripeSubscription(env, object);
   const currentPeriodEnd = stripeTimestampToIso(object.current_period_end);
   const cancelAtPeriodEnd = Boolean(object.cancel_at_period_end) ? 1 : 0;
 
@@ -2225,12 +2232,13 @@ async function syncStripeSubscription(env: Env, object: JsonRecord): Promise<voi
     [
       "insert into subscriptions",
       [
-        "(id, user_id, stripe_customer_id, stripe_subscription_id, plan, status,",
+        "(id, user_id, stripe_customer_id, stripe_subscription_id, plan, billing_plan_key, status,",
         "current_period_end, cancel_at_period_end)",
       ].join(" "),
-      "values (?, ?, ?, ?, ?, ?, ?, ?)",
+      "values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       "on conflict(stripe_subscription_id) do update set",
       [
+        "billing_plan_key = excluded.billing_plan_key,",
         "status = excluded.status,",
         "current_period_end = excluded.current_period_end,",
         "cancel_at_period_end = excluded.cancel_at_period_end,",
@@ -2244,6 +2252,7 @@ async function syncStripeSubscription(env: Env, object: JsonRecord): Promise<voi
       stripeCustomerId,
       stripeSubscriptionId,
       BILLING_PLAN_PRO,
+      billingPlanKey,
       status,
       currentPeriodEnd,
       cancelAtPeriodEnd,
@@ -2257,13 +2266,13 @@ async function syncStripeSubscription(env: Env, object: JsonRecord): Promise<voi
     [
       "update users",
       [
-        "set stripe_customer_id = ?, plan = ?, subscription_status = ?,",
+        "set stripe_customer_id = ?, plan = ?, billing_plan_key = ?, subscription_status = ?,",
         "subscription_current_period_end = ?, updated_at = current_timestamp",
       ].join(" "),
       "where id = ?",
     ].join(" "),
   )
-    .bind(stripeCustomerId, plan, status, currentPeriodEnd, userId)
+    .bind(stripeCustomerId, plan, plan === BILLING_PLAN_PRO ? billingPlanKey : null, status, currentPeriodEnd, userId)
     .run();
 }
 
@@ -2286,6 +2295,14 @@ function normalizeBillingPlanKey(value: unknown): BillingPlanKey {
   throw new HttpError("Unknown billing plan.", 400);
 }
 
+function normalizeBillingPlanKeyOrNull(value: unknown): BillingPlanKey | null {
+  if (value === "monthly" || value === "six_month" || value === "yearly") {
+    return value;
+  }
+
+  return null;
+}
+
 function getStripePriceIdForPlan(env: Env, planKey: BillingPlanKey): string {
   const billingEnv = env as Env & {
     STRIPE_PRICE_MONTHLY_ID?: string;
@@ -2306,6 +2323,33 @@ function getStripePriceIdForPlan(env: Env, planKey: BillingPlanKey): string {
 
 function getConfiguredBillingCheckoutPlans(env: Env): BillingCheckoutPlan[] {
   return BILLING_CHECKOUT_PLANS.filter((plan) => Boolean(getStripePriceIdForPlan(env, plan.key)));
+}
+
+function inferBillingPlanKeyFromStripeSubscription(env: Env, object: JsonRecord): BillingPlanKey | null {
+  const metadataPlanKey = normalizeBillingPlanKeyOrNull(getMetadataValue(object, "plan_key"));
+  if (metadataPlanKey) return metadataPlanKey;
+
+  const items = object.items;
+  if (!items || typeof items !== "object" || !("data" in items) || !Array.isArray(items.data)) {
+    return null;
+  }
+
+  const configuredPrices = new Map<string, BillingPlanKey>();
+  for (const plan of BILLING_CHECKOUT_PLANS) {
+    const priceId = getStripePriceIdForPlan(env, plan.key);
+    if (priceId) configuredPrices.set(priceId, plan.key);
+  }
+
+  for (const item of items.data) {
+    if (!item || typeof item !== "object" || !("price" in item)) continue;
+    const price = item.price;
+    if (!price || typeof price !== "object" || !("id" in price)) continue;
+    const priceId = getString(price.id);
+    const planKey = configuredPrices.get(priceId);
+    if (planKey) return planKey;
+  }
+
+  return null;
 }
 
 async function stripePost(
@@ -2993,6 +3037,7 @@ function publicUser(user: UserRow, billing?: BillingSummary): JsonRecord {
     id: user.id,
     email: user.email,
     plan: billing?.plan ?? user.plan,
+    billingPlanKey: billing?.billingPlanKey ?? normalizeBillingPlanKeyOrNull(user.billing_plan_key),
     subscriptionStatus: billing?.subscriptionStatus ?? user.subscription_status ?? "free",
     subscriptionCurrentPeriodEnd:
       billing?.subscriptionCurrentPeriodEnd ?? user.subscription_current_period_end ?? null,
@@ -3002,6 +3047,7 @@ function publicUser(user: UserRow, billing?: BillingSummary): JsonRecord {
           checkoutEnabled: billing.checkoutEnabled,
           portalEnabled: billing.portalEnabled,
           checkoutPlans: billing.checkoutPlans,
+          currentPlanKey: billing.billingPlanKey,
         }
       : undefined,
     createdAt: user.created_at,

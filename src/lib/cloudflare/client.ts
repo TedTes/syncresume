@@ -18,6 +18,7 @@ export type CloudflareUser = {
   id: string;
   email: string;
   plan: string;
+  billingPlanKey?: BillingPlanKey | null;
   subscriptionStatus?: string;
   subscriptionCurrentPeriodEnd?: string | null;
   usage?: {
@@ -29,6 +30,7 @@ export type CloudflareUser = {
   billing?: {
     checkoutEnabled: boolean;
     portalEnabled: boolean;
+    currentPlanKey?: BillingPlanKey | null;
     checkoutPlans?: BillingCheckoutPlan[];
   };
   createdAt?: string;
