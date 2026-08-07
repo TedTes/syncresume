@@ -14,6 +14,8 @@ export type ParsedResumeContact = {
 
 export function formatContactDetailDisplay(raw: string): string {
   const lower = raw.toLowerCase();
+  if (/^(?:linked\s?in)$/i.test(raw.trim())) return "LinkedIn";
+  if (/^(?:git\s?hub)$/i.test(raw.trim())) return "GitHub";
   if (/linkedin\.com/i.test(lower)) return "LinkedIn";
   if (/github\.com/i.test(lower)) return "GitHub";
   if (/https?:\/\/|www\./i.test(raw)) return "Website";
@@ -37,6 +39,13 @@ export function parseResumeContact(
   }
 
   const firstChunk = chunks[0] ?? "";
+  if (chunks.length > 1 && isLikelyLeadingNameFragment(firstChunk)) {
+    return {
+      name: firstChunk,
+      details: chunks.slice(1),
+    };
+  }
+
   const firstChunkName = extractNameFromContactChunk(firstChunk);
   if (firstChunkName) {
     const leftover = firstChunk.slice(firstChunkName.length).trim();
@@ -63,20 +72,88 @@ export function parseResumeContact(
 function splitContactContent(content: string): string[] {
   return content
     .replace(/\b(?:email|e-mail|phone|mobile|tel|website|portfolio|github|linkedin)\s*:/gi, (label) => `\n${label}`)
-    .split(/\n|\s*\|\s*/)
+    .split(/\n|\s*[|•·]\s*/)
     .flatMap(splitCombinedContactDetails)
     .map(cleanContactDetail)
     .filter(Boolean);
 }
 
 function splitCombinedContactDetails(value: string): string[] {
-  const emailMatch = value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  if (!emailMatch?.index && emailMatch?.index !== 0) return [value];
+  const markers = contactDetailMarkers(value);
+  if (markers.length === 0) return [value];
 
-  const beforeEmail = value.slice(0, emailMatch.index).trim();
-  const email = emailMatch[0].trim();
-  const afterEmail = value.slice(emailMatch.index + email.length).trim();
-  return [beforeEmail, email, afterEmail].filter(Boolean);
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const marker of markers) {
+    const before = value.slice(cursor, marker.index).trim();
+    if (before) parts.push(before);
+    parts.push(marker.value.trim());
+    cursor = marker.end;
+  }
+
+  const after = value.slice(cursor).trim();
+  if (after) parts.push(after);
+  return parts.filter(Boolean);
+}
+
+type ContactDetailMarker = {
+  index: number;
+  end: number;
+  value: string;
+  priority: number;
+};
+
+function contactDetailMarkers(value: string): ContactDetailMarker[] {
+  const markerPatterns: Array<{ pattern: RegExp; priority: number }> = [
+    { pattern: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, priority: 0 },
+    { pattern: /(?:https?:\/\/|www\.)[^\s|•·]+|(?:linkedin\.com|github\.com)\/?[^\s|•·]*/gi, priority: 1 },
+    { pattern: /\+?\d[\d\s().-]{5,}\d/g, priority: 2 },
+    { pattern: /(?:^|[^a-z])([A-Z][a-z][a-zA-Z]*(?:[\s.-]+[A-Z][a-z][a-zA-Z]*){0,3},\s*[A-Z]{2}\b)/g, priority: 3 },
+    { pattern: /\b(?:git\s?hub|linked\s?in)\b/gi, priority: 4 },
+  ];
+
+  const candidates = markerPatterns.flatMap(({ pattern, priority }) => {
+    pattern.lastIndex = 0;
+    return Array.from(value.matchAll(pattern)).map((match) => {
+      const markerValue = match[1] ?? match[0];
+      const markerOffset = match[0].indexOf(markerValue);
+      return {
+        index: (match.index ?? 0) + markerOffset,
+        end: (match.index ?? 0) + markerOffset + markerValue.length,
+        value: priority === 3 ? normalizeLocationMarker(markerValue) : markerValue,
+        priority,
+      };
+    });
+  });
+
+  return candidates
+    .sort((left, right) => {
+      if (left.index !== right.index) return left.index - right.index;
+      if (left.priority !== right.priority) return left.priority - right.priority;
+      return right.end - left.end;
+    })
+    .reduce<ContactDetailMarker[]>((markers, candidate) => {
+      if (markers.some((marker) => rangesOverlap(marker, candidate))) return markers;
+      markers.push(candidate);
+      return markers;
+    }, []);
+}
+
+function rangesOverlap(
+  left: Pick<ContactDetailMarker, "index" | "end">,
+  right: Pick<ContactDetailMarker, "index" | "end">,
+): boolean {
+  return left.index < right.end && right.index < left.end;
+}
+
+function normalizeLocationMarker(value: string): string {
+  const [city = "", region = ""] = value.split(/,\s*/, 2);
+  const normalizedCity = city
+    .split(/([\s.-]+)/)
+    .map((part) => (/^[A-Z]{2,}[a-z]/.test(part) ? `${part[0]}${part.slice(1).toLowerCase()}` : part))
+    .join("");
+
+  return [normalizedCity, region].filter(Boolean).join(", ");
 }
 
 function cleanContactDetail(value: string): string {
@@ -104,6 +181,15 @@ function isLikelyNameLine(value: string): boolean {
   if (words.length < 2 || words.length > 4) return false;
 
   return words.every((word) => /^[A-Z][a-zA-Z.'-]*$|^[A-Z][A-Z.'-]*$/.test(word));
+}
+
+function isLikelyLeadingNameFragment(value: string): boolean {
+  if (!value || isLikelyContactDetail(value)) return false;
+  if (GENERIC_CONTACT_LABELS.has(value.toLowerCase())) return false;
+  if (isLikelyNameLine(value)) return true;
+
+  const compact = value.replace(/[.'-]/g, "");
+  return /^[A-Z]{5,32}$/.test(compact);
 }
 
 function isLikelyContactDetail(value: string): boolean {

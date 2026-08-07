@@ -42,10 +42,10 @@ function categorizeDetail(raw: string): { category: DetailCategory; display: str
   if (/\S+@\S+\.\S+/.test(raw) && !/https?:/.test(raw)) {
     return { category: "email", display: raw };
   }
-  if (/linkedin\.com/i.test(lower)) {
+  if (/^(?:linked\s?in)$|linkedin\.com/i.test(lower)) {
     return { category: "linkedin", display: formatContactDetailDisplay(raw) };
   }
-  if (/github\.com/i.test(lower)) {
+  if (/^(?:git\s?hub)$|github\.com/i.test(lower)) {
     return { category: "github", display: formatContactDetailDisplay(raw) };
   }
   if (/https?:\/\/|www\./i.test(raw)) {
@@ -79,10 +79,15 @@ function contactDetailHref(raw: string, category: DetailCategory): string | null
     return phone ? `tel:${phone}` : null;
   }
   if (category === "github" || category === "linkedin" || category === "website") {
+    if (!isExternalContactValue(value)) return null;
     return toExternalContactUrl(value);
   }
 
   return null;
+}
+
+function isExternalContactValue(value: string): boolean {
+  return /^https?:\/\//i.test(value) || /^www\./i.test(value) || /\.[a-z]{2,}/i.test(value);
 }
 
 function toExternalContactUrl(value: string): string {
