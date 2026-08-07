@@ -6,6 +6,9 @@ const GENERIC_CONTACT_LABELS = new Set([
 ]);
 
 const GENERIC_TITLE_WORDS = /\b(?:resume|cv|curriculum vitae|updated|final|copy|optimized|tailored)\b/gi;
+const KNOWN_LOCATION_CITY_BY_REGION = new Map([
+  ["ON:TORONTO", "Toronto"],
+]);
 
 export type ParsedResumeContact = {
   name: string;
@@ -26,10 +29,12 @@ export function parseResumeContact(
   content: string,
   fallbackTitle = "",
 ): ParsedResumeContact {
-  const chunks = splitContactContent(content)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => !GENERIC_CONTACT_LABELS.has(line.toLowerCase()));
+  const chunks = repairMergedNameLocationBoundary(
+    splitContactContent(content)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((line) => !GENERIC_CONTACT_LABELS.has(line.toLowerCase())),
+  );
 
   if (chunks.length === 0) {
     return {
@@ -154,6 +159,59 @@ function normalizeLocationMarker(value: string): string {
     .join("");
 
   return [normalizedCity, region].filter(Boolean).join(", ");
+}
+
+type ParsedLocationDetail = {
+  city: string;
+  region: string;
+  trailing: string;
+};
+
+function repairMergedNameLocationBoundary(chunks: string[]): string[] {
+  if (chunks.length < 2) return chunks;
+
+  const [nameCandidate = "", locationCandidate = "", ...rest] = chunks;
+  const normalizedName = nameCandidate.replace(/[.'\s-]/g, "");
+  if (!/^[A-Z]{5,32}$/.test(normalizedName)) return chunks;
+
+  const location = parseLocationDetail(locationCandidate);
+  if (!location) return chunks;
+
+  const maxSuffixLength = Math.min(3, nameCandidate.length - 2);
+  for (let length = maxSuffixLength; length > 0; length -= 1) {
+    const suffix = nameCandidate.slice(-length);
+    if (!/^[A-Z]+$/.test(suffix)) continue;
+
+    const repairedCity = lookupKnownLocationCity(`${suffix}${location.city}`, location.region);
+    if (!repairedCity) continue;
+
+    const repairedName = nameCandidate.slice(0, -length).trim();
+    if (repairedName.length < 2) continue;
+
+    return [
+      repairedName,
+      `${repairedCity}, ${location.region}${location.trailing}`,
+      ...rest,
+    ];
+  }
+
+  return chunks;
+}
+
+function parseLocationDetail(value: string): ParsedLocationDetail | null {
+  const match = value.match(/^([A-Za-z][A-Za-z .'-]{1,44}),\s*([A-Z]{2})(\b.*)?$/);
+  if (!match?.[1] || !match[2]) return null;
+
+  return {
+    city: match[1].trim(),
+    region: match[2].trim().toUpperCase(),
+    trailing: match[3] ?? "",
+  };
+}
+
+function lookupKnownLocationCity(value: string, region: string): string {
+  const cityKey = value.replace(/[^a-z]/gi, "").toUpperCase();
+  return KNOWN_LOCATION_CITY_BY_REGION.get(`${region.toUpperCase()}:${cityKey}`) ?? "";
 }
 
 function cleanContactDetail(value: string): string {
