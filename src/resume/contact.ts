@@ -6,9 +6,6 @@ const GENERIC_CONTACT_LABELS = new Set([
 ]);
 
 const GENERIC_TITLE_WORDS = /\b(?:resume|cv|curriculum vitae|updated|final|copy|optimized|tailored)\b/gi;
-const KNOWN_LOCATION_CITY_BY_REGION = new Map([
-  ["ON:TORONTO", "Toronto"],
-]);
 
 export type ParsedResumeContact = {
   name: string;
@@ -171,31 +168,22 @@ function repairMergedNameLocationBoundary(chunks: string[]): string[] {
   if (chunks.length < 2) return chunks;
 
   const [nameCandidate = "", locationCandidate = "", ...rest] = chunks;
+  if (/\s/.test(nameCandidate)) return chunks;
+
   const normalizedName = nameCandidate.replace(/[.'\s-]/g, "");
   if (!/^[A-Z]{5,32}$/.test(normalizedName)) return chunks;
 
   const location = parseLocationDetail(locationCandidate);
   if (!location) return chunks;
 
-  const maxSuffixLength = Math.min(3, nameCandidate.length - 2);
-  for (let length = maxSuffixLength; length > 0; length -= 1) {
-    const suffix = nameCandidate.slice(-length);
-    if (!/^[A-Z]+$/.test(suffix)) continue;
+  const repair = inferMergedLocationPrefixRepair(nameCandidate, location);
+  if (!repair) return chunks;
 
-    const repairedCity = lookupKnownLocationCity(`${suffix}${location.city}`, location.region);
-    if (!repairedCity) continue;
-
-    const repairedName = nameCandidate.slice(0, -length).trim();
-    if (repairedName.length < 2) continue;
-
-    return [
-      repairedName,
-      `${repairedCity}, ${location.region}${location.trailing}`,
-      ...rest,
-    ];
-  }
-
-  return chunks;
+  return [
+    repair.name,
+    `${repair.city}, ${location.region}${location.trailing}`,
+    ...rest,
+  ];
 }
 
 function parseLocationDetail(value: string): ParsedLocationDetail | null {
@@ -209,9 +197,56 @@ function parseLocationDetail(value: string): ParsedLocationDetail | null {
   };
 }
 
-function lookupKnownLocationCity(value: string, region: string): string {
-  const cityKey = value.replace(/[^a-z]/gi, "").toUpperCase();
-  return KNOWN_LOCATION_CITY_BY_REGION.get(`${region.toUpperCase()}:${cityKey}`) ?? "";
+function isLikelyCompleteTitleCaseCity(value: string): boolean {
+  return value.length >= 6 && /^[A-Z][a-z]+(?:[\s.-]+[A-Z][a-z]+)*$/.test(value);
+}
+
+type LocationPrefixRepair = {
+  name: string;
+  city: string;
+  score: number;
+};
+
+function inferMergedLocationPrefixRepair(
+  nameCandidate: string,
+  location: ParsedLocationDetail,
+): LocationPrefixRepair | null {
+  const maxLocationPrefixLength = isLikelyCompleteTitleCaseCity(location.city) ? 1 : 3;
+  const maxSuffixLength = Math.min(maxLocationPrefixLength, nameCandidate.length - 2);
+  const candidates: LocationPrefixRepair[] = [];
+
+  for (let length = 1; length <= maxSuffixLength; length += 1) {
+    const suffix = nameCandidate.slice(-length);
+    if (!/^[A-Z]+$/.test(suffix)) continue;
+
+    const rawCity = `${suffix}${location.city}`;
+    const city = normalizeLocationMarker(`${rawCity}, ${location.region}`).split(",")[0]?.trim() ?? "";
+    const score = scoreMergedLocationPrefix(rawCity, city, location.city);
+    if (score < 4) continue;
+
+    const name = nameCandidate.slice(0, -length).trim();
+    if (name.length < 2) continue;
+
+    candidates.push({ name, city, score });
+  }
+
+  return candidates.sort(
+    (left, right) => right.score - left.score || right.city.length - left.city.length,
+  )[0] ?? null;
+}
+
+function scoreMergedLocationPrefix(rawCity: string, normalizedCity: string, originalCity: string): number {
+  if (normalizedCity.length <= originalCity.length || normalizedCity.length < 4) return 0;
+
+  const leadingUppercase = rawCity.match(/^[A-Z]+(?=[a-z])/)?.[0] ?? "";
+  if (leadingUppercase.length < 2 || leadingUppercase.length > 3) return 0;
+
+  let score = leadingUppercase.length;
+  if (originalCity.length <= 5) score += 3;
+  if (/^[B-DF-HJ-NP-TV-Z][AEIOU]/i.test(normalizedCity)) score += 2;
+  if (/^[AEIOU]{2}/i.test(normalizedCity)) score -= 3;
+
+  return score;
 }
 
 function cleanContactDetail(value: string): string {

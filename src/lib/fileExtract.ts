@@ -132,16 +132,31 @@ function isPositionedPdfTextItem(item: PositionedPdfTextItem | null): item is Po
 function stringifyPdfLine(items: PositionedPdfTextItem[]): string {
   const sorted = [...items].sort((a, b) => a.x - b.x);
   let cursorEnd: number | null = null;
+  let previousItem: PositionedPdfTextItem | null = null;
 
   return sorted
     .map((item) => {
       const gap = cursorEnd === null ? 0 : item.x - cursorEnd;
+      const shouldSeparate =
+        gap > Math.max(2, item.height * 0.35) ||
+        shouldSeparateMergedPdfTextItems(previousItem, item, gap);
       cursorEnd = Math.max(cursorEnd ?? item.x, item.x + item.width);
-      return `${gap > Math.max(2, item.height * 0.35) ? " " : ""}${item.text}`;
+      previousItem = item;
+      return `${shouldSeparate ? " " : ""}${item.text}`;
     })
     .join("")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
+}
+
+function shouldSeparateMergedPdfTextItems(
+  previousItem: PositionedPdfTextItem | null,
+  item: PositionedPdfTextItem,
+  gap: number,
+): boolean {
+  if (!previousItem || gap <= 0) return false;
+
+  return /^[A-Z0-9 .'-]{4,}$/.test(previousItem.text) && /^[A-Z]{1,3}[a-z]/.test(item.text);
 }
 
 function lineToleranceFor(items: PositionedPdfTextItem[]): number {
