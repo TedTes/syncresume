@@ -40,6 +40,117 @@ export type BillingSessionResponse = {
   url: string;
 };
 
+export type ExtensionSessionResponse = {
+  token: string;
+  expiresInDays: number;
+  label: string;
+};
+
+export type JobCaptureRecord = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  description: string;
+  sourceUrl: string;
+  duplicateOfId?: string | null;
+  createdAt?: string;
+  expiresAt?: string;
+};
+
+export type JobCaptureResponse = {
+  capture: JobCaptureRecord;
+};
+
+export type JobStatus = "new" | "saved" | "dismissed" | "applied";
+
+export type JobFeedRecord = {
+  id: string;
+  source: string;
+  externalId?: string | null;
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  description: string;
+  salary: string;
+  employmentType: string;
+  remote: string;
+  status: JobStatus;
+  postedAt?: string | null;
+  discoveredAt?: string;
+  updatedAt?: string;
+};
+
+export type JobFeedInput = {
+  source?: string;
+  externalId?: string | null;
+  title: string;
+  company?: string;
+  location?: string;
+  url?: string;
+  description?: string;
+  salary?: string;
+  employmentType?: string;
+  remote?: string;
+  status?: JobStatus;
+  postedAt?: string | null;
+};
+
+export type JobSourceProvider = "greenhouse" | "lever" | "ashby" | "apify";
+
+export type JobSourceConfig = {
+  provider: JobSourceProvider;
+  enabled?: boolean;
+  limit?: number;
+  source?: string;
+  boardToken?: string;
+  company?: string;
+  query?: string;
+  location?: string;
+  actorId?: string;
+  actorTaskId?: string;
+  input?: Record<string, unknown>;
+  resultMapping?: Record<string, string>;
+};
+
+export type JobsResponse = {
+  jobs: JobFeedRecord[];
+};
+
+export type JobsSyncResponse = JobsResponse & {
+  sources: Array<{
+    provider: JobSourceProvider;
+    source: string;
+    fetched: number;
+  }>;
+  errors: Array<{
+    provider: JobSourceProvider;
+    source: string;
+    message: string;
+  }>;
+};
+
+export type JobResponse = {
+  job: JobFeedRecord;
+};
+
+export type ApplySessionRecord = {
+  id: string;
+  runId?: string | null;
+  jobUrl: string;
+  fileName: string;
+  templateId: string;
+  createdAt?: string;
+  expiresAt?: string;
+};
+
+export type ApplySessionResponse = {
+  session: ApplySessionRecord;
+  token: string;
+  expiresInMinutes: number;
+};
+
 export class AuthTokenUnavailableError extends Error {
   constructor() {
     super("Session token is not ready yet.");
@@ -158,5 +269,80 @@ export function createBillingCheckoutSession(plan: BillingPlanKey = "monthly"): 
 export function createBillingPortalSession(): Promise<BillingSessionResponse> {
   return cloudflareRequest<BillingSessionResponse>("/api/billing/portal", {
     method: "POST",
+  });
+}
+
+export function createExtensionSession(label = "Browser extension"): Promise<ExtensionSessionResponse> {
+  return cloudflareRequest<ExtensionSessionResponse>("/api/extension/sessions", {
+    method: "POST",
+    body: { label },
+  });
+}
+
+export function getJobCapture(captureId: string): Promise<JobCaptureResponse> {
+  return cloudflareRequest<JobCaptureResponse>(`/api/job-captures/${encodeURIComponent(captureId)}`);
+}
+
+export function listJobs(params: {
+  status?: JobStatus;
+  source?: string;
+  q?: string;
+  limit?: number;
+} = {}): Promise<JobsResponse> {
+  const query = new URLSearchParams();
+  if (params.status) query.set("status", params.status);
+  if (params.source) query.set("source", params.source);
+  if (params.q) query.set("q", params.q);
+  if (params.limit) query.set("limit", String(params.limit));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return cloudflareRequest<JobsResponse>(`/api/jobs${suffix}`);
+}
+
+export function ingestJobs(jobs: JobFeedInput | JobFeedInput[]): Promise<JobsResponse> {
+  return cloudflareRequest<JobsResponse>("/api/jobs", {
+    method: "POST",
+    body: {
+      jobs: Array.isArray(jobs) ? jobs : [jobs],
+    },
+  });
+}
+
+export function syncJobs(sources?: JobSourceConfig[]): Promise<JobsSyncResponse> {
+  return cloudflareRequest<JobsSyncResponse>("/api/jobs/sync", {
+    method: "POST",
+    body: sources ? { sources } : {},
+  });
+}
+
+export function updateJobStatus(jobId: string, status: JobStatus): Promise<JobResponse> {
+  return cloudflareRequest<JobResponse>(`/api/jobs/${encodeURIComponent(jobId)}`, {
+    method: "PATCH",
+    body: { status },
+  });
+}
+
+export function createJobCaptureFromJob(jobId: string): Promise<JobCaptureResponse & { duplicate?: boolean }> {
+  return cloudflareRequest<JobCaptureResponse & { duplicate?: boolean }>(
+    `/api/jobs/${encodeURIComponent(jobId)}/capture`,
+    { method: "POST" },
+  );
+}
+
+export function createApplySession(input: {
+  runId?: string | null;
+  jobUrl: string;
+  fileName: string;
+  templateId: string;
+  html: string;
+}): Promise<ApplySessionResponse> {
+  return cloudflareRequest<ApplySessionResponse>("/api/apply-sessions", {
+    method: "POST",
+    body: {
+      runId: input.runId ?? null,
+      jobUrl: input.jobUrl,
+      fileName: input.fileName,
+      templateId: input.templateId,
+      html: input.html,
+    },
   });
 }

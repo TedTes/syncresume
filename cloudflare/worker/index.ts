@@ -1,6 +1,8 @@
 import { fetchJobPageText } from "./jobPage";
 import puppeteer from "@cloudflare/puppeteer";
 import { ALL_RESUME_TEMPLATE_IDS } from "../../src/templates/ids";
+import { fetchJobsFromSources, parseJobSourceConfigs } from "./jobs/sources";
+import type { JobSourceEnv } from "./jobs/types";
 import {
   generateCoverLetterWithProvider,
   optimizeResumeWithProvider,
@@ -72,6 +74,50 @@ type RunRow = {
   score: number;
   status: "draft" | "exported";
   created_at: string;
+};
+
+type JobCaptureRow = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  description: string;
+  source_url: string;
+  duplicate_of_id: string | null;
+  created_at: string;
+  expires_at: string;
+};
+
+type JobRow = {
+  id: string;
+  source: string;
+  external_id: string | null;
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  description: string;
+  salary: string;
+  employment_type: string;
+  remote: string;
+  status: "new" | "saved" | "dismissed" | "applied";
+  posted_at: string | null;
+  discovered_at: string;
+  updated_at: string;
+};
+
+type ApplySessionRow = {
+  id: string;
+  run_id: string | null;
+  job_url: string;
+  file_name: string;
+  template_id: string;
+  created_at: string;
+  expires_at: string;
+};
+
+type ApplySessionExportRow = ApplySessionRow & {
+  resume_html: string;
 };
 
 type AiActionType = "optimize_resume" | "structure_resume" | "revise_section" | "cover_letter";
@@ -149,6 +195,12 @@ class OptimizationPreservationError extends HttpError {
 
 const MAX_RESUME_BYTES = 25 * 1024 * 1024;
 const MAX_EXPORT_HTML_CHARS = 2_500_000;
+const MAX_JOB_CAPTURE_DESCRIPTION_CHARS = 45_000;
+const MIN_JOB_CAPTURE_DESCRIPTION_CHARS = 80;
+const MAX_JOB_FEED_DESCRIPTION_CHARS = 45_000;
+const MAX_JOB_FEED_INGEST_COUNT = 25;
+const EXTENSION_TOKEN_PREFIX = "srx_";
+const APPLY_SESSION_TOKEN_PREFIX = "sra_";
 const MIN_RESUME_TEXT_LENGTH = 20;
 const STRUCTURED_RESUME_MIN_COVERAGE_RATIO = 0.45;
 const STRUCTURED_RESUME_MIN_TERM_COVERAGE_RATIO = 0.5;
@@ -366,6 +418,55 @@ export default {
         return json({ user: publicUser(user, billing) }, { headers: corsHeaders });
       }
 
+      if (url.pathname === "/api/extension/sessions" && request.method === "POST") {
+        return await handleCreateExtensionSession(request, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/job-captures" && request.method === "POST") {
+        return await handleCreateJobCapture(request, env, corsHeaders);
+      }
+
+      const jobCaptureMatch = url.pathname.match(/^\/api\/job-captures\/([^/]+)$/);
+      if (jobCaptureMatch && request.method === "GET") {
+        return await handleGetJobCapture(request, env, corsHeaders, jobCaptureMatch[1]);
+      }
+
+      if (url.pathname === "/api/jobs" && request.method === "GET") {
+        return await handleListJobs(request, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/jobs" && request.method === "POST") {
+        return await handleIngestJobs(request, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/jobs/sync" && request.method === "POST") {
+        return await handleSyncJobs(request, env, corsHeaders);
+      }
+
+      const jobCaptureFromJobMatch = url.pathname.match(/^\/api\/jobs\/([^/]+)\/capture$/);
+      if (jobCaptureFromJobMatch && request.method === "POST") {
+        return await handleCreateJobCaptureFromJob(request, env, corsHeaders, jobCaptureFromJobMatch[1]);
+      }
+
+      const jobMatch = url.pathname.match(/^\/api\/jobs\/([^/]+)$/);
+      if (jobMatch && request.method === "PATCH") {
+        return await handleUpdateJobStatus(request, env, corsHeaders, jobMatch[1]);
+      }
+
+      if (url.pathname === "/api/apply-sessions" && request.method === "POST") {
+        return await handleCreateApplySession(request, env, corsHeaders);
+      }
+
+      const applySessionPdfMatch = url.pathname.match(/^\/api\/apply-sessions\/([^/]+)\/resume\.pdf$/);
+      if (applySessionPdfMatch && request.method === "GET") {
+        return await handleGetApplySessionPdf(request, env, corsHeaders, applySessionPdfMatch[1]);
+      }
+
+      const applySessionMatch = url.pathname.match(/^\/api\/apply-sessions\/([^/]+)$/);
+      if (applySessionMatch && request.method === "GET") {
+        return await handleGetApplySession(request, env, corsHeaders, applySessionMatch[1]);
+      }
+
       if (url.pathname === "/api/billing/checkout" && request.method === "POST") {
         return await handleCreateBillingCheckout(request, env, corsHeaders);
       }
@@ -496,6 +597,513 @@ export default {
     }
   },
 };
+
+async function handleCreateExtensionSession(request: Request, env: Env, headers: Headers): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const label = asNonEmptyString(body.label).slice(0, 80) || "Browser extension";
+  const rawToken = `${EXTENSION_TOKEN_PREFIX}${randomUrlSafeToken(32)}`;
+  const tokenHash = await sha256Hex(rawToken);
+
+  await env.DB.prepare(
+    [
+      "insert into extension_tokens",
+      "(id, user_id, token_hash, label, expires_at)",
+      "values (?, ?, ?, ?, datetime('now', '+90 days'))",
+    ].join(" "),
+  )
+    .bind(crypto.randomUUID(), user.id, tokenHash, label)
+    .run();
+
+  return json(
+    {
+      token: rawToken,
+      expiresInDays: 90,
+      label,
+    },
+    { headers },
+  );
+}
+
+async function handleCreateJobCapture(request: Request, env: Env, headers: Headers): Promise<Response> {
+  const { userId } = await requireExtensionSession(request, env);
+  const body = await readJson(request);
+  const title = cleanJobCaptureField(asNonEmptyString(body.title), 180) || "Job description";
+  const company = cleanJobCaptureField(asNonEmptyString(body.company), 160);
+  const location = cleanJobCaptureField(asNonEmptyString(body.location), 160);
+  const sourceUrl = cleanJobCaptureUrl(asNonEmptyString(body.sourceUrl));
+  const description = cleanJobCaptureDescription(asNonEmptyString(body.description));
+
+  if (description.length < MIN_JOB_CAPTURE_DESCRIPTION_CHARS) {
+    return json(
+      { error: "Could not find enough job description text to capture." },
+      { status: 400, headers },
+    );
+  }
+
+  const contentHash = await sha256Hex(normalizeJobCaptureHashInput({ title, company, location, sourceUrl, description }));
+  const duplicate = await env.DB.prepare(
+    [
+      "select id, title, company, location, description, source_url, duplicate_of_id, created_at, expires_at",
+      "from job_captures",
+      "where user_id = ? and content_hash = ? and expires_at > current_timestamp",
+      "order by created_at desc limit 1",
+    ].join(" "),
+  )
+    .bind(userId, contentHash)
+    .first<JobCaptureRow>();
+
+  if (duplicate) {
+    return json(
+      {
+        capture: mapJobCapture(duplicate),
+        duplicate: true,
+      },
+      { headers },
+    );
+  }
+
+  const id = crypto.randomUUID();
+  await env.DB.prepare(
+    [
+      "insert into job_captures",
+      "(id, user_id, title, company, location, description, source_url, content_hash, expires_at)",
+      "values (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+14 days'))",
+    ].join(" "),
+  )
+    .bind(id, userId, title, company, location, description, sourceUrl, contentHash)
+    .run();
+
+  const capture = await env.DB.prepare(
+    [
+      "select id, title, company, location, description, source_url, duplicate_of_id, created_at, expires_at",
+      "from job_captures where user_id = ? and id = ?",
+    ].join(" "),
+  )
+    .bind(userId, id)
+    .first<JobCaptureRow>();
+
+  return json(
+    {
+      capture: capture ? mapJobCapture(capture) : { id, title, company, location, description, sourceUrl },
+      duplicate: false,
+    },
+    { headers },
+  );
+}
+
+async function handleGetJobCapture(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  captureId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const capture = await env.DB.prepare(
+    [
+      "select id, title, company, location, description, source_url, duplicate_of_id, created_at, expires_at",
+      "from job_captures",
+      "where user_id = ? and id = ? and expires_at > current_timestamp",
+    ].join(" "),
+  )
+    .bind(user.id, captureId)
+    .first<JobCaptureRow>();
+
+  if (!capture) {
+    return json({ error: "Job capture was not found or has expired." }, { status: 404, headers });
+  }
+
+  return json({ capture: mapJobCapture(capture) }, { headers });
+}
+
+async function handleListJobs(request: Request, env: Env, headers: Headers): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const url = new URL(request.url);
+  const status = normalizeJobStatus(url.searchParams.get("status") || "");
+  const query = cleanJobCaptureField(url.searchParams.get("q") || "", 120).toLowerCase();
+  const source = cleanJobFeedField(url.searchParams.get("source") || "", 80).toLowerCase();
+  const limit = clampInteger(Number(url.searchParams.get("limit")), 1, 50, 20);
+
+  const conditions = ["user_id = ?"];
+  const params: unknown[] = [user.id];
+
+  if (status) {
+    conditions.push("status = ?");
+    params.push(status);
+  }
+
+  if (source) {
+    conditions.push("lower(source) = ?");
+    params.push(source);
+  }
+
+  if (query) {
+    conditions.push(
+      "(lower(title) like ? escape '\\' or lower(company) like ? escape '\\' or lower(location) like ? escape '\\' or lower(description) like ? escape '\\')",
+    );
+    const pattern = `%${escapeLikePattern(query)}%`;
+    params.push(pattern, pattern, pattern, pattern);
+  }
+
+  const result = await env.DB.prepare(
+    [
+      "select id, source, external_id, title, company, location, url, description, salary,",
+      "employment_type, remote, status, posted_at, discovered_at, updated_at",
+      "from jobs",
+      `where ${conditions.join(" and ")}`,
+      "order by coalesce(posted_at, discovered_at) desc, discovered_at desc",
+      "limit ?",
+    ].join(" "),
+  )
+    .bind(...params, limit)
+    .all<JobRow>();
+
+  return json({ jobs: result.results.map(mapJob) }, { headers });
+}
+
+async function handleIngestJobs(request: Request, env: Env, headers: Headers): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const rawJobs = Array.isArray(body.jobs) ? body.jobs : [body.job ?? body];
+  const savedJobs = await persistJobFeedInputs(env, user.id, rawJobs);
+
+  if (savedJobs.length === 0) {
+    return json({ error: "Provide at least one job with a title and URL or description." }, { status: 400, headers });
+  }
+
+  return json({ jobs: savedJobs }, { headers });
+}
+
+async function handleSyncJobs(request: Request, env: Env, headers: Headers): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const configs = parseJobSourceConfigs(body.sources ? body : body, env as JobSourceEnv);
+
+  if (configs.length === 0) {
+    return json(
+      { error: "Configure at least one job source in the request or JOB_SOURCE_CONFIG." },
+      { status: 400, headers },
+    );
+  }
+
+  const startedAt = Date.now();
+  const sync = await fetchJobsFromSources(configs, env as JobSourceEnv);
+  const fetchedJobs = sync.results.flatMap((result) => result.jobs);
+  const savedJobs = await persistJobFeedInputs(env, user.id, fetchedJobs);
+
+  logWorkerEvent(sync.errors.length > 0 ? "warn" : "info", "jobs_sync_completed", {
+    userId: user.id,
+    configuredSources: configs.length,
+    successfulSources: sync.results.length,
+    failedSources: sync.errors.length,
+    fetchedJobs: fetchedJobs.length,
+    savedJobs: savedJobs.length,
+    durationMs: Date.now() - startedAt,
+    errors: sync.errors,
+  });
+
+  return json({
+    jobs: savedJobs,
+    sources: sync.results.map((result) => ({
+      provider: result.provider,
+      source: result.source,
+      fetched: result.jobs.length,
+    })),
+    errors: sync.errors,
+  }, { headers });
+}
+
+async function persistJobFeedInputs(env: Env, userId: string, rawJobs: unknown[]): Promise<JsonRecord[]> {
+  const normalizedJobs = rawJobs
+    .slice(0, MAX_JOB_FEED_INGEST_COUNT)
+    .map(normalizeJobFeedInput)
+    .filter((job): job is NormalizedJobFeedInput => Boolean(job));
+
+  const savedJobs: JsonRecord[] = [];
+
+  for (const job of normalizedJobs) {
+    const contentHash = await sha256Hex(normalizeJobFeedHashInput(job));
+    const id = crypto.randomUUID();
+
+    await env.DB.prepare(
+      [
+        "insert into jobs",
+        "(id, user_id, source, external_id, title, company, location, url, description, salary,",
+        "employment_type, remote, status, content_hash, posted_at)",
+        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "on conflict(user_id, content_hash) do update set",
+        "source = excluded.source,",
+        "external_id = coalesce(excluded.external_id, jobs.external_id),",
+        "title = excluded.title,",
+        "company = excluded.company,",
+        "location = excluded.location,",
+        "url = excluded.url,",
+        "description = excluded.description,",
+        "salary = excluded.salary,",
+        "employment_type = excluded.employment_type,",
+        "remote = excluded.remote,",
+        "posted_at = excluded.posted_at,",
+        "updated_at = current_timestamp",
+      ].join(" "),
+    )
+      .bind(
+        id,
+        userId,
+        job.source,
+        job.externalId,
+        job.title,
+        job.company,
+        job.location,
+        job.url,
+        job.description,
+        job.salary,
+        job.employmentType,
+        job.remote,
+        job.status,
+        contentHash,
+        job.postedAt,
+      )
+      .run();
+
+    const saved = await env.DB.prepare(
+      [
+        "select id, source, external_id, title, company, location, url, description, salary,",
+        "employment_type, remote, status, posted_at, discovered_at, updated_at",
+        "from jobs where user_id = ? and content_hash = ?",
+      ].join(" "),
+    )
+      .bind(userId, contentHash)
+      .first<JobRow>();
+
+    if (saved) savedJobs.push(mapJob(saved));
+  }
+
+  return savedJobs;
+}
+
+async function handleUpdateJobStatus(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  jobId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const status = normalizeJobStatus(asNonEmptyString(body.status));
+
+  if (!status) {
+    return json({ error: "Use a valid job status: new, saved, dismissed, or applied." }, { status: 400, headers });
+  }
+
+  const job = await env.DB.prepare(
+    [
+      "update jobs set status = ?, updated_at = current_timestamp",
+      "where user_id = ? and id = ?",
+      "returning id, source, external_id, title, company, location, url, description, salary,",
+      "employment_type, remote, status, posted_at, discovered_at, updated_at",
+    ].join(" "),
+  )
+    .bind(status, user.id, jobId)
+    .first<JobRow>();
+
+  if (!job) {
+    return json({ error: "Job was not found." }, { status: 404, headers });
+  }
+
+  return json({ job: mapJob(job) }, { headers });
+}
+
+async function handleCreateJobCaptureFromJob(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  jobId: string,
+): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const job = await env.DB.prepare(
+    [
+      "select id, source, external_id, title, company, location, url, description, salary,",
+      "employment_type, remote, status, posted_at, discovered_at, updated_at",
+      "from jobs where user_id = ? and id = ?",
+    ].join(" "),
+  )
+    .bind(user.id, jobId)
+    .first<JobRow>();
+
+  if (!job) {
+    return json({ error: "Job was not found." }, { status: 404, headers });
+  }
+
+  const description = cleanJobCaptureDescription(job.description);
+  if (description.length < MIN_JOB_CAPTURE_DESCRIPTION_CHARS) {
+    return json({ error: "This job does not have enough description text to optimize." }, { status: 400, headers });
+  }
+
+  const contentHash = await sha256Hex(normalizeJobCaptureHashInput({
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    sourceUrl: job.url,
+    description,
+  }));
+  const existing = await env.DB.prepare(
+    [
+      "select id, title, company, location, description, source_url, duplicate_of_id, created_at, expires_at",
+      "from job_captures",
+      "where user_id = ? and content_hash = ? and expires_at > current_timestamp",
+      "order by created_at desc limit 1",
+    ].join(" "),
+  )
+    .bind(user.id, contentHash)
+    .first<JobCaptureRow>();
+
+  if (existing) {
+    return json({ capture: mapJobCapture(existing), duplicate: true }, { headers });
+  }
+
+  const captureId = crypto.randomUUID();
+  await env.DB.prepare(
+    [
+      "insert into job_captures",
+      "(id, user_id, title, company, location, description, source_url, content_hash, expires_at)",
+      "values (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+14 days'))",
+    ].join(" "),
+  )
+    .bind(captureId, user.id, job.title, job.company, job.location, description, job.url, contentHash)
+    .run();
+
+  await env.DB.prepare("update jobs set status = 'saved', updated_at = current_timestamp where user_id = ? and id = ?")
+    .bind(user.id, jobId)
+    .run();
+
+  const capture = await env.DB.prepare(
+    [
+      "select id, title, company, location, description, source_url, duplicate_of_id, created_at, expires_at",
+      "from job_captures where user_id = ? and id = ?",
+    ].join(" "),
+  )
+    .bind(user.id, captureId)
+    .first<JobCaptureRow>();
+
+  return json({ capture: capture ? mapJobCapture(capture) : null, duplicate: false }, { headers });
+}
+
+async function handleCreateApplySession(request: Request, env: Env, headers: Headers): Promise<Response> {
+  const { user } = await requireSession(request, env);
+  const body = await readJson(request);
+  const runId = asNonEmptyString(body.runId);
+  const jobUrl = cleanJobCaptureUrl(asNonEmptyString(body.jobUrl));
+  const fileName = sanitizePdfFileName(asNonEmptyString(body.fileName) || "syncresume-resume.pdf");
+  const templateId = asNonEmptyString(body.templateId);
+  const html = asNonEmptyString(body.html);
+
+  if (!jobUrl) {
+    return json({ error: "A valid job application URL is required." }, { status: 400, headers });
+  }
+
+  if (!html) {
+    return json({ error: "Rendered resume HTML is required." }, { status: 400, headers });
+  }
+
+  if (html.length > MAX_EXPORT_HTML_CHARS) {
+    return json({ error: "Rendered resume is too large to hand off." }, { status: 413, headers });
+  }
+
+  if (!RESUME_TEMPLATE_IDS.has(templateId)) {
+    return json({ error: "Unsupported resume template." }, { status: 400, headers });
+  }
+
+  if (runId) {
+    const run = await env.DB.prepare("select id from optimization_runs where user_id = ? and id = ?")
+      .bind(user.id, runId)
+      .first<{ id: string }>();
+    if (!run) {
+      return json({ error: "Run not found." }, { status: 404, headers });
+    }
+  }
+
+  const id = crypto.randomUUID();
+  const rawToken = `${APPLY_SESSION_TOKEN_PREFIX}${randomUrlSafeToken(32)}`;
+  const tokenHash = await sha256Hex(rawToken);
+
+  await env.DB.prepare(
+    [
+      "insert into apply_sessions",
+      "(id, user_id, run_id, token_hash, job_url, file_name, template_id, resume_html, expires_at)",
+      "values (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+30 minutes'))",
+    ].join(" "),
+  )
+    .bind(id, user.id, runId || null, tokenHash, jobUrl, fileName, templateId, html)
+    .run();
+
+  const session = await env.DB.prepare(
+    [
+      "select id, run_id, job_url, file_name, template_id, created_at, expires_at",
+      "from apply_sessions",
+      "where user_id = ? and id = ?",
+    ].join(" "),
+  )
+    .bind(user.id, id)
+    .first<ApplySessionRow>();
+
+  return json(
+    {
+      session: session ? mapApplySession(session) : {
+        id,
+        runId: runId || null,
+        jobUrl,
+        fileName,
+        templateId,
+      },
+      token: rawToken,
+      expiresInMinutes: 30,
+    },
+    { headers },
+  );
+}
+
+async function handleGetApplySession(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  token: string,
+): Promise<Response> {
+  const session = await getApplySessionByToken(env, token);
+  await env.DB.prepare("update apply_sessions set last_used_at = current_timestamp where id = ?")
+    .bind(session.id)
+    .run();
+
+  return json({ session: mapApplySession(session) }, { headers });
+}
+
+async function handleGetApplySessionPdf(
+  request: Request,
+  env: Env,
+  headers: Headers,
+  token: string,
+): Promise<Response> {
+  if (!env.BROWSER) {
+    throw new HttpError("PDF rendering is not configured.", 503);
+  }
+
+  const session = await getApplySessionByToken(env, token, true);
+  const pdfBytes = await renderPdfFromHtml(env, session.resume_html);
+
+  await env.DB.prepare("update apply_sessions set last_used_at = current_timestamp where id = ?")
+    .bind(session.id)
+    .run();
+
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Content-Type", "application/pdf");
+  responseHeaders.set("Content-Disposition", `attachment; filename="${sanitizeDispositionFileName(session.file_name)}"`);
+  responseHeaders.set("Cache-Control", "no-store");
+  responseHeaders.set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type");
+
+  return new Response(bytesToArrayBuffer(pdfBytes), {
+    status: 200,
+    headers: responseHeaders,
+  });
+}
 
 async function handleOptimize(request: Request, env: Env, headers: Headers): Promise<Response> {
   const { user } = await requireSession(request, env);
@@ -1813,8 +2421,22 @@ async function handleRenderPdfExport(request: Request, env: Env, headers: Header
     return json({ error: "Unsupported resume template." }, { status: 400, headers });
   }
 
+  const pdfBytes = await renderPdfFromHtml(env, html);
+
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Content-Type", "application/pdf");
+  responseHeaders.set("Content-Disposition", `attachment; filename="${sanitizeDispositionFileName(fileName)}"`);
+  responseHeaders.set("Cache-Control", "no-store");
+  responseHeaders.set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type");
+
+  return new Response(bytesToArrayBuffer(pdfBytes), {
+    status: 200,
+    headers: responseHeaders,
+  });
+}
+
+async function renderPdfFromHtml(env: Env, html: string): Promise<Uint8Array> {
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
-  let pdfBytes: Uint8Array;
 
   try {
     browser = await puppeteer.launch(env.BROWSER);
@@ -1827,7 +2449,7 @@ async function handleRenderPdfExport(request: Request, env: Env, headers: Header
       timeout: 15000,
     });
     await page.emulateMediaType("print");
-    pdfBytes = await page.pdf({
+    return await page.pdf({
       format: "letter",
       printBackground: true,
       preferCSSPageSize: true,
@@ -1843,17 +2465,6 @@ async function handleRenderPdfExport(request: Request, env: Env, headers: Header
   } finally {
     await browser?.close();
   }
-
-  const responseHeaders = new Headers(headers);
-  responseHeaders.set("Content-Type", "application/pdf");
-  responseHeaders.set("Content-Disposition", `attachment; filename="${sanitizeDispositionFileName(fileName)}"`);
-  responseHeaders.set("Cache-Control", "no-store");
-  responseHeaders.set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type");
-
-  return new Response(bytesToArrayBuffer(pdfBytes), {
-    status: 200,
-    headers: responseHeaders,
-  });
 }
 
 function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -1886,6 +2497,39 @@ async function requireSession(
   const email = getClerkEmail(claims);
   const user = await findOrCreateUser(env, claims.sub, email);
   return { user };
+}
+
+async function requireExtensionSession(
+  request: Request,
+  env: Env,
+): Promise<{ userId: string; tokenId: string }> {
+  const authorization = request.headers.get("Authorization") ?? "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() ?? "";
+
+  if (!token.startsWith(EXTENSION_TOKEN_PREFIX)) {
+    throw new HttpError("Connect the SyncResume extension before sending a job capture.", 401);
+  }
+
+  const tokenHash = await sha256Hex(token);
+  const tokenRow = await env.DB.prepare(
+    [
+      "select id, user_id from extension_tokens",
+      "where token_hash = ? and revoked_at is null and expires_at > current_timestamp",
+      "limit 1",
+    ].join(" "),
+  )
+    .bind(tokenHash)
+    .first<{ id: string; user_id: string }>();
+
+  if (!tokenRow) {
+    throw new HttpError("Extension connection expired. Create a new extension token in SyncResume.", 401);
+  }
+
+  await env.DB.prepare("update extension_tokens set last_used_at = current_timestamp where id = ?")
+    .bind(tokenRow.id)
+    .run();
+
+  return { userId: tokenRow.user_id, tokenId: tokenRow.id };
 }
 
 async function findOrCreateUser(env: Env, clerkUserId: string, email: string): Promise<UserRow> {
@@ -2457,7 +3101,7 @@ function createCorsHeaders(request: Request, env: Env): Headers {
   const requestOrigin = normalizeOrigin(request.headers.get("Origin") ?? "");
   const allowedOrigins = getAllowedCorsOrigins(env);
   const allowedOrigin = requestOrigin
-    ? allowedOrigins.includes(requestOrigin)
+    ? isChromeExtensionOrigin(requestOrigin) || allowedOrigins.includes(requestOrigin)
       ? requestOrigin
       : ""
     : allowedOrigins[0] || "*";
@@ -2467,6 +3111,10 @@ function createCorsHeaders(request: Request, env: Env): Headers {
   }
   headers.set("Vary", "Origin");
   return headers;
+}
+
+function isChromeExtensionOrigin(value: string): boolean {
+  return value.startsWith("chrome-extension://");
 }
 
 function getAllowedCorsOrigins(env: Env): string[] {
@@ -2675,6 +3323,262 @@ function mapRun(row: RunRow): JsonRecord {
   }
 
   return run;
+}
+
+function mapJobCapture(row: JobCaptureRow): JsonRecord {
+  return {
+    id: row.id,
+    title: row.title,
+    company: row.company,
+    location: row.location,
+    description: row.description,
+    sourceUrl: row.source_url,
+    duplicateOfId: row.duplicate_of_id,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+  };
+}
+
+function mapJob(row: JobRow): JsonRecord {
+  return {
+    id: row.id,
+    source: row.source,
+    externalId: row.external_id,
+    title: row.title,
+    company: row.company,
+    location: row.location,
+    url: row.url,
+    description: row.description,
+    salary: row.salary,
+    employmentType: row.employment_type,
+    remote: row.remote,
+    status: row.status,
+    postedAt: row.posted_at,
+    discoveredAt: row.discovered_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapApplySession(row: ApplySessionRow): JsonRecord {
+  return {
+    id: row.id,
+    runId: row.run_id,
+    jobUrl: row.job_url,
+    fileName: row.file_name,
+    templateId: row.template_id,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+  };
+}
+
+async function getApplySessionByToken(
+  env: Env,
+  token: string,
+  includeHtml = false,
+): Promise<ApplySessionExportRow> {
+  if (!token.startsWith(APPLY_SESSION_TOKEN_PREFIX)) {
+    throw new HttpError("Apply session was not found or has expired.", 404);
+  }
+
+  const tokenHash = await sha256Hex(token);
+  const columns = [
+    "id, run_id, job_url, file_name, template_id, created_at, expires_at",
+    includeHtml ? ", resume_html" : ", '' as resume_html",
+  ].join("");
+  const session = await env.DB.prepare(
+    [
+      `select ${columns}`,
+      "from apply_sessions",
+      "where token_hash = ? and expires_at > current_timestamp",
+      "limit 1",
+    ].join(" "),
+  )
+    .bind(tokenHash)
+    .first<ApplySessionExportRow>();
+
+  if (!session) {
+    throw new HttpError("Apply session was not found or has expired.", 404);
+  }
+
+  return session;
+}
+
+type NormalizedJobFeedInput = {
+  source: string;
+  externalId: string | null;
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  description: string;
+  salary: string;
+  employmentType: string;
+  remote: string;
+  status: "new" | "saved" | "dismissed" | "applied";
+  postedAt: string | null;
+};
+
+function normalizeJobFeedInput(value: unknown): NormalizedJobFeedInput | null {
+  const input = value && typeof value === "object" && !Array.isArray(value)
+    ? value as JsonRecord
+    : {};
+  const title = cleanJobFeedField(asNonEmptyString(input.title), 180);
+  const url = cleanJobCaptureUrl(firstNonEmptyString(input.url, input.sourceUrl));
+  const description = cleanJobCaptureDescription(asNonEmptyString(input.description))
+    .slice(0, MAX_JOB_FEED_DESCRIPTION_CHARS);
+
+  if (!title || (!url && description.length < MIN_JOB_CAPTURE_DESCRIPTION_CHARS)) {
+    return null;
+  }
+
+  return {
+    source: cleanJobFeedField(asNonEmptyString(input.source), 80).toLowerCase() || "manual",
+    externalId: asNullableString(firstNonEmptyString(input.externalId, input.external_id)),
+    title,
+    company: cleanJobFeedField(asNonEmptyString(input.company), 160),
+    location: cleanJobFeedField(asNonEmptyString(input.location), 160),
+    url,
+    description,
+    salary: cleanJobFeedField(asNonEmptyString(input.salary), 160),
+    employmentType: cleanJobFeedField(firstNonEmptyString(input.employmentType, input.employment_type), 80),
+    remote: cleanJobFeedField(asNonEmptyString(input.remote), 80),
+    status: normalizeJobStatus(asNonEmptyString(input.status)) || "new",
+    postedAt: normalizeDateTimeString(firstNonEmptyString(input.postedAt, input.posted_at)),
+  };
+}
+
+function firstNonEmptyString(...values: unknown[]): string {
+  for (const value of values) {
+    const candidate = asNonEmptyString(value);
+    if (candidate) return candidate;
+  }
+  return "";
+}
+
+function normalizeJobStatus(value: string): JobRow["status"] | "" {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "new" || normalized === "saved" || normalized === "dismissed" || normalized === "applied") {
+    return normalized;
+  }
+  return "";
+}
+
+function cleanJobFeedField(value: string, maxLength: number): string {
+  return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function normalizeDateTimeString(value: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+function normalizeJobFeedHashInput(job: NormalizedJobFeedInput): string {
+  return [
+    job.source,
+    job.externalId ?? "",
+    job.title,
+    job.company,
+    job.location,
+    job.url,
+    job.description,
+  ]
+    .join("\n")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
+function clampInteger(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function cleanJobCaptureField(value: string, maxLength: number): string {
+  return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function cleanJobCaptureUrl(value: string): string {
+  const cleaned = cleanJobCaptureField(value, 1_000);
+  if (!cleaned) return "";
+
+  try {
+    const url = new URL(cleaned);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+function cleanJobCaptureDescription(value: string): string {
+  const seen = new Set<string>();
+  return value
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => {
+      if (line.length < 2) return false;
+      const key = line.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .slice(0, MAX_JOB_CAPTURE_DESCRIPTION_CHARS)
+    .trim();
+}
+
+function normalizeJobCaptureHashInput(capture: {
+  title: string;
+  company: string;
+  location: string;
+  sourceUrl: string;
+  description: string;
+}): string {
+  return [
+    capture.title,
+    capture.company,
+    capture.location,
+    capture.sourceUrl,
+    capture.description,
+  ]
+    .join("\n")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function randomUrlSafeToken(byteLength: number): string {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return base64UrlEncode(bytes);
+}
+
+function base64UrlEncode(bytes: Uint8Array): string {
+  let value = "";
+  for (const byte of bytes) {
+    value += String.fromCharCode(byte);
+  }
+
+  return btoa(value)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function parseStructuredResumeSnapshot(value: string | null | undefined): JsonRecord | null {
