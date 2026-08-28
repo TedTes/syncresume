@@ -1,5 +1,7 @@
 node_modules
 dist
+dist-extension
+syncresume-extension.zip
 .DS_Store
 *.local
 .env

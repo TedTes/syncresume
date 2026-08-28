@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "SyncResume Job Capture",
+  "description": "Capture a job description from the current tab and send it to SyncResume.",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Send job to SyncResume",
+    "default_icon": {
+      "16": "icons/icon.svg",
+      "32": "icons/icon.svg",
+      "48": "icons/icon.svg",
+      "128": "icons/icon.svg"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon.svg",
+    "32": "icons/icon.svg",
+    "48": "icons/icon.svg",
+    "128": "icons/icon.svg"
+  },
+  "permissions": ["activeTab", "clipboardWrite", "scripting", "storage"],
+  "host_permissions": [
+    "https://api.syncresume.io/*",
+    "https://*.linkedin.com/*",
+    "https://*.greenhouse.io/*",
+    "https://*.lever.co/*",
+    "https://*.workdayjobs.com/*",
+    "https://*.indeed.com/*",
+    "https://*.ashbyhq.com/*",
+    "https://*.smartrecruiters.com/*",
+    "https://*.jobvite.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.linkedin.com/*",
+        "https://*.greenhouse.io/*",
+        "https://*.lever.co/*",
+        "https://*.workdayjobs.com/*",
+        "https://*.indeed.com/*",
+        "https://*.ashbyhq.com/*",
+        "https://*.smartrecruiters.com/*",
+        "https://*.jobvite.com/*"
+      ],
+      "js": ["apply-assist.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -9,6 +9,8 @@
     "dev:marketing": "astro dev",
     "build": "tsc -b && astro build",
     "build:app": "tsc -b && SYNCRESUME_APP_BUILD=1 vite build --outDir dist/app && node scripts/prepare-app-pages-output.mjs",
+    "build:extension": "node scripts/build-extension.mjs",
+    "package:extension": "node scripts/package-extension.mjs",
     "build:marketing": "tsc -b && astro build",
     "preview": "vite preview",
     "cf:types": "WRANGLER_WRITE_LOGS=false wrangler types cloudflare/worker/worker-configuration.d.ts --include-runtime false --env-file cloudflare/typegen.env",

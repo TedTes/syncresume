@@ -35,6 +35,32 @@ VITE_CLOUDFLARE_API_URL=http://localhost:8787
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
 ```
 
+## Browser Extension MVP
+
+The Chrome extension captures the visible job post text from the active tab only
+after the user clicks the extension button. The MVP copies the extracted job
+description to the clipboard and opens the SyncResume workspace so the user can
+paste/review it before optimizing.
+
+```bash
+npm run build:extension
+```
+
+Then open `chrome://extensions`, enable Developer mode, choose **Load unpacked**,
+and select `dist-extension`.
+
+Local test flow:
+
+1. Open any job posting page.
+2. Click the SyncResume extension.
+3. Click **Send to SyncResume**.
+4. Confirm the job description was copied.
+5. Paste it into the workspace job description box and optimize.
+
+The production workspace target is `https://app.syncresume.io/workspace/optimize`.
+For local app testing, set `syncResumeWorkspaceUrl` in extension storage to
+`http://localhost:5173/workspace/optimize`.
+
 ## Cloudflare Environment
 
 The backend lives in `cloudflare/` and is configured by `wrangler.toml`. The
@@ -49,7 +75,7 @@ Local development uses the frontend dev server plus a local Worker:
 Production uses Cloudflare-hosted domains:
 
 - Marketing: `https://syncresume.io`
-- App: `https://syncresume.io/app`
+- App: `https://app.syncresume.io`
 - API Worker: `https://api.syncresume.io`
 
 ```bash
@@ -109,10 +135,86 @@ VITE_CLOUDFLARE_API_URL=https://api.syncresume.io
 VITE_CLERK_PUBLISHABLE_KEY=pk_live_your_clerk_publishable_key
 ```
 
-If billing redirect vars are set explicitly, use the app path:
+If billing redirect vars are set explicitly, use the app domain:
 
 ```bash
-BILLING_SUCCESS_URL=https://syncresume.io/app/settings?billing=success
-BILLING_CANCEL_URL=https://syncresume.io/app/settings?billing=cancelled
-BILLING_PORTAL_RETURN_URL=https://syncresume.io/app/settings
+BILLING_SUCCESS_URL=https://app.syncresume.io/settings?billing=success
+BILLING_CANCEL_URL=https://app.syncresume.io/settings?billing=cancelled
+BILLING_PORTAL_RETURN_URL=https://app.syncresume.io/settings
 ```
+
+## Browser Extension
+
+The Chrome extension source lives in `extension/`.
+
+```bash
+npm run build:extension
+npm run package:extension
+```
+
+`build:extension` copies the extension into `dist-extension/`.
+`package:extension` creates `syncresume-extension.zip` for Chrome Web Store upload.
+
+Production capture flow:
+
+1. Sign in to the SyncResume app.
+2. Open Settings and create a browser extension token.
+3. Paste that token into the extension popup once.
+4. Open a job posting, click Capture current page, review the extracted text, then Send to SyncResume.
+5. The extension sends the capture to `POST /api/job-captures`.
+6. The app opens `https://app.syncresume.io/workspace/optimize?captureId=...` and preloads the captured job.
+
+The extension falls back to copying the job text and opening the app if the token is missing,
+expired, or the capture API is unavailable. Captured jobs expire after 14 days. Extension
+tokens expire after 90 days.
+
+## Jobs Feed API
+
+The jobs feed API stores job posts discovered from future job APIs, scrapers, or automation
+sources. It is separate from one-off browser captures.
+
+- `GET /api/jobs?status=new&limit=20` lists the signed-in user's jobs.
+- `POST /api/jobs` ingests one or more jobs.
+- `POST /api/jobs/sync` fetches jobs from configured source adapters and ingests them.
+- `PATCH /api/jobs/:id` updates a job status to `new`, `saved`, `dismissed`, or `applied`.
+- `POST /api/jobs/:id/capture` converts a saved job into a workspace capture for optimization.
+
+Supported sync adapters:
+
+- `greenhouse`: requires `boardToken`
+- `lever`: requires `boardToken`
+- `ashby`: requires `boardToken`
+- `apify`: requires `actorTaskId` or `actorId`, plus Worker secret `APIFY_API_TOKEN`
+
+Example ingest payload:
+
+```json
+{
+  "jobs": [
+    {
+      "source": "apify-linkedin",
+      "externalId": "job-123",
+      "title": "Senior Software Engineer",
+      "company": "Acme",
+      "location": "Toronto, ON",
+      "url": "https://example.com/jobs/123",
+      "description": "Full job description text..."
+    }
+  ]
+}
+```
+
+Example sync payload:
+
+```json
+{
+  "sources": [
+    { "provider": "greenhouse", "boardToken": "stripe", "company": "Stripe", "limit": 10 },
+    { "provider": "lever", "boardToken": "linear", "company": "Linear", "limit": 10 }
+  ]
+}
+```
+
+For production, store the same source array in Worker var `JOB_SOURCE_CONFIG` and
+call `POST /api/jobs/sync` with an empty JSON body. Do not put Apify tokens in JSON
+config; set `APIFY_API_TOKEN` as a Worker secret.

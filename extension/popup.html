@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SyncResume Job Capture</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup-shell">
+      <div class="popup-brand">
+        <span class="popup-logo" aria-hidden="true">SR</span>
+        <div>
+          <h1>SyncResume</h1>
+          <p>Capture this job post.</p>
+        </div>
+      </div>
+
+      <section class="popup-status" id="status" aria-live="polite">
+        Open a job post, then send the visible description to SyncResume.
+      </section>
+
+      <details class="popup-settings">
+        <summary>Connection</summary>
+        <label class="popup-field">
+          <span>Extension token</span>
+          <input id="token-input" type="password" autocomplete="off" placeholder="Paste token from SyncResume settings" />
+        </label>
+        <div class="popup-settings-actions">
+          <button class="popup-secondary compact" id="save-token-button" type="button">Save token</button>
+          <button class="popup-secondary compact" id="clear-token-button" type="button">Clear</button>
+        </div>
+      </details>
+
+      <dl class="popup-result" id="result" hidden>
+        <div>
+          <dt>Title</dt>
+          <dd id="job-title">-</dd>
+        </div>
+        <div>
+          <dt>Text</dt>
+          <dd id="job-size">-</dd>
+        </div>
+      </dl>
+
+      <label class="popup-field popup-review" id="review-wrap" hidden>
+        <span>Review before sending</span>
+        <textarea id="job-description" rows="8"></textarea>
+      </label>
+
+      <button class="popup-secondary" id="capture-button" type="button">
+        Capture current page
+      </button>
+
+      <button class="popup-primary" id="send-button" type="button">
+        Send to SyncResume
+      </button>
+
+      <button class="popup-secondary" id="copy-button" type="button">
+        Copy only
+      </button>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
