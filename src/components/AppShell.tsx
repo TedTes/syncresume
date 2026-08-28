@@ -1,10 +1,11 @@
-import { FileText, Files, LayoutGrid, Settings } from "lucide-react";
+import { BriefcaseBusiness, FileText, Files, LayoutGrid, Settings } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { AuthGate } from "./AuthGate";
 
 const PRIMARY_NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+  { to: "/jobs", label: "Jobs", icon: BriefcaseBusiness },
   { to: "/workspace", label: "Workspace", icon: FileText },
   { to: "/resumes", label: "Resumes", icon: Files },
 ];

@@ -9,7 +9,11 @@ const PRO_PLAN_LABELS: Record<BillingPlanKey, string> = {
   yearly: "Pro Yearly",
 };
 
-export function TopbarAccount() {
+type TopbarAccountProps = {
+  showCredits?: boolean;
+};
+
+export function TopbarAccount({ showCredits = true }: TopbarAccountProps) {
   const { user } = useAuth();
   const { openPricing } = usePricing();
   const initials = user?.email?.slice(0, 2).toUpperCase() || "SR";
@@ -20,6 +24,7 @@ export function TopbarAccount() {
     isPro && user?.billingPlanKey ? PRO_PLAN_LABELS[user.billingPlanKey] : planLabel;
   const usage = user?.usage;
   const creditLabel =
+    showCredits &&
     usage && Number.isFinite(usage.aiActionsRemaining) && Number.isFinite(usage.aiActionsLimit)
       ? `${Math.max(0, usage.aiActionsRemaining)}/${usage.aiActionsLimit}`
       : null;

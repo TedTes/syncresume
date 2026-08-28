@@ -29,6 +29,10 @@ import { downloadCoverLetterDocx, downloadCoverLetterPdf } from "../lib/exportRe
 import { extractJobTitle } from "../lib/jobTitle";
 import { openAIErrorMessage } from "../lib/openai";
 import {
+  getJobCapture,
+  type JobCaptureRecord,
+} from "../lib/cloudflare/client";
+import {
   generateCoverLetterWithProvider,
   optimizeResumeWithProvider,
   structureResumeWithProvider,
@@ -68,6 +72,17 @@ function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatCapturedJobDescription(capture: JobCaptureRecord): string {
+  const header = [
+    capture.title ? `Title: ${capture.title}` : "",
+    capture.company ? `Company: ${capture.company}` : "",
+    capture.location ? `Location: ${capture.location}` : "",
+    capture.sourceUrl ? `Source: ${capture.sourceUrl}` : "",
+  ].filter(Boolean);
+
+  return [...header, "", capture.description].join("\n").trim();
 }
 
 type JobAddMode = "paste" | "link";
@@ -172,6 +187,7 @@ export default function OptimizerPage({
   const coverLetterPanelRef = useRef<HTMLElement | null>(null);
   const reviewPanelRef = useRef<HTMLDivElement | null>(null);
   const workspaceResumeInputRef = useRef<HTMLInputElement | null>(null);
+  const loadedCaptureIdRef = useRef("");
 
   useToastMessage(fetchJDError, { kind: "error", title: "Job page failed", durationMs: 6500 });
   useToastMessage(coverLetterStatus, { kind: "success", title: "Cover letter" });
@@ -394,6 +410,41 @@ export default function OptimizerPage({
 
     navigate(reviewBackPath ?? "/workspace/optimize", { replace: Boolean(reviewRunId) });
   }
+
+  useEffect(() => {
+    const captureId = new URLSearchParams(location.search).get("captureId")?.trim() ?? "";
+    if (!captureId || loadedCaptureIdRef.current === captureId) return;
+
+    loadedCaptureIdRef.current = captureId;
+    let isCurrent = true;
+
+    (async () => {
+      setFetchJDError("");
+      setIsFetchingJD(true);
+
+      try {
+        const { capture } = await getJobCapture(captureId);
+        if (!isCurrent) return;
+
+        resetResult();
+        setJobAddMode("paste");
+        setJobDescription(formatCapturedJobDescription(capture));
+        if (capture.sourceUrl) {
+          setLinkValue(capture.sourceUrl);
+        }
+      } catch (error) {
+        if (isCurrent) {
+          setFetchJDError(error instanceof Error ? error.message : "Could not load the captured job.");
+        }
+      } finally {
+        if (isCurrent) setIsFetchingJD(false);
+      }
+    })();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [location.search]);
 
   useEffect(() => {
     setCoverLetter("");
@@ -1488,6 +1539,8 @@ export default function OptimizerPage({
               provider={provider}
               onResumeChange={setOptimizedResume}
               initialTemplateId={reviewTemplateId}
+              runId={currentRunId}
+              applicationUrl={linkValue}
               onBack={handleReviewBack}
               topbarPortalTarget={reviewToolbarHost}
               title={reviewTitle || currentReviewRun?.title}

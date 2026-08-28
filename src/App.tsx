@@ -7,6 +7,7 @@ import { SettingsProvider } from "./context/SettingsContext";
 import { ToastProvider } from "./context/ToastContext";
 import ApplicationPage from "./pages/ApplicationPage";
 import DashboardPage from "./pages/DashboardPage";
+import JobsPage from "./pages/JobsPage";
 import ResumesPage from "./pages/ResumesPage";
 import SettingsPage from "./pages/SettingsPage";
 import WorkspacePage from "./pages/WorkspacePage";
@@ -24,6 +25,7 @@ export default function App() {
                 {/* Authenticated app — AppShell is a pathless layout route */}
                 <Route element={<AppShell />}>
                   <Route path="dashboard" element={<DashboardPage />} />
+                  <Route path="jobs" element={<JobsPage />} />
                   <Route path="applications/:runId" element={<ApplicationPage />} />
                   <Route path="workspace" element={<WorkspacePage />} />
                   <Route path="workspace/review/:runId" element={<WorkspacePage />} />
