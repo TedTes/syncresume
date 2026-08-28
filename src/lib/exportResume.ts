@@ -159,7 +159,7 @@ async function printResumeDocumentPdf(
   });
 }
 
-async function renderResumeDocumentPdfHtml(
+export async function renderResumeDocumentPdfHtml(
   resumeDocument: ResumeDocument,
   templateId: ResumeTemplateId,
   fileName: string,

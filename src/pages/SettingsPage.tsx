@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
+  ClipboardCopy,
   CreditCard,
+  KeyRound,
   Loader2,
   UserRound,
   Zap,
@@ -12,7 +14,7 @@ import { usePricing } from "../context/PricingContext";
 import { useSettings } from "../context/SettingsContext";
 import type { UserProfileDetails } from "../lib/userProfile";
 import { RESUME_FONT_OPTIONS, type ResumeFontId } from "../templates/shared/fonts";
-import type { BillingPlanKey } from "../lib/cloudflare/client";
+import { createExtensionSession, type BillingPlanKey } from "../lib/cloudflare/client";
 
 const PRO_PLAN_LABELS: Record<BillingPlanKey, string> = {
   monthly: "Pro Monthly",
@@ -48,6 +50,10 @@ export default function SettingsPage() {
     openPricing,
   } = usePricing();
   const [profileSaveStatus, setProfileSaveStatus] = useState<ProfileSaveStatus>("saved");
+  const [extensionToken, setExtensionToken] = useState("");
+  const [extensionTokenStatus, setExtensionTokenStatus] = useState("");
+  const [extensionTokenError, setExtensionTokenError] = useState("");
+  const [isCreatingExtensionToken, setIsCreatingExtensionToken] = useState(false);
   const profileSaveTimerRef = useRef<number | null>(null);
   const usage = profile?.usage;
   const isPro = profile?.plan === "Pro";
@@ -74,6 +80,34 @@ export default function SettingsPage() {
     profileSaveTimerRef.current = window.setTimeout(() => {
       setProfileSaveStatus("saved");
     }, 450);
+  }
+
+  async function handleCreateExtensionToken() {
+    setIsCreatingExtensionToken(true);
+    setExtensionToken("");
+    setExtensionTokenStatus("");
+    setExtensionTokenError("");
+
+    try {
+      const session = await createExtensionSession("Chrome extension");
+      setExtensionToken(session.token);
+      setExtensionTokenStatus(`Token created. It expires in ${session.expiresInDays} days.`);
+    } catch (error) {
+      setExtensionTokenError(error instanceof Error ? error.message : "Could not create an extension token.");
+    } finally {
+      setIsCreatingExtensionToken(false);
+    }
+  }
+
+  async function handleCopyExtensionToken() {
+    if (!extensionToken) return;
+
+    try {
+      await navigator.clipboard.writeText(extensionToken);
+      setExtensionTokenStatus("Token copied.");
+    } catch {
+      setExtensionTokenError("Could not copy the token.");
+    }
   }
 
   return (
@@ -215,6 +249,56 @@ export default function SettingsPage() {
               checked={toggles.saveRunHistory}
               onChange={(value) => setToggle("saveRunHistory", value)}
             />
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-heading">
+              <div>
+                <p className="settings-card-title">Browser extension</p>
+                <p className="settings-card-subtitle">
+                  Connect the extension so captured job posts can open directly in this workspace.
+                </p>
+              </div>
+              <span className="settings-card-icon" aria-hidden="true">
+                <KeyRound />
+              </span>
+            </div>
+            <div className="settings-extension-connect">
+              <button
+                className="btn btn-secondary btn-sm"
+                type="button"
+                disabled={isCreatingExtensionToken}
+                onClick={handleCreateExtensionToken}
+              >
+                {isCreatingExtensionToken ? (
+                  <Loader2 aria-hidden="true" className="spin-icon" />
+                ) : (
+                  <KeyRound aria-hidden="true" />
+                )}
+                {isCreatingExtensionToken ? "Creating..." : "Create extension token"}
+              </button>
+              {extensionToken && (
+                <button
+                  className="btn btn-primary btn-sm"
+                  type="button"
+                  onClick={handleCopyExtensionToken}
+                >
+                  <ClipboardCopy aria-hidden="true" />
+                  Copy token
+                </button>
+              )}
+            </div>
+            {extensionToken && (
+              <code className="settings-extension-token">
+                {extensionToken}
+              </code>
+            )}
+            {extensionTokenStatus && (
+              <p className="settings-row-desc settings-extension-status">{extensionTokenStatus}</p>
+            )}
+            {extensionTokenError && (
+              <p className="settings-row-desc settings-extension-error">{extensionTokenError}</p>
+            )}
           </section>
 
           <section className="settings-card">

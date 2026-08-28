@@ -14,6 +14,7 @@ import {
   Download,
   Eye,
   Check,
+  ExternalLink,
   LayoutTemplate,
   ListTodo,
   Loader2,
@@ -30,7 +31,9 @@ import {
   copyPlainText,
   downloadResumeDocumentDocx,
   downloadResumeDocumentPdf,
+  renderResumeDocumentPdfHtml,
 } from "../lib/exportResume";
+import { createApplySession } from "../lib/cloudflare/client";
 import { parseResumeContact } from "../resume/contact";
 import { ContactDetailList } from "../templates/shared/renderers";
 import { ResumeTemplatePreview } from "./ResumeTemplatePreview";
@@ -93,6 +96,8 @@ type ResumeReviewProps = {
   ) => Promise<void> | void;
   onExported?: (exportType: ExportType) => void | Promise<void>;
   onExportNameConfirmed?: (name: string) => void | Promise<void>;
+  runId?: string | null;
+  applicationUrl?: string;
   onBack?: () => void;
   topbarPortalTarget?: HTMLElement | null;
   title?: string;
@@ -312,6 +317,8 @@ export function ResumeReview({
   onTemplateChange,
   onExported,
   onExportNameConfirmed,
+  runId,
+  applicationUrl,
   onBack,
   topbarPortalTarget,
   title,
@@ -329,10 +336,13 @@ export function ResumeReview({
   const [exportError, setExportError] = useState("");
   const [selectedExportTypes, setSelectedExportTypes] = useState<ExportType[]>(["docx", "pdf"]);
   const [isExporting, setIsExporting] = useState(false);
+  const [isPreparingApply, setIsPreparingApply] = useState(false);
   const [isExportNameDialogOpen, setIsExportNameDialogOpen] = useState(false);
   const [exportNameDraft, setExportNameDraft] = useState("");
   const [saveReviewStatus, setSaveReviewStatus] = useState("");
   const [saveReviewError, setSaveReviewError] = useState("");
+  const [applyAssistStatus, setApplyAssistStatus] = useState("");
+  const [applyAssistError, setApplyAssistError] = useState("");
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -430,6 +440,8 @@ export function ResumeReview({
   useToastMessage(exportError, { kind: "error", title: "Export failed", durationMs: 6500 });
   useToastMessage(saveReviewStatus, { kind: "success", title: "Saved" });
   useToastMessage(saveReviewError, { kind: "error", title: "Save failed", durationMs: 6500 });
+  useToastMessage(applyAssistStatus, { kind: "success", title: "Apply assist ready" });
+  useToastMessage(applyAssistError, { kind: "error", title: "Apply assist failed", durationMs: 6500 });
 
   useEffect(() => {
     setTemplatePreviewDocument(resumeDocument);
@@ -736,12 +748,47 @@ export function ResumeReview({
     }
   }
 
+  async function handleApplyWithResume() {
+    const targetUrl = normalizeApplicationUrl(applicationUrl || sourceUrlFromJobDescription(jobDescription));
+    if (!targetUrl) {
+      setApplyAssistError("Add or capture a valid job URL before using apply assist.");
+      return;
+    }
+
+    setApplyAssistStatus("");
+    setApplyAssistError("");
+    setIsPreparingApply(true);
+
+    try {
+      const exportBaseName = safeDownloadBaseName(downloadBaseName);
+      const fileName = `${exportBaseName}.pdf`;
+      const html = await renderResumeDocumentPdfHtml(resumeDocument, selectedTemplateId, fileName, selectedFontId);
+      const { session, token } = await createApplySession({
+        runId: runId ?? null,
+        jobUrl: targetUrl,
+        fileName,
+        templateId: selectedTemplateId,
+        html,
+      });
+      const handoffUrl = new URL(session.jobUrl);
+      handoffUrl.searchParams.set("syncresumeApplyToken", token);
+      window.open(handoffUrl.toString(), "_blank", "noopener,noreferrer");
+      setApplyAssistStatus("Opened the job page. Use the extension panel to upload this resume.");
+    } catch (error) {
+      setApplyAssistError(error instanceof Error ? error.message : "Could not prepare apply assist.");
+    } finally {
+      setIsPreparingApply(false);
+    }
+  }
+
   const reviewTopbar = (
     <ReviewTopbar
       selectedExportTypes={selectedExportTypes}
       isExporting={isExporting}
+      isPreparingApply={isPreparingApply}
       onToggleExportType={toggleExportType}
       onExportSelected={handleExportSelected}
+      onApplyWithResume={handleApplyWithResume}
       title={title}
       matchScore={matchScore}
       saveReviewStatus={saveReviewStatus}
@@ -957,8 +1004,10 @@ function ExportNameDialog({
 function ReviewTopbar({
   selectedExportTypes,
   isExporting,
+  isPreparingApply,
   onToggleExportType,
   onExportSelected,
+  onApplyWithResume,
   title,
   matchScore,
   saveReviewStatus,
@@ -977,8 +1026,10 @@ function ReviewTopbar({
 }: {
   selectedExportTypes: ExportType[];
   isExporting: boolean;
+  isPreparingApply: boolean;
   onToggleExportType: (type: ExportType) => void;
   onExportSelected: () => Promise<void>;
+  onApplyWithResume: () => Promise<void>;
   title?: string;
   matchScore?: number | null;
   saveReviewStatus: string;
@@ -1126,6 +1177,21 @@ function ReviewTopbar({
             </div>
           )}
         </div>
+        <button
+          className="btn btn-secondary btn-sm review-icon-action review-apply-button"
+          type="button"
+          aria-label="Apply with this resume"
+          data-tooltip="Apply with resume"
+          disabled={isPreparingApply}
+          onClick={() => void onApplyWithResume()}
+        >
+          {isPreparingApply ? (
+            <Loader2 className="spin" aria-hidden="true" />
+          ) : (
+            <ExternalLink aria-hidden="true" />
+          )}
+          <span className="review-action-label">Apply</span>
+        </button>
         <div className="review-export-group" ref={exportGroupRef}>
           <button
             className="btn btn-secondary btn-sm review-icon-action review-export-button"
@@ -2240,4 +2306,27 @@ function displayTitleFromDownloadName(value: string): string {
     .replace(/\s+/g, " ")
     .replace(/^\W+|\W+$/g, "")
     .slice(0, 90);
+}
+
+function sourceUrlFromJobDescription(value: string): string {
+  const lines = value.split(/\r?\n/);
+  const sourceLine = lines.find((line) => /^\s*source\s*:/i.test(line));
+  const sourceCandidate = sourceLine?.replace(/^\s*source\s*:\s*/i, "").trim();
+  if (sourceCandidate) return sourceCandidate;
+
+  const urlMatch = value.match(/https?:\/\/[^\s<>"')]+/i);
+  return urlMatch?.[0] ?? "";
+}
+
+function normalizeApplicationUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return url.toString();
+  } catch {
+    return "";
+  }
 }

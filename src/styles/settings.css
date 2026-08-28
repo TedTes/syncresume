@@ -142,6 +142,35 @@
   margin-top: 12px;
 }
 
+.settings-extension-connect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settings-extension-token {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px 12px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.settings-extension-status,
+.settings-extension-error {
+  margin-top: 10px;
+}
+
+.settings-extension-error {
+  color: var(--danger);
+}
+
 .settings-row {
   display: flex;
   align-items: center;
