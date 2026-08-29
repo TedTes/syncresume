@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   ArrowLeft,
+  BriefcaseBusiness,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -1088,12 +1089,16 @@ export default function OptimizerPage({
                     className="mode-switch-button"
                     disabled={isOptimizing || isFetchingJD}
                     onClick={() => {
-                      setJobAddMode(jobAddMode === "paste" ? "link" : "paste");
-                      setIsJobPanelCollapsed(false);
+                      if (jobAddMode === "paste") {
+                        navigate("/jobs");
+                      } else {
+                        setJobAddMode("paste");
+                        setIsJobPanelCollapsed(false);
+                      }
                     }}
                   >
-                    {jobAddMode === "paste" ? <Link2 aria-hidden="true" /> : <FileText aria-hidden="true" />}
-                    {jobAddMode === "paste" ? "Use link" : "Paste JD"}
+                    {jobAddMode === "paste" ? <BriefcaseBusiness aria-hidden="true" /> : <FileText aria-hidden="true" />}
+                    {jobAddMode === "paste" ? "Jobs" : "Paste JD"}
                   </button>
                   <button
                     type="button"
