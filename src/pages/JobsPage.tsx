@@ -24,12 +24,6 @@ import {
   type JobStatus,
 } from "../lib/cloudflare/client";
 
-const JOB_STATUS_TABS: Array<{ value: Exclude<JobStatus, "dismissed">; label: string }> = [
-  { value: "new", label: "New" },
-  { value: "saved", label: "Saved" },
-  { value: "applied", label: "Applied" },
-];
-
 const JOB_PAGE_SIZE = 10;
 
 const GAP_KEYWORDS = [
@@ -97,8 +91,34 @@ function formatJobMeta(job: JobFeedRecord): string[] {
   ].filter(Boolean);
 }
 
+function cleanJobDescriptionText(value: string): string {
+  const decoded = value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"');
+
+  return decoded
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|li|div|h[1-6])>/gi, "\n")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function jobDescriptionParagraphs(description: string): string[] {
+  return cleanJobDescriptionText(description)
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+}
+
 function extractRequirementLines(description: string): string[] {
-  const lines = description
+  const lines = cleanJobDescriptionText(description)
     .split(/\n+|(?<=\.)\s+/)
     .map((line) => line.replace(/^[-*•]\s*/, "").trim())
     .filter((line) => line.length > 24);
@@ -110,7 +130,6 @@ function extractRequirementLines(description: string): string[] {
 export default function JobsPage() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<JobFeedRecord[]>([]);
-  const [status, setStatus] = useState<Exclude<JobStatus, "dismissed">>("new");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -134,21 +153,21 @@ export default function JobsPage() {
   }, [jobs]);
 
   const visibleJobs = useMemo(() => {
-    return jobs.filter((job) => job.status === status).sort((a, b) => {
+    return jobs.filter((job) => job.status === "new" || job.status === "saved").sort((a, b) => {
       const scoreDiff = matchScoreForJob(b) - matchScoreForJob(a);
       if (scoreDiff !== 0) return scoreDiff;
       const aTime = new Date(a.postedAt || a.discoveredAt || a.updatedAt || 0).getTime();
       const bTime = new Date(b.postedAt || b.discoveredAt || b.updatedAt || 0).getTime();
       return bTime - aTime;
     });
-  }, [jobs, status]);
+  }, [jobs]);
 
   const visibleRows = visibleJobs.slice(0, visibleCount);
-  const selectedJob = selectedJobId ? jobs.find((job) => job.id === selectedJobId) ?? null : null;
-  const selectedJobMeta = selectedJob ? formatJobMeta(selectedJob) : [];
-  const selectedJobGaps = selectedJob ? gapKeywordsForJob(selectedJob) : [];
-  const selectedJobRequirements = selectedJob ? extractRequirementLines(selectedJob.description) : [];
-  const selectedJobScore = selectedJob ? matchScoreForJob(selectedJob) : 0;
+  const selectedJob = selectedJobId ? visibleJobs.find((job) => job.id === selectedJobId) ?? null : null;
+  const detailJob = selectedJob ?? visibleRows[0] ?? null;
+  const detailJobMeta = detailJob ? formatJobMeta(detailJob) : [];
+  const detailJobGaps = detailJob ? gapKeywordsForJob(detailJob) : [];
+  const detailJobRequirements = detailJob ? extractRequirementLines(detailJob.description) : [];
 
   async function refreshJobs(options: { syncFirst?: boolean } = {}) {
     setIsLoading(true);
@@ -186,7 +205,7 @@ export default function JobsPage() {
   useEffect(() => {
     setVisibleCount(JOB_PAGE_SIZE);
     setSelectedJobId("");
-  }, [status]);
+  }, [visibleJobs.length]);
 
   useEffect(() => {
     void refreshJobs({ syncFirst: true });
@@ -218,11 +237,11 @@ export default function JobsPage() {
       await updateJobStatus(job.id, nextStatus);
       setMessage(`Job marked ${nextStatus}.`);
       setSelectedJobId("");
-      if (status === nextStatus) {
-        setJobs((current) => current.map((item) => item.id === job.id ? { ...item, status: nextStatus } : item));
-      } else {
-        setJobs((current) => current.filter((item) => item.id !== job.id));
-      }
+      setJobs((current) =>
+        current
+          .map((item) => item.id === job.id ? { ...item, status: nextStatus } : item)
+          .filter((item) => item.status !== "dismissed" && item.status !== "applied"),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update job.");
     } finally {
@@ -388,198 +407,180 @@ export default function JobsPage() {
             </section>
           )}
 
-          <div className="jobs-toolbar" aria-label="Job filters">
-            <div className="jobs-status-tabs">
-              {JOB_STATUS_TABS.map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  className={status === tab.value ? "active" : ""}
-                  onClick={() => setStatus(tab.value)}
-                >
-                  {tab.label}
-                  <span> · {counts[tab.value]}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="jobs-list" aria-label="Jobs">
-            {isLoading && visibleJobs.length === 0 ? (
-              <div className="jobs-empty">
-                <Loader2 className="spin" aria-hidden="true" />
-                Loading jobs…
-              </div>
-            ) : visibleJobs.length > 0 ? (
-              <>
-                {visibleRows.map((job) => {
-                  const meta = formatJobMeta(job);
-                  const gaps = gapKeywordsForJob(job);
-                  const matchScore = matchScoreForJob(job);
-
-                  return (
-                    <article
-                      key={job.id}
-                      className={`jobs-card${selectedJobId === job.id ? " selected" : ""}`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedJobId(job.id)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setSelectedJobId(job.id);
-                        }
-                      }}
-                      aria-label={`Review ${job.title}${job.company ? ` at ${job.company}` : ""}`}
-                    >
-                      <div className="jobs-company-mark" aria-hidden="true">
-                        {initialsForJob(job)}
-                      </div>
-                      <div className="jobs-card-main">
-                        <div className="jobs-card-title-row">
-                          <h2>{job.title}</h2>
-                          {job.company && <span>{job.company}</span>}
-                        </div>
-                        <div className="jobs-meta">
-                          {meta.map((item, index) => (
-                            <span key={`${job.id}:${item}`}>
-                              {index === 0 ? <MapPin aria-hidden="true" /> : index === 1 ? <DollarSign aria-hidden="true" /> : index === 2 ? <Clock aria-hidden="true" /> : <Wand2 aria-hidden="true" />}
-                              {item}
-                            </span>
-                          ))}
-                        </div>
-                        <p>
-                          Gaps to close: <strong>{gaps.length ? gaps.join(", ") : "review role keywords"}</strong>
-                        </p>
-                      </div>
-                      <div className="jobs-match-score">
-                        <strong>{matchScore}</strong>
-                        <span>match</span>
-                      </div>
-                    </article>
-                  );
-                })}
-                {visibleCount < visibleJobs.length && (
-                  <div ref={loadMoreRef} className="jobs-load-more" aria-hidden="true" />
-                )}
-              </>
-            ) : (
-              <div className="jobs-empty">
-                <BriefcaseBusiness aria-hidden="true" />
-                <div>
-                  <strong>No jobs found.</strong>
-                  <span>New jobs will appear here when they are ready to review.</span>
+          <div className={`jobs-review-layout${detailJob ? " has-detail" : " is-empty"}`}>
+            <div className="jobs-list" aria-label="Jobs">
+              {isLoading && visibleJobs.length === 0 ? (
+                <div className="jobs-empty">
+                  <Loader2 className="spin" aria-hidden="true" />
+                  Loading jobs…
                 </div>
-              </div>
+              ) : visibleJobs.length > 0 ? (
+                <>
+                  {visibleRows.map((job) => {
+                    const meta = formatJobMeta(job);
+                    const gaps = gapKeywordsForJob(job);
+                    const isActive = detailJob?.id === job.id;
+                    const isExpanded = selectedJobId === job.id;
+                    const descriptionParagraphs = jobDescriptionParagraphs(job.description);
+
+                    return (
+                      <article
+                        key={job.id}
+                        className={`jobs-card${isActive ? " selected" : ""}${isExpanded ? " expanded" : ""}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedJobId((current) => current === job.id ? "" : job.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedJobId((current) => current === job.id ? "" : job.id);
+                          }
+                        }}
+                        aria-label={`Open details for ${job.title}${job.company ? ` at ${job.company}` : ""}`}
+                        aria-expanded={isExpanded}
+                      >
+                        <div className="jobs-company-mark" aria-hidden="true">
+                          {initialsForJob(job)}
+                        </div>
+                        <div className="jobs-card-main">
+                          <div className="jobs-card-title-row">
+                            <h2>{job.title}</h2>
+                            {job.company && <span>{job.company}</span>}
+                          </div>
+                          <div className="jobs-meta">
+                            {meta.map((item, index) => (
+                              <span key={`${job.id}:${item}`}>
+                                {index === 0 ? <MapPin aria-hidden="true" /> : index === 1 ? <DollarSign aria-hidden="true" /> : index === 2 ? <Clock aria-hidden="true" /> : <Wand2 aria-hidden="true" />}
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                          <p>
+                            Gaps to close: <strong>{gaps.length ? gaps.join(", ") : "review role keywords"}</strong>
+                          </p>
+                          {descriptionParagraphs.length > 0 && (
+                            <div className="jobs-card-description">
+                              {descriptionParagraphs.map((paragraph, index) => (
+                                <p key={index}>{paragraph}</p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                  {visibleCount < visibleJobs.length && (
+                    <div ref={loadMoreRef} className="jobs-load-more" aria-hidden="true" />
+                  )}
+                </>
+              ) : (
+                <div className="jobs-empty">
+                  <BriefcaseBusiness aria-hidden="true" />
+                  <div>
+                    <strong>No jobs found.</strong>
+                    <span>New jobs will appear here when they are ready to review.</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {detailJob && (
+              <aside className="jobs-detail-panel" aria-label="Job detail">
+                <div className="jobs-detail-header">
+                  <div className="jobs-detail-company-mark" aria-hidden="true">
+                    {initialsForJob(detailJob)}
+                  </div>
+                  <div>
+                    <h2>{detailJob.title}</h2>
+                    {detailJob.company && <p>{detailJob.company}</p>}
+                  </div>
+                </div>
+
+                <div className="jobs-detail-body">
+                  <section className="jobs-detail-section">
+                    <h3>Role details</h3>
+                    <div className="jobs-detail-meta">
+                      {detailJobMeta.map((item, index) => (
+                        <span key={`${detailJob.id}:detail:${item}`}>
+                          {index === 0 ? <MapPin aria-hidden="true" /> : index === 1 ? <DollarSign aria-hidden="true" /> : index === 2 ? <Clock aria-hidden="true" /> : <Wand2 aria-hidden="true" />}
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                    {detailJob.url && (
+                      <a className="jobs-detail-source" href={detailJob.url} target="_blank" rel="noreferrer">
+                        View original posting
+                        <ExternalLink aria-hidden="true" />
+                      </a>
+                    )}
+                  </section>
+
+                  <section className="jobs-detail-section">
+                    <h3>Gaps to close</h3>
+                    <p className="jobs-detail-gap-copy">
+                      {detailJobGaps.length ? detailJobGaps.join(", ") : "Review role keywords before tailoring."}
+                    </p>
+                  </section>
+
+                  {detailJobRequirements.length > 0 && (
+                    <section className="jobs-detail-section">
+                      <h3>Requirements</h3>
+                      <ul>
+                        {detailJobRequirements.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+
+                  <section className="jobs-detail-section">
+                    <h3>Full job description</h3>
+                    <div className="jobs-detail-description">
+                      {cleanJobDescriptionText(detailJob.description)
+                        .split(/\n{2,}/)
+                        .map((paragraph) => paragraph.trim())
+                        .filter(Boolean)
+                        .map((paragraph) => (
+                          <p key={paragraph}>{paragraph}</p>
+                        ))}
+                    </div>
+                  </section>
+                </div>
+
+                <div className="jobs-detail-actions">
+                  <button
+                    className="btn btn-secondary jobs-dismiss"
+                    type="button"
+                    disabled={Boolean(activeAction)}
+                    onClick={() => void handleStatus(detailJob, "dismissed")}
+                  >
+                    {activeAction === `${detailJob.id}:dismissed` ? <Loader2 className="spin" aria-hidden="true" /> : <X aria-hidden="true" />}
+                    Dismiss
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    disabled={Boolean(activeAction)}
+                    onClick={() => void handleStatus(detailJob, "saved")}
+                  >
+                    {activeAction === `${detailJob.id}:saved` ? <Loader2 className="spin" aria-hidden="true" /> : <Bookmark aria-hidden="true" />}
+                    Save
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    disabled={Boolean(activeAction)}
+                    onClick={() => void handleOptimize(detailJob)}
+                  >
+                    {activeAction === `${detailJob.id}:optimize` ? <Loader2 className="spin" aria-hidden="true" /> : <Wand2 aria-hidden="true" />}
+                    Tailor
+                  </button>
+                </div>
+              </aside>
             )}
           </div>
         </section>
       </main>
-      {selectedJob && (
-        <aside className="jobs-detail-panel" aria-label="Job detail">
-          <div className="jobs-detail-header">
-            <div className="jobs-detail-company-mark" aria-hidden="true">
-              {initialsForJob(selectedJob)}
-            </div>
-            <div>
-              <h2>{selectedJob.title}</h2>
-              {selectedJob.company && <p>{selectedJob.company}</p>}
-            </div>
-            <button
-              className="btn btn-ghost btn-sm btn-icon-only"
-              type="button"
-              onClick={() => setSelectedJobId("")}
-              aria-label="Close job detail"
-            >
-              <X aria-hidden="true" />
-            </button>
-          </div>
-
-          <div className="jobs-detail-body">
-            <div className="jobs-detail-score-card">
-              <div>
-                <strong>{selectedJobScore}</strong>
-                <span>match</span>
-              </div>
-              <p>
-                Gaps to close: <strong>{selectedJobGaps.length ? selectedJobGaps.join(", ") : "review role keywords"}</strong>
-              </p>
-            </div>
-
-            <section className="jobs-detail-section">
-              <h3>Role details</h3>
-              <div className="jobs-detail-meta">
-                {selectedJobMeta.map((item, index) => (
-                  <span key={`${selectedJob.id}:detail:${item}`}>
-                    {index === 0 ? <MapPin aria-hidden="true" /> : index === 1 ? <DollarSign aria-hidden="true" /> : index === 2 ? <Clock aria-hidden="true" /> : <Wand2 aria-hidden="true" />}
-                    {item}
-                  </span>
-                ))}
-              </div>
-              {selectedJob.url && (
-                <a className="jobs-detail-source" href={selectedJob.url} target="_blank" rel="noreferrer">
-                  View original posting
-                  <ExternalLink aria-hidden="true" />
-                </a>
-              )}
-            </section>
-
-            {selectedJobRequirements.length > 0 && (
-              <section className="jobs-detail-section">
-                <h3>Requirements</h3>
-                <ul>
-                  {selectedJobRequirements.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            <section className="jobs-detail-section">
-              <h3>Full job description</h3>
-              <div className="jobs-detail-description">
-                {selectedJob.description
-                  .split(/\n{2,}/)
-                  .map((paragraph) => paragraph.trim())
-                  .filter(Boolean)
-                  .map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                  ))}
-              </div>
-            </section>
-          </div>
-
-          <div className="jobs-detail-actions">
-            <button
-              className="btn btn-secondary jobs-dismiss"
-              type="button"
-              disabled={Boolean(activeAction)}
-              onClick={() => void handleStatus(selectedJob, "dismissed")}
-            >
-              {activeAction === `${selectedJob.id}:dismissed` ? <Loader2 className="spin" aria-hidden="true" /> : <X aria-hidden="true" />}
-              Dismiss
-            </button>
-            <button
-              className="btn btn-secondary"
-              type="button"
-              disabled={Boolean(activeAction)}
-              onClick={() => void handleStatus(selectedJob, "saved")}
-            >
-              {activeAction === `${selectedJob.id}:saved` ? <Loader2 className="spin" aria-hidden="true" /> : <Bookmark aria-hidden="true" />}
-              Save
-            </button>
-            <button
-              className="btn btn-primary"
-              type="button"
-              disabled={Boolean(activeAction)}
-              onClick={() => void handleOptimize(selectedJob)}
-            >
-              {activeAction === `${selectedJob.id}:optimize` ? <Loader2 className="spin" aria-hidden="true" /> : <Wand2 aria-hidden="true" />}
-              Tailor
-            </button>
-          </div>
-        </aside>
-      )}
     </div>
   );
 }
