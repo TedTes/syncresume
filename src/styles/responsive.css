@@ -377,7 +377,8 @@
     flex-wrap: wrap;
   }
 
-  .settings-profile-grid {
+  .settings-profile-grid,
+  .settings-job-grid {
     grid-template-columns: 1fr;
   }
 

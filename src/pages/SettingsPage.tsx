@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  BriefcaseBusiness,
   CheckCircle2,
   ClipboardCopy,
   CreditCard,
@@ -11,7 +12,15 @@ import {
 import { TopbarAccount } from "../components/TopbarAccount";
 import { useAuth } from "../context/AuthContext";
 import { usePricing } from "../context/PricingContext";
-import { useSettings } from "../context/SettingsContext";
+import {
+  useSettings,
+  type JobMatchDailyLimit,
+  type JobMatchLocation,
+  type JobMatchSalaryFloor,
+  type JobMatchSeniority,
+  type JobMatchSponsorship,
+  type JobMatchWorkType,
+} from "../context/SettingsContext";
 import type { UserProfileDetails } from "../lib/userProfile";
 import { RESUME_FONT_OPTIONS, type ResumeFontId } from "../templates/shared/fonts";
 import { createExtensionSession, type BillingPlanKey } from "../lib/cloudflare/client";
@@ -40,6 +49,9 @@ export default function SettingsPage() {
     setUserProfileField,
     selectedFontId,
     setSelectedFontId,
+    jobMatchSettings,
+    setJobMatchSettings,
+    setJobMatchSetting,
   } = useSettings();
   const { user, profile } = useAuth();
   const {
@@ -54,6 +66,7 @@ export default function SettingsPage() {
   const [extensionTokenStatus, setExtensionTokenStatus] = useState("");
   const [extensionTokenError, setExtensionTokenError] = useState("");
   const [isCreatingExtensionToken, setIsCreatingExtensionToken] = useState(false);
+  const [targetTitleDraft, setTargetTitleDraft] = useState("");
   const profileSaveTimerRef = useRef<number | null>(null);
   const usage = profile?.usage;
   const isPro = profile?.plan === "Pro";
@@ -108,6 +121,29 @@ export default function SettingsPage() {
     } catch {
       setExtensionTokenError("Could not copy the token.");
     }
+  }
+
+  function addTargetTitle() {
+    const nextTitle = targetTitleDraft.trim();
+    if (!nextTitle) return;
+
+    const alreadyExists = jobMatchSettings.targetTitles.some(
+      (title) => title.toLowerCase() === nextTitle.toLowerCase(),
+    );
+    if (!alreadyExists) {
+      setJobMatchSettings({
+        ...jobMatchSettings,
+        targetTitles: [...jobMatchSettings.targetTitles, nextTitle],
+      });
+    }
+    setTargetTitleDraft("");
+  }
+
+  function removeTargetTitle(titleToRemove: string) {
+    setJobMatchSettings({
+      ...jobMatchSettings,
+      targetTitles: jobMatchSettings.targetTitles.filter((title) => title !== titleToRemove),
+    });
   }
 
   return (
@@ -249,6 +285,114 @@ export default function SettingsPage() {
               checked={toggles.saveRunHistory}
               onChange={(value) => setToggle("saveRunHistory", value)}
             />
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-heading">
+              <div>
+                <p className="settings-card-title">Job matching</p>
+                <p className="settings-card-subtitle">
+                  Used to prepare the daily jobs list shown in the Jobs tab.
+                </p>
+              </div>
+              <span className="settings-card-icon" aria-hidden="true">
+                <BriefcaseBusiness />
+              </span>
+            </div>
+
+            <div className="settings-job-grid">
+              <label className="settings-job-field settings-job-field-wide">
+                <span>Target titles</span>
+                <div className="settings-job-title-chips">
+                  {jobMatchSettings.targetTitles.map((title) => (
+                    <span key={title}>
+                      {title}
+                      <button type="button" aria-label={`Remove ${title}`} onClick={() => removeTargetTitle(title)}>
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    type="text"
+                    value={targetTitleDraft}
+                    placeholder="Add title"
+                    onChange={(event) => setTargetTitleDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addTargetTitle();
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={addTargetTitle}>+ add</button>
+                </div>
+              </label>
+
+              <SettingsSelect
+                label="Location"
+                value={jobMatchSettings.location}
+                onChange={(value) => setJobMatchSetting("location", value as JobMatchLocation)}
+                options={[
+                  ["any", "Any location"],
+                  ["remote-canada", "Toronto + Remote Canada"],
+                  ["remote-us", "Remote US"],
+                ]}
+              />
+
+              <SettingsSelect
+                label="Work type"
+                value={jobMatchSettings.workType}
+                onChange={(value) => setJobMatchSetting("workType", value as JobMatchWorkType)}
+                options={[
+                  ["any", "Any"],
+                  ["remote-hybrid", "Remote + Hybrid"],
+                  ["remote", "Remote only"],
+                ]}
+              />
+
+              <SettingsSelect
+                label="Seniority"
+                value={jobMatchSettings.seniority}
+                onChange={(value) => setJobMatchSetting("seniority", value as JobMatchSeniority)}
+                options={[
+                  ["any", "Any"],
+                  ["senior-staff", "Senior - Staff"],
+                  ["mid-senior", "Mid - Senior"],
+                ]}
+              />
+
+              <SettingsSelect
+                label="Salary floor"
+                value={jobMatchSettings.salaryFloor}
+                onChange={(value) => setJobMatchSetting("salaryFloor", value as JobMatchSalaryFloor)}
+                options={[
+                  ["none", "No minimum"],
+                  ["160k", "$160k+"],
+                  ["140k", "$140k+"],
+                ]}
+              />
+
+              <SettingsSelect
+                label="Sponsorship"
+                value={jobMatchSettings.sponsorship}
+                onChange={(value) => setJobMatchSetting("sponsorship", value as JobMatchSponsorship)}
+                options={[
+                  ["any", "Any"],
+                  ["not-needed", "Not needed"],
+                  ["needed", "Needed"],
+                ]}
+              />
+
+              <SettingsSelect
+                label="Daily matches"
+                value={String(jobMatchSettings.dailyLimit)}
+                onChange={(value) => setJobMatchSetting("dailyLimit", Number(value) as JobMatchDailyLimit)}
+                options={[
+                  ["10", "10 per day"],
+                  ["20", "20 per day"],
+                ]}
+              />
+            </div>
           </section>
 
           <section className="settings-card">
@@ -420,6 +564,31 @@ function ProfileField({
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
       />
+    </label>
+  );
+}
+
+function SettingsSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<[string, string]>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="settings-job-field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map(([optionValue, optionLabel]) => (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

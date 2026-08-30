@@ -4,16 +4,15 @@ import {
   Clock,
   DollarSign,
   ExternalLink,
-  Filter,
   Loader2,
   MapPin,
-  SlidersHorizontal,
   Wand2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TopbarAccount } from "../components/TopbarAccount";
+import { useSettings, type JobMatchSettings, type JobMatchSalaryFloor } from "../context/SettingsContext";
 import { useToastMessage } from "../context/ToastContext";
 import {
   createJobCaptureFromJob,
@@ -23,8 +22,6 @@ import {
   type JobFeedRecord,
   type JobStatus,
 } from "../lib/cloudflare/client";
-
-const JOB_PAGE_SIZE = 10;
 
 const GAP_KEYWORDS = [
   "Kafka",
@@ -127,14 +124,78 @@ function extractRequirementLines(description: string): string[] {
   return lines.filter((line) => requirementTerms.test(line)).slice(0, 8);
 }
 
+function jobSearchText(job: JobFeedRecord): string {
+  return [
+    job.title,
+    job.company,
+    job.location,
+    job.remote,
+    job.employmentType,
+    job.salary,
+    cleanJobDescriptionText(job.description),
+  ].join(" ").toLowerCase();
+}
+
+function salaryFloorValue(filter: JobMatchSalaryFloor): number {
+  if (filter === "160k") return 160;
+  if (filter === "140k") return 140;
+  return 0;
+}
+
+function salaryLowValue(salary: string): number | null {
+  const match = salary.match(/(?:\$|ca\$)?\s*(\d{2,3})(?:,\d{3})?\s*k?/i);
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value)) return null;
+  return value > 1000 ? Math.round(value / 1000) : value;
+}
+
+function jobMatchesFilters(job: JobFeedRecord, filters: JobMatchSettings): boolean {
+  const text = jobSearchText(job);
+
+  if (filters.targetTitles.length > 0) {
+    const titleText = `${job.title} ${job.description}`.toLowerCase();
+    const matchesTitle = filters.targetTitles.some((title) => titleText.includes(title.toLowerCase()));
+    if (!matchesTitle) return false;
+  }
+
+  if (filters.location === "remote-canada") {
+    const locationText = `${job.location} ${job.remote}`.toLowerCase();
+    if (!/(remote|canada|toronto|vancouver|montreal|calgary|ottawa|\bca[-,\s])/.test(locationText)) return false;
+  }
+
+  if (filters.location === "remote-us") {
+    const locationText = `${job.location} ${job.remote}`.toLowerCase();
+    if (!/(remote|united states|\bus\b|usa|new york|san francisco|seattle|chicago)/.test(locationText)) return false;
+  }
+
+  if (filters.workType === "remote" && !/\bremote\b/.test(text)) return false;
+  if (filters.workType === "remote-hybrid" && !/\b(remote|hybrid)\b/.test(text)) return false;
+
+  if (filters.seniority === "senior-staff" && !/\b(senior|staff|principal|lead)\b/.test(text)) return false;
+  if (filters.seniority === "mid-senior" && !/\b(mid|senior|staff|principal|lead)\b/.test(text)) return false;
+
+  const floor = salaryFloorValue(filters.salaryFloor);
+  if (floor > 0) {
+    const lowSalary = salaryLowValue(job.salary);
+    if (lowSalary !== null && lowSalary < floor) return false;
+  }
+
+  if (filters.sponsorship === "needed" && !/\b(sponsor|sponsorship|visa|work authorization)\b/.test(text)) {
+    return false;
+  }
+
+  return true;
+}
+
 export default function JobsPage() {
   const navigate = useNavigate();
+  const { jobMatchSettings } = useSettings();
   const [jobs, setJobs] = useState<JobFeedRecord[]>([]);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [activeAction, setActiveAction] = useState("");
-  const [visibleCount, setVisibleCount] = useState(JOB_PAGE_SIZE);
+  const [visibleCount, setVisibleCount] = useState<number>(jobMatchSettings.dailyLimit);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -153,14 +214,17 @@ export default function JobsPage() {
   }, [jobs]);
 
   const visibleJobs = useMemo(() => {
-    return jobs.filter((job) => job.status === "new" || job.status === "saved").sort((a, b) => {
+    return jobs.filter((job) => {
+      if (job.status !== "new" && job.status !== "saved") return false;
+      return jobMatchesFilters(job, jobMatchSettings);
+    }).sort((a, b) => {
       const scoreDiff = matchScoreForJob(b) - matchScoreForJob(a);
       if (scoreDiff !== 0) return scoreDiff;
       const aTime = new Date(a.postedAt || a.discoveredAt || a.updatedAt || 0).getTime();
       const bTime = new Date(b.postedAt || b.discoveredAt || b.updatedAt || 0).getTime();
       return bTime - aTime;
     });
-  }, [jobs]);
+  }, [jobs, jobMatchSettings]);
 
   const visibleRows = visibleJobs.slice(0, visibleCount);
   const selectedJob = selectedJobId ? visibleJobs.find((job) => job.id === selectedJobId) ?? null : null;
@@ -203,9 +267,9 @@ export default function JobsPage() {
   }
 
   useEffect(() => {
-    setVisibleCount(JOB_PAGE_SIZE);
+    setVisibleCount(jobMatchSettings.dailyLimit);
     setSelectedJobId("");
-  }, [visibleJobs.length]);
+  }, [jobMatchSettings.dailyLimit, visibleJobs.length]);
 
   useEffect(() => {
     void refreshJobs({ syncFirst: true });
@@ -218,7 +282,7 @@ export default function JobsPage() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setVisibleCount((current) => Math.min(current + JOB_PAGE_SIZE, visibleJobs.length));
+          setVisibleCount((current) => Math.min(current + jobMatchSettings.dailyLimit, visibleJobs.length));
         }
       },
       { rootMargin: "240px 0px" },
@@ -226,7 +290,7 @@ export default function JobsPage() {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [visibleCount, visibleJobs.length]);
+  }, [jobMatchSettings.dailyLimit, visibleCount, visibleJobs.length]);
 
   async function handleStatus(job: JobFeedRecord, nextStatus: JobStatus) {
     setActiveAction(`${job.id}:${nextStatus}`);
@@ -256,7 +320,9 @@ export default function JobsPage() {
 
     try {
       const { capture } = await createJobCaptureFromJob(job.id);
-      navigate(`/workspace/optimize?captureId=${encodeURIComponent(capture.id)}`);
+      navigate(`/workspace/optimize?captureId=${encodeURIComponent(capture.id)}`, {
+        state: { capturedJob: capture },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not open this job in Workspace.");
     } finally {
@@ -274,138 +340,12 @@ export default function JobsPage() {
                 <h1>Today&apos;s matches</h1>
                 <span>{counts.new} new</span>
               </div>
-              <p>Fresh roles scored against your resume · updates daily at 8am</p>
+              <p>Fresh roles scored against your resume · based on your match settings</p>
             </div>
             <div className="jobs-match-header-actions">
-              <button
-                className={`btn btn-secondary jobs-match-settings-button${isSettingsOpen ? " active" : ""}`}
-                type="button"
-                onClick={() => setIsSettingsOpen((value) => !value)}
-                aria-expanded={isSettingsOpen}
-              >
-                <SlidersHorizontal aria-hidden="true" />
-                Match settings
-              </button>
               <TopbarAccount showCredits={false} />
             </div>
           </div>
-
-          {isSettingsOpen && (
-            <section className="jobs-match-settings-panel" aria-label="Match settings">
-              <div className="jobs-settings-group">
-                <div className="jobs-settings-heading">
-                  <Filter aria-hidden="true" />
-                  <span>Hard filters</span>
-                  <small>roles must pass all of these</small>
-                </div>
-
-                <div className="jobs-settings-grid">
-                  <label className="jobs-settings-field jobs-settings-field-wide">
-                    <span>Target titles</span>
-                    <div className="jobs-title-chips">
-                      <span>Backend Engineer <button type="button" aria-label="Remove Backend Engineer">×</button></span>
-                      <span>Platform Eng <button type="button" aria-label="Remove Platform Eng">×</button></span>
-                      <button type="button">+ add</button>
-                    </div>
-                  </label>
-
-                  <label className="jobs-settings-field">
-                    <span>Location</span>
-                    <select defaultValue="remote-canada">
-                      <option value="remote-canada">Toronto + Remote Canada</option>
-                      <option value="remote-us">Remote US</option>
-                      <option value="any">Any location</option>
-                    </select>
-                  </label>
-
-                  <label className="jobs-settings-field">
-                    <span>Work type</span>
-                    <select defaultValue="remote-hybrid">
-                      <option value="remote-hybrid">Remote + Hybrid</option>
-                      <option value="remote">Remote only</option>
-                      <option value="any">Any</option>
-                    </select>
-                  </label>
-
-                  <label className="jobs-settings-field">
-                    <span>Seniority</span>
-                    <select defaultValue="senior-staff">
-                      <option value="senior-staff">Senior - Staff</option>
-                      <option value="mid-senior">Mid - Senior</option>
-                      <option value="any">Any</option>
-                    </select>
-                  </label>
-
-                  <label className="jobs-settings-field">
-                    <span>Salary floor</span>
-                    <select defaultValue="160k">
-                      <option value="160k">$160k+</option>
-                      <option value="140k">$140k+</option>
-                      <option value="none">No minimum</option>
-                    </select>
-                  </label>
-
-                  <label className="jobs-settings-field">
-                    <span>Sponsorship</span>
-                    <select defaultValue="not-needed">
-                      <option value="not-needed">Not needed</option>
-                      <option value="needed">Needed</option>
-                      <option value="any">Any</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              <div className="jobs-settings-group">
-                <div className="jobs-settings-heading">
-                  <SlidersHorizontal aria-hidden="true" />
-                  <span>Ranking weights</span>
-                  <small>how matched roles get scored</small>
-                </div>
-
-                <div className="jobs-weights-grid">
-                  <label>
-                    <span>Skills fit</span>
-                    <input type="range" min="0" max="100" defaultValue="80" />
-                    <strong>80%</strong>
-                  </label>
-                  <label>
-                    <span>Domain fit</span>
-                    <input type="range" min="0" max="100" defaultValue="55" />
-                    <strong>55%</strong>
-                  </label>
-                  <label>
-                    <span>Recency</span>
-                    <input type="range" min="0" max="100" defaultValue="70" />
-                    <strong>70%</strong>
-                  </label>
-                  <label>
-                    <span>Comp fit</span>
-                    <input type="range" min="0" max="100" defaultValue="40" />
-                    <strong>40%</strong>
-                  </label>
-                </div>
-              </div>
-
-              <div className="jobs-settings-footer">
-                <div className="jobs-exclude-row">
-                  <span>Exclude:</span>
-                  <strong>current employer</strong>
-                  <strong>already dismissed</strong>
-                  <span>max 2 roles per company</span>
-                </div>
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => void refreshJobs({ syncFirst: true })}
-                >
-                  {isLoading ? <Loader2 className="spin" aria-hidden="true" /> : <Wand2 aria-hidden="true" />}
-                  Apply and re-run
-                </button>
-              </div>
-            </section>
-          )}
 
           <div className={`jobs-review-layout${detailJob ? " has-detail" : " is-empty"}`}>
             <div className="jobs-list" aria-label="Jobs">
