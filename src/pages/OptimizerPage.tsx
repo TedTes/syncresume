@@ -104,6 +104,7 @@ type OptimizerPageProps = {
 type ReviewReturnState = {
   returnTo?: string;
   expandedRunId?: string;
+  capturedJob?: JobCaptureRecord;
 } | null;
 
 type WorkspaceVersionItem = {
@@ -417,11 +418,22 @@ export default function OptimizerPage({
     if (!captureId || loadedCaptureIdRef.current === captureId) return;
 
     loadedCaptureIdRef.current = captureId;
+    const state = location.state as ReviewReturnState;
+    const stateCapture = state?.capturedJob?.id === captureId ? state.capturedJob : null;
     let isCurrent = true;
 
     (async () => {
       setFetchJDError("");
       setIsFetchingJD(true);
+
+      if (stateCapture) {
+        resetResult();
+        setJobAddMode("paste");
+        setJobDescription(formatCapturedJobDescription(stateCapture));
+        if (stateCapture.sourceUrl) {
+          setLinkValue(stateCapture.sourceUrl);
+        }
+      }
 
       try {
         const { capture } = await getJobCapture(captureId);
@@ -434,7 +446,7 @@ export default function OptimizerPage({
           setLinkValue(capture.sourceUrl);
         }
       } catch (error) {
-        if (isCurrent) {
+        if (isCurrent && !stateCapture) {
           setFetchJDError(error instanceof Error ? error.message : "Could not load the captured job.");
         }
       } finally {
@@ -445,7 +457,7 @@ export default function OptimizerPage({
     return () => {
       isCurrent = false;
     };
-  }, [location.search]);
+  }, [location.search, location.state]);
 
   useEffect(() => {
     setCoverLetter("");
