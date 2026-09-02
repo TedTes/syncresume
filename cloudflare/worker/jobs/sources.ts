@@ -244,11 +244,11 @@ function normalizeJobSyncCriteria(input: unknown): JobSyncCriteria {
 
   return {
     targetTitles,
-    location: oneOf(value.location, ["any", "remote-canada", "remote-us"], "any"),
-    workType: oneOf(value.workType, ["any", "remote", "remote-hybrid"], "any"),
-    seniority: oneOf(value.seniority, ["any", "mid-senior", "senior-staff"], "any"),
-    salaryFloor: oneOf(value.salaryFloor, ["none", "140k", "160k"], "none"),
-    sponsorship: oneOf(value.sponsorship, ["any", "not-needed", "needed"], "any"),
+    location: oneOf(value.location, ["any", "remote-canada", "remote-us"] as const, "any"),
+    workType: oneOf(value.workType, ["any", "remote", "remote-hybrid"] as const, "any"),
+    seniority: oneOf(value.seniority, ["any", "mid-senior", "senior-staff"] as const, "any"),
+    salaryFloor: oneOf(value.salaryFloor, ["none", "140k", "160k"] as const, "none"),
+    sponsorship: oneOf(value.sponsorship, ["any", "not-needed", "needed"] as const, "any"),
     dailyLimit: normalizeDailyLimit(value.dailyLimit),
   };
 }
