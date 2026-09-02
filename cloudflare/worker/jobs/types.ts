@@ -17,6 +17,16 @@ export type JobFeedInput = {
 
 export type JobSourceProvider = "greenhouse" | "lever" | "ashby" | "apify";
 
+export type JobSyncCriteria = {
+  targetTitles?: string[];
+  location?: "any" | "remote-canada" | "remote-us";
+  workType?: "any" | "remote" | "remote-hybrid";
+  seniority?: "any" | "mid-senior" | "senior-staff";
+  salaryFloor?: "none" | "140k" | "160k";
+  sponsorship?: "any" | "not-needed" | "needed";
+  dailyLimit?: number;
+};
+
 export type JobSourceConfig = {
   provider: JobSourceProvider;
   enabled?: boolean;
@@ -30,6 +40,7 @@ export type JobSourceConfig = {
   actorTaskId?: string;
   input?: Record<string, unknown>;
   resultMapping?: Record<string, string>;
+  criteria?: JobSyncCriteria;
 };
 
 export type JobSourceResult = {

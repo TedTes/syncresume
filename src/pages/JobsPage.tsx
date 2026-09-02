@@ -9,7 +9,7 @@ import {
   Wand2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TopbarAccount } from "../components/TopbarAccount";
 import { useSettings, type JobMatchSettings, type JobMatchSalaryFloor } from "../context/SettingsContext";
@@ -21,6 +21,7 @@ import {
   updateJobStatus,
   type JobFeedRecord,
   type JobStatus,
+  type JobSyncCriteria,
 } from "../lib/cloudflare/client";
 
 const GAP_KEYWORDS = [
@@ -188,6 +189,18 @@ function jobMatchesFilters(job: JobFeedRecord, filters: JobMatchSettings): boole
   return true;
 }
 
+function jobSyncCriteriaFromSettings(settings: JobMatchSettings): JobSyncCriteria {
+  return {
+    targetTitles: settings.targetTitles,
+    location: settings.location,
+    workType: settings.workType,
+    seniority: settings.seniority,
+    salaryFloor: settings.salaryFloor,
+    sponsorship: settings.sponsorship,
+    dailyLimit: settings.dailyLimit,
+  };
+}
+
 export default function JobsPage() {
   const navigate = useNavigate();
   const { jobMatchSettings } = useSettings();
@@ -199,6 +212,7 @@ export default function JobsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const lastSyncedCriteriaRef = useRef("");
 
   useToastMessage(message, { kind: "success", title: "Jobs" });
   useToastMessage(error, { kind: "error", title: "Jobs failed", durationMs: 6500 });
@@ -232,8 +246,10 @@ export default function JobsPage() {
   const detailJobMeta = detailJob ? formatJobMeta(detailJob) : [];
   const detailJobGaps = detailJob ? gapKeywordsForJob(detailJob) : [];
   const detailJobRequirements = detailJob ? extractRequirementLines(detailJob.description) : [];
+  const syncCriteria = useMemo(() => jobSyncCriteriaFromSettings(jobMatchSettings), [jobMatchSettings]);
+  const syncCriteriaKey = useMemo(() => JSON.stringify(syncCriteria), [syncCriteria]);
 
-  async function refreshJobs(options: { syncFirst?: boolean } = {}) {
+  const refreshJobs = useCallback(async (options: { syncFirst?: boolean; criteria?: JobSyncCriteria } = {}) => {
     setIsLoading(true);
     setError("");
     setMessage("");
@@ -242,7 +258,7 @@ export default function JobsPage() {
       let syncError = "";
       if (options.syncFirst) {
         try {
-          const syncResponse = await syncJobs();
+          const syncResponse = await syncJobs({ criteria: options.criteria });
           const fetched = syncResponse.sources.reduce((total, source) => total + source.fetched, 0);
           if (syncResponse.errors.length > 0 && fetched === 0) {
             syncError = syncResponse.errors.map((item) => item.message).join(" ");
@@ -264,16 +280,12 @@ export default function JobsPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     setVisibleCount(jobMatchSettings.dailyLimit);
     setSelectedJobId("");
   }, [jobMatchSettings.dailyLimit, visibleJobs.length]);
-
-  useEffect(() => {
-    void refreshJobs({ syncFirst: true });
-  }, []);
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -291,6 +303,16 @@ export default function JobsPage() {
     observer.observe(target);
     return () => observer.disconnect();
   }, [jobMatchSettings.dailyLimit, visibleCount, visibleJobs.length]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (lastSyncedCriteriaRef.current === syncCriteriaKey) return;
+      lastSyncedCriteriaRef.current = syncCriteriaKey;
+      void refreshJobs({ syncFirst: true, criteria: syncCriteria });
+    }, lastSyncedCriteriaRef.current ? 500 : 0);
+
+    return () => window.clearTimeout(timer);
+  }, [refreshJobs, syncCriteria, syncCriteriaKey]);
 
   async function handleStatus(job: JobFeedRecord, nextStatus: JobStatus) {
     setActiveAction(`${job.id}:${nextStatus}`);

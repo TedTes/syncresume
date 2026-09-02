@@ -1,8 +1,8 @@
 import { fetchJobPageText } from "./jobPage";
 import puppeteer from "@cloudflare/puppeteer";
 import { ALL_RESUME_TEMPLATE_IDS } from "../../src/templates/ids";
-import { fetchJobsFromSources, parseJobSourceConfigs } from "./jobs/sources";
-import type { JobSourceEnv } from "./jobs/types";
+import { fetchJobsFromSources, parseJobSyncRequest } from "./jobs/sources";
+import type { JobFeedInput, JobSourceEnv, JobSourceResult } from "./jobs/types";
 import {
   generateCoverLetterWithProvider,
   optimizeResumeWithProvider,
@@ -777,7 +777,7 @@ async function handleIngestJobs(request: Request, env: Env, headers: Headers): P
 async function handleSyncJobs(request: Request, env: Env, headers: Headers): Promise<Response> {
   const { user } = await requireSession(request, env);
   const body = await readJson(request);
-  const configs = parseJobSourceConfigs(body.sources ? body : body, env as JobSourceEnv);
+  const { configs, criteria } = parseJobSyncRequest(body, env as JobSourceEnv);
 
   if (configs.length === 0) {
     return json(
@@ -788,7 +788,7 @@ async function handleSyncJobs(request: Request, env: Env, headers: Headers): Pro
 
   const startedAt = Date.now();
   const sync = await fetchJobsFromSources(configs, env as JobSourceEnv);
-  const fetchedJobs = sync.results.flatMap((result) => result.jobs);
+  const fetchedJobs = interleaveJobSourceResults(sync.results);
   const savedJobs = await persistJobFeedInputs(env, user.id, fetchedJobs);
 
   logWorkerEvent(sync.errors.length > 0 ? "warn" : "info", "jobs_sync_completed", {
@@ -798,12 +798,14 @@ async function handleSyncJobs(request: Request, env: Env, headers: Headers): Pro
     failedSources: sync.errors.length,
     fetchedJobs: fetchedJobs.length,
     savedJobs: savedJobs.length,
+    criteria,
     durationMs: Date.now() - startedAt,
     errors: sync.errors,
   });
 
   return json({
     jobs: savedJobs,
+    criteria,
     sources: sync.results.map((result) => ({
       provider: result.provider,
       source: result.source,
@@ -811,6 +813,20 @@ async function handleSyncJobs(request: Request, env: Env, headers: Headers): Pro
     })),
     errors: sync.errors,
   }, { headers });
+}
+
+function interleaveJobSourceResults(results: JobSourceResult[]): JobFeedInput[] {
+  const jobs: JobFeedInput[] = [];
+  const longest = results.reduce((max, result) => Math.max(max, result.jobs.length), 0);
+
+  for (let index = 0; index < longest; index += 1) {
+    for (const result of results) {
+      const job = result.jobs[index];
+      if (job) jobs.push(job);
+    }
+  }
+
+  return jobs;
 }
 
 async function persistJobFeedInputs(env: Env, userId: string, rawJobs: unknown[]): Promise<JsonRecord[]> {

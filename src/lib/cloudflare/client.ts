@@ -99,6 +99,16 @@ export type JobFeedInput = {
 
 export type JobSourceProvider = "greenhouse" | "lever" | "ashby" | "apify";
 
+export type JobSyncCriteria = {
+  targetTitles?: string[];
+  location?: "any" | "remote-canada" | "remote-us";
+  workType?: "any" | "remote" | "remote-hybrid";
+  seniority?: "any" | "mid-senior" | "senior-staff";
+  salaryFloor?: "none" | "140k" | "160k";
+  sponsorship?: "any" | "not-needed" | "needed";
+  dailyLimit?: number;
+};
+
 export type JobSourceConfig = {
   provider: JobSourceProvider;
   enabled?: boolean;
@@ -112,6 +122,7 @@ export type JobSourceConfig = {
   actorTaskId?: string;
   input?: Record<string, unknown>;
   resultMapping?: Record<string, string>;
+  criteria?: JobSyncCriteria;
 };
 
 export type JobsResponse = {
@@ -119,6 +130,7 @@ export type JobsResponse = {
 };
 
 export type JobsSyncResponse = JobsResponse & {
+  criteria?: JobSyncCriteria;
   sources: Array<{
     provider: JobSourceProvider;
     source: string;
@@ -307,10 +319,12 @@ export function ingestJobs(jobs: JobFeedInput | JobFeedInput[]): Promise<JobsRes
   });
 }
 
-export function syncJobs(sources?: JobSourceConfig[]): Promise<JobsSyncResponse> {
+export function syncJobs(input?: JobSourceConfig[] | { criteria?: JobSyncCriteria; sources?: JobSourceConfig[] }): Promise<JobsSyncResponse> {
+  const body = Array.isArray(input) ? { sources: input } : input ?? {};
+
   return cloudflareRequest<JobsSyncResponse>("/api/jobs/sync", {
     method: "POST",
-    body: sources ? { sources } : {},
+    body,
   });
 }
 

@@ -6,12 +6,14 @@ import type {
   JobSourceProvider,
   JobSourceResult,
   JobSourceSyncResult,
+  JobSyncCriteria,
 } from "./types";
 
 type JsonRecord = Record<string, unknown>;
 
 const MAX_SOURCE_JOBS = 20;
 const MAX_DESCRIPTION_CHARS = 45_000;
+const MAX_TARGET_TITLES = 8;
 
 type SourceAdapter = {
   provider: JobSourceProvider;
@@ -89,7 +91,7 @@ const adapters: Record<JobSourceProvider, SourceAdapter> = {
 
       const actorTaskId = cleanText(config.actorTaskId, 180);
       const actorId = cleanText(config.actorId, 180);
-      const input = config.input && typeof config.input === "object" ? config.input : {};
+      const input = buildApifyInput(config);
       const target = actorTaskId
         ? `actor-tasks/${encodeURIComponent(actorTaskId)}`
         : actorId
@@ -133,6 +135,21 @@ export function parseJobSourceConfigs(input: unknown, env: JobSourceEnv): JobSou
   } catch {
     return [];
   }
+}
+
+export function parseJobSyncRequest(input: unknown, env: JobSourceEnv): {
+  configs: JobSourceConfig[];
+  criteria: JobSyncCriteria;
+} {
+  const body = asRecord(input);
+  const criteria = normalizeJobSyncCriteria(body.criteria);
+  const configs = parseJobSourceConfigs(input, env).map((config) => ({
+    ...config,
+    criteria,
+    limit: normalizeSourceLimit(config.limit, criteria.dailyLimit),
+  }));
+
+  return { configs, criteria };
 }
 
 export async function fetchJobsFromSources(configs: JobSourceConfig[], env: JobSourceEnv): Promise<JobSourceSyncResult> {
@@ -205,6 +222,7 @@ function normalizeSourceConfigList(input: unknown): JobSourceConfig[] {
       resultMapping: value.resultMapping && typeof value.resultMapping === "object" && !Array.isArray(value.resultMapping)
         ? value.resultMapping as Record<string, string>
         : undefined,
+      criteria: normalizeJobSyncCriteria(value.criteria),
     });
   }
 
@@ -213,6 +231,43 @@ function normalizeSourceConfigList(input: unknown): JobSourceConfig[] {
 
 function isJobSourceProvider(value: string): value is JobSourceProvider {
   return value === "greenhouse" || value === "lever" || value === "ashby" || value === "apify";
+}
+
+function normalizeJobSyncCriteria(input: unknown): JobSyncCriteria {
+  const value = asRecord(input);
+  const targetTitles = Array.isArray(value.targetTitles)
+    ? value.targetTitles
+      .map((title) => cleanText(title, 100))
+      .filter(Boolean)
+      .slice(0, MAX_TARGET_TITLES)
+    : [];
+
+  return {
+    targetTitles,
+    location: oneOf(value.location, ["any", "remote-canada", "remote-us"], "any"),
+    workType: oneOf(value.workType, ["any", "remote", "remote-hybrid"], "any"),
+    seniority: oneOf(value.seniority, ["any", "mid-senior", "senior-staff"], "any"),
+    salaryFloor: oneOf(value.salaryFloor, ["none", "140k", "160k"], "none"),
+    sponsorship: oneOf(value.sponsorship, ["any", "not-needed", "needed"], "any"),
+    dailyLimit: normalizeDailyLimit(value.dailyLimit),
+  };
+}
+
+function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === "string" && allowed.includes(value as T) ? value as T : fallback;
+}
+
+function normalizeDailyLimit(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 10;
+  return value >= 20 ? 20 : 10;
+}
+
+function normalizeSourceLimit(sourceLimit: number | undefined, dailyLimit: number | undefined): number {
+  const fallback = typeof dailyLimit === "number" && Number.isFinite(dailyLimit)
+    ? dailyLimit
+    : MAX_SOURCE_JOBS;
+  const value = typeof sourceLimit === "number" && Number.isFinite(sourceLimit) ? sourceLimit : fallback;
+  return Math.min(MAX_SOURCE_JOBS, Math.max(1, Math.round(value)));
 }
 
 async function readProviderJson(response: Response, label: string): Promise<unknown> {
@@ -328,6 +383,7 @@ function limitFor(config: JobSourceConfig): number {
 function filterSourceJobs(jobs: JobFeedInput[], config: JobSourceConfig): JobFeedInput[] {
   const query = cleanText(config.query, 200).toLowerCase();
   const location = cleanText(config.location, 160).toLowerCase();
+  const criteria = config.criteria ?? {};
 
   return jobs.filter((job) => {
     const searchable = [
@@ -343,8 +399,99 @@ function filterSourceJobs(jobs: JobFeedInput[], config: JobSourceConfig): JobFee
       .toLowerCase();
     const locationText = [job.location, job.remote].filter(Boolean).join(" ").toLowerCase();
 
-    return (!query || searchable.includes(query)) && (!location || locationText.includes(location));
+    return (
+      (!query || searchable.includes(query)) &&
+      (!location || locationText.includes(location)) &&
+      jobMatchesCriteria(job, searchable, locationText, criteria)
+    );
   });
+}
+
+function jobMatchesCriteria(
+  job: JobFeedInput,
+  searchable: string,
+  locationText: string,
+  criteria: JobSyncCriteria,
+): boolean {
+  const titles = Array.isArray(criteria.targetTitles) ? criteria.targetTitles : [];
+  if (titles.length > 0) {
+    const titleText = `${job.title} ${job.description}`.toLowerCase();
+    const matchesTitle = titles.some((title) => titleText.includes(title.toLowerCase()));
+    if (!matchesTitle) return false;
+  }
+
+  if (criteria.location === "remote-canada") {
+    if (!/(remote|canada|toronto|vancouver|montreal|calgary|ottawa|\bca[-,\s])/.test(locationText)) return false;
+  }
+
+  if (criteria.location === "remote-us") {
+    if (!/(remote|united states|\bus\b|usa|new york|san francisco|seattle|chicago)/.test(locationText)) return false;
+  }
+
+  if (criteria.workType === "remote" && !/\bremote\b/.test(searchable)) return false;
+  if (criteria.workType === "remote-hybrid" && !/\b(remote|hybrid)\b/.test(searchable)) return false;
+  if (criteria.seniority === "senior-staff" && !/\b(senior|staff|principal|lead)\b/.test(searchable)) return false;
+  if (criteria.seniority === "mid-senior" && !/\b(mid|senior|staff|principal|lead)\b/.test(searchable)) return false;
+
+  const floor = criteria.salaryFloor === "160k" ? 160 : criteria.salaryFloor === "140k" ? 140 : 0;
+  if (floor > 0) {
+    const lowSalary = salaryLowValue(job.salary || "");
+    if (lowSalary !== null && lowSalary < floor) return false;
+  }
+
+  if (criteria.sponsorship === "needed" && !/\b(sponsor|sponsorship|visa|work authorization)\b/.test(searchable)) {
+    return false;
+  }
+
+  return true;
+}
+
+function salaryLowValue(salary: string): number | null {
+  const match = salary.match(/(?:\$|ca\$)?\s*(\d{2,3})(?:,\d{3})?\s*k?/i);
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value)) return null;
+  return value > 1000 ? Math.round(value / 1000) : value;
+}
+
+function buildApifyInput(config: JobSourceConfig): Record<string, unknown> {
+  const input = config.input && typeof config.input === "object" && !Array.isArray(config.input) ? config.input : {};
+  return interpolateCriteriaPlaceholders(input, {
+    query: criteriaQuery(config.criteria),
+    location: criteriaLocation(config.criteria),
+    workType: config.criteria?.workType && config.criteria.workType !== "any" ? config.criteria.workType : "",
+    seniority: config.criteria?.seniority && config.criteria.seniority !== "any" ? config.criteria.seniority : "",
+    sponsorship: config.criteria?.sponsorship && config.criteria.sponsorship !== "any" ? config.criteria.sponsorship : "",
+    salaryFloor: config.criteria?.salaryFloor && config.criteria.salaryFloor !== "none" ? config.criteria.salaryFloor : "",
+    limit: String(limitFor(config)),
+  }) as Record<string, unknown>;
+}
+
+function interpolateCriteriaPlaceholders(value: unknown, replacements: Record<string, string>): unknown {
+  if (typeof value === "string") {
+    return value.replace(/\{\{\s*(query|location|workType|seniority|sponsorship|salaryFloor|limit)\s*\}\}/g, (_, key: string) => replacements[key] ?? "");
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => interpolateCriteriaPlaceholders(item, replacements));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as JsonRecord).map(([key, item]) => [key, interpolateCriteriaPlaceholders(item, replacements)]),
+    );
+  }
+  return value;
+}
+
+function criteriaQuery(criteria: JobSyncCriteria | undefined): string {
+  const titles = criteria?.targetTitles?.map((title) => cleanText(title, 100)).filter(Boolean) ?? [];
+  if (titles.length === 0) return "";
+  return titles.join(" OR ");
+}
+
+function criteriaLocation(criteria: JobSyncCriteria | undefined): string {
+  if (criteria?.location === "remote-canada") return "Remote Canada";
+  if (criteria?.location === "remote-us") return "Remote United States";
+  return "";
 }
 
 function asRecord(value: unknown): JsonRecord {
