@@ -175,7 +175,7 @@ sources. It is separate from one-off browser captures.
 
 - `GET /api/jobs?status=new&limit=20` lists the signed-in user's jobs.
 - `POST /api/jobs` ingests one or more jobs.
-- `POST /api/jobs/sync` fetches jobs from configured source adapters and ingests them.
+- `POST /api/jobs/sync` fetches jobs from configured source adapters, applies match criteria, and ingests them.
 - `PATCH /api/jobs/:id` updates a job status to `new`, `saved`, `dismissed`, or `applied`.
 - `POST /api/jobs/:id/capture` converts a saved job into a workspace capture for optimization.
 
@@ -208,6 +208,15 @@ Example sync payload:
 
 ```json
 {
+  "criteria": {
+    "targetTitles": ["Senior Software Engineer", "Platform Engineer"],
+    "location": "remote-canada",
+    "workType": "remote-hybrid",
+    "seniority": "senior-staff",
+    "salaryFloor": "160k",
+    "sponsorship": "not-needed",
+    "dailyLimit": 20
+  },
   "sources": [
     { "provider": "greenhouse", "boardToken": "stripe", "company": "Stripe", "limit": 10 },
     { "provider": "lever", "boardToken": "linear", "company": "Linear", "limit": 10 }
@@ -215,6 +224,12 @@ Example sync payload:
 }
 ```
 
-For production, store the same source array in Worker var `JOB_SOURCE_CONFIG` and
-call `POST /api/jobs/sync` with an empty JSON body. Do not put Apify tokens in JSON
-config; set `APIFY_API_TOKEN` as a Worker secret.
+For production, store the source array in Worker var `JOB_SOURCE_CONFIG`. The web app
+sends the current user's match criteria automatically when the Jobs page loads or the
+user changes Settings. Greenhouse, Lever, and Ashby adapters use company-specific board
+APIs, so configure multiple company boards if you want more than one company's roles.
+Synced results are interleaved across configured sources before being saved, so one board
+does not fill the daily list ahead of the rest.
+For broader search, configure an Apify source and use placeholders such as `{{query}}`,
+`{{location}}`, and `{{limit}}` in its `input`. Do not put Apify tokens in JSON config;
+set `APIFY_API_TOKEN` as a Worker secret.
