@@ -181,10 +181,11 @@ sources. It is separate from one-off browser captures.
 
 Supported sync adapters:
 
+- `custom`: configurable JSON job search API for any-company search
+- `apify`: requires `actorTaskId` or `actorId`, plus Worker secret `APIFY_API_TOKEN`
 - `greenhouse`: requires `boardToken`
 - `lever`: requires `boardToken`
 - `ashby`: requires `boardToken`
-- `apify`: requires `actorTaskId` or `actorId`, plus Worker secret `APIFY_API_TOKEN`
 
 Example ingest payload:
 
@@ -218,18 +219,43 @@ Example sync payload:
     "dailyLimit": 20
   },
   "sources": [
-    { "provider": "greenhouse", "boardToken": "stripe", "company": "Stripe", "limit": 10 },
-    { "provider": "lever", "boardToken": "linear", "company": "Linear", "limit": 10 }
+    {
+      "provider": "custom",
+      "source": "job-search-api",
+      "url": "https://example.com/jobs/search",
+      "method": "GET",
+      "limit": 20,
+      "headers": {
+        "Authorization": "Bearer {{env.JOB_SEARCH_API_KEY}}"
+      },
+      "queryParams": {
+        "q": "{{query}}",
+        "location": "{{location}}",
+        "limit": "{{limit}}"
+      },
+      "itemsPath": "jobs",
+      "resultMapping": {
+        "title": "title",
+        "company": "company",
+        "location": "location",
+        "url": "url",
+        "description": "description",
+        "salary": "salary",
+        "postedAt": "postedAt"
+      }
+    }
   ]
 }
 ```
 
 For production, store the source array in Worker var `JOB_SOURCE_CONFIG`. The web app
 sends the current user's match criteria automatically when the Jobs page loads or the
-user changes Settings. Greenhouse, Lever, and Ashby adapters use company-specific board
-APIs, so configure multiple company boards if you want more than one company's roles.
+user changes Settings. Use the `custom` adapter for any-company search APIs. It supports
+configurable `url`, `method`, `headers`, `queryParams`, `body`, `itemsPath`, and
+`resultMapping`, with placeholders such as `{{query}}`, `{{location}}`, `{{limit}}`,
+and `{{env.JOB_SEARCH_API_KEY}}`.
 Synced results are interleaved across configured sources before being saved, so one board
 does not fill the daily list ahead of the rest.
-For broader search, configure an Apify source and use placeholders such as `{{query}}`,
-`{{location}}`, and `{{limit}}` in its `input`. Do not put Apify tokens in JSON config;
-set `APIFY_API_TOKEN` as a Worker secret.
+Apify search actors are also supported with the same criteria placeholders in `input`.
+Do not put reusable API tokens directly in JSON config; set them as Worker secrets and
+reference them through `{{env.SECRET_NAME}}`.
