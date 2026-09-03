@@ -21,6 +21,36 @@ type SourceAdapter = {
 };
 
 const adapters: Record<JobSourceProvider, SourceAdapter> = {
+  custom: {
+    provider: "custom",
+    async fetchJobs(config, env) {
+      const url = cleanText(config.url, 1_000);
+      if (!url) throw new Error("Custom job source requires url.");
+
+      const method = config.method === "POST" ? "POST" : "GET";
+      const requestUrl = method === "GET" ? buildRequestUrl(url, config, env) : url;
+      const headers = buildRequestHeaders(config, env);
+      const body = method === "POST" ? JSON.stringify(buildCustomBody(config, env)) : undefined;
+      if (body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+
+      const response = await fetch(requestUrl, {
+        method,
+        headers,
+        body,
+      });
+      const payload = await readProviderJson(response, "Custom job source");
+      const rows = readItems(payload, config.itemsPath);
+
+      return {
+        source: sourceName(config, "custom", new URL(requestUrl).hostname),
+        provider: "custom",
+        jobs: filterSourceJobs(
+          rows.map((row) => mapGenericJob(row, config, "custom")),
+          config,
+        ).slice(0, limitFor(config)),
+      };
+    },
+  },
   greenhouse: {
     provider: "greenhouse",
     async fetchJobs(config) {
@@ -210,6 +240,16 @@ function normalizeSourceConfigList(input: unknown): JobSourceConfig[] {
       enabled: typeof value.enabled === "boolean" ? value.enabled : undefined,
       limit: typeof value.limit === "number" ? value.limit : undefined,
       source: cleanText(value.source, 80),
+      url: cleanText(value.url, 1_000),
+      method: cleanText(value.method, 10).toUpperCase() === "POST" ? "POST" : "GET",
+      headers: normalizeStringRecord(value.headers),
+      queryParams: value.queryParams && typeof value.queryParams === "object" && !Array.isArray(value.queryParams)
+        ? value.queryParams as Record<string, unknown>
+        : undefined,
+      body: value.body && typeof value.body === "object" && !Array.isArray(value.body)
+        ? value.body as Record<string, unknown>
+        : undefined,
+      itemsPath: cleanText(value.itemsPath, 120),
       boardToken: cleanText(value.boardToken, 120),
       company: cleanText(value.company, 160),
       query: cleanText(value.query, 200),
@@ -230,7 +270,16 @@ function normalizeSourceConfigList(input: unknown): JobSourceConfig[] {
 }
 
 function isJobSourceProvider(value: string): value is JobSourceProvider {
-  return value === "greenhouse" || value === "lever" || value === "ashby" || value === "apify";
+  return value === "custom" || value === "greenhouse" || value === "lever" || value === "ashby" || value === "apify";
+}
+
+function normalizeStringRecord(input: unknown): Record<string, string> | undefined {
+  const value = asRecord(input);
+  const entries = Object.entries(value)
+    .map(([key, item]) => [cleanText(key, 120), cleanText(item, 1_000)] as const)
+    .filter(([key, item]) => key && item);
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
 function normalizeJobSyncCriteria(input: unknown): JobSyncCriteria {
@@ -342,7 +391,7 @@ function mapAshbyJob(value: unknown, config: JobSourceConfig, boardToken: string
   };
 }
 
-function mapGenericJob(value: unknown, config: JobSourceConfig): JobFeedInput {
+function mapGenericJob(value: unknown, config: JobSourceConfig, provider: string = "apify"): JobFeedInput {
   const job = asRecord(value);
   const mapping = config.resultMapping ?? {};
   const pick = (...keys: string[]) => {
@@ -356,7 +405,7 @@ function mapGenericJob(value: unknown, config: JobSourceConfig): JobFeedInput {
   };
 
   return {
-    source: sourceName(config, "apify", config.actorTaskId || config.actorId || "job-source"),
+    source: sourceName(config, provider, config.actorTaskId || config.actorId || config.url || "job-source"),
     externalId: pick("externalId", "id", "jobId"),
     title: pick("title", "positionName", "jobTitle"),
     company: pick("company", "companyName", "hiringOrganization.name"),
@@ -454,9 +503,71 @@ function salaryLowValue(salary: string): number | null {
   return value > 1000 ? Math.round(value / 1000) : value;
 }
 
+function buildRequestUrl(url: string, config: JobSourceConfig, env: JobSourceEnv): string {
+  const requestUrl = new URL(url);
+  const queryParams = config.queryParams && typeof config.queryParams === "object" && !Array.isArray(config.queryParams)
+    ? interpolateTemplateValues(config.queryParams, templateReplacements(config, env))
+    : {};
+
+  for (const [key, value] of Object.entries(asRecord(queryParams))) {
+    if (value === undefined || value === null || value === "") continue;
+    requestUrl.searchParams.set(key, String(value));
+  }
+
+  return requestUrl.toString();
+}
+
+function buildRequestHeaders(config: JobSourceConfig, env: JobSourceEnv): Headers {
+  const headers = new Headers();
+  const sourceHeaders = config.headers
+    ? interpolateTemplateValues(config.headers, templateReplacements(config, env))
+    : {};
+
+  for (const [key, value] of Object.entries(asRecord(sourceHeaders))) {
+    if (value === undefined || value === null || value === "") continue;
+    headers.set(key, String(value));
+  }
+
+  return headers;
+}
+
+function buildCustomBody(config: JobSourceConfig, env: JobSourceEnv): Record<string, unknown> {
+  const body = config.body && typeof config.body === "object" && !Array.isArray(config.body)
+    ? config.body
+    : config.input && typeof config.input === "object" && !Array.isArray(config.input)
+      ? config.input
+      : {};
+
+  return interpolateTemplateValues(body, templateReplacements(config, env)) as Record<string, unknown>;
+}
+
+function readItems(payload: unknown, itemsPath?: string): unknown[] {
+  if (Array.isArray(payload)) return payload;
+
+  const body = asRecord(payload);
+  const configured = cleanText(itemsPath, 120);
+  const fromPath = configured ? readPath(body, configured) : undefined;
+  if (Array.isArray(fromPath)) return fromPath;
+
+  for (const key of ["jobs", "results", "items", "data"]) {
+    const value = body[key];
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const nestedItems = asRecord(value).items;
+      if (Array.isArray(nestedItems)) return nestedItems;
+    }
+  }
+
+  return [];
+}
+
 function buildApifyInput(config: JobSourceConfig): Record<string, unknown> {
   const input = config.input && typeof config.input === "object" && !Array.isArray(config.input) ? config.input : {};
-  return interpolateCriteriaPlaceholders(input, {
+  return interpolateTemplateValues(input, templateReplacements(config)) as Record<string, unknown>;
+}
+
+function templateReplacements(config: JobSourceConfig, env?: JobSourceEnv): Record<string, string> {
+  return {
     query: criteriaQuery(config.criteria),
     location: criteriaLocation(config.criteria),
     workType: config.criteria?.workType && config.criteria.workType !== "any" ? config.criteria.workType : "",
@@ -464,19 +575,29 @@ function buildApifyInput(config: JobSourceConfig): Record<string, unknown> {
     sponsorship: config.criteria?.sponsorship && config.criteria.sponsorship !== "any" ? config.criteria.sponsorship : "",
     salaryFloor: config.criteria?.salaryFloor && config.criteria.salaryFloor !== "none" ? config.criteria.salaryFloor : "",
     limit: String(limitFor(config)),
-  }) as Record<string, unknown>;
+    ...envReplacements(env),
+  };
 }
 
-function interpolateCriteriaPlaceholders(value: unknown, replacements: Record<string, string>): unknown {
+function envReplacements(env: JobSourceEnv | undefined): Record<string, string> {
+  if (!env) return {};
+  return Object.fromEntries(
+    Object.entries(env as unknown as Record<string, unknown>)
+      .filter(([key, value]) => key && typeof value === "string")
+      .map(([key, value]) => [`env.${key}`, value as string]),
+  );
+}
+
+function interpolateTemplateValues(value: unknown, replacements: Record<string, string>): unknown {
   if (typeof value === "string") {
-    return value.replace(/\{\{\s*(query|location|workType|seniority|sponsorship|salaryFloor|limit)\s*\}\}/g, (_, key: string) => replacements[key] ?? "");
+    return value.replace(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g, (_, key: string) => replacements[key] ?? "");
   }
   if (Array.isArray(value)) {
-    return value.map((item) => interpolateCriteriaPlaceholders(item, replacements));
+    return value.map((item) => interpolateTemplateValues(item, replacements));
   }
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value as JsonRecord).map(([key, item]) => [key, interpolateCriteriaPlaceholders(item, replacements)]),
+      Object.entries(value as JsonRecord).map(([key, item]) => [key, interpolateTemplateValues(item, replacements)]),
     );
   }
   return value;

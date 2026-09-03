@@ -15,7 +15,7 @@ export type JobFeedInput = {
   postedAt?: string | null;
 };
 
-export type JobSourceProvider = "greenhouse" | "lever" | "ashby" | "apify";
+export type JobSourceProvider = "custom" | "greenhouse" | "lever" | "ashby" | "apify";
 
 export type JobSyncCriteria = {
   targetTitles?: string[];
@@ -32,6 +32,12 @@ export type JobSourceConfig = {
   enabled?: boolean;
   limit?: number;
   source?: string;
+  url?: string;
+  method?: "GET" | "POST";
+  headers?: Record<string, string>;
+  queryParams?: Record<string, unknown>;
+  body?: Record<string, unknown>;
+  itemsPath?: string;
   boardToken?: string;
   company?: string;
   query?: string;
@@ -62,5 +68,6 @@ export type JobSourceSyncResult = {
 
 export type JobSourceEnv = {
   APIFY_API_TOKEN?: string;
+  JOB_SEARCH_API_KEY?: string;
   JOB_SOURCE_CONFIG?: string;
 };
