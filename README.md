@@ -253,7 +253,7 @@ sends the current user's match criteria automatically when the Jobs page loads o
 user changes Settings. Use the `custom` adapter for any-company search APIs. It supports
 configurable `url`, `method`, `headers`, `queryParams`, `body`, `itemsPath`, and
 `resultMapping`, with placeholders such as `{{query}}`, `{{location}}`, `{{limit}}`,
-and `{{env.JOB_SEARCH_API_KEY}}`.
+`{{country}}`, and `{{env.JOB_SEARCH_API_KEY}}`.
 Synced results are interleaved across configured sources before being saved, so one board
 does not fill the daily list ahead of the rest.
 Apify search actors are also supported with the same criteria placeholders in `input`.

@@ -570,6 +570,7 @@ function templateReplacements(config: JobSourceConfig, env?: JobSourceEnv): Reco
   return {
     query: criteriaQuery(config.criteria),
     location: criteriaLocation(config.criteria),
+    country: criteriaCountry(config.criteria),
     workType: config.criteria?.workType && config.criteria.workType !== "any" ? config.criteria.workType : "",
     seniority: config.criteria?.seniority && config.criteria.seniority !== "any" ? config.criteria.seniority : "",
     sponsorship: config.criteria?.sponsorship && config.criteria.sponsorship !== "any" ? config.criteria.sponsorship : "",
@@ -612,6 +613,12 @@ function criteriaQuery(criteria: JobSyncCriteria | undefined): string {
 function criteriaLocation(criteria: JobSyncCriteria | undefined): string {
   if (criteria?.location === "remote-canada") return "Remote Canada";
   if (criteria?.location === "remote-us") return "Remote United States";
+  return "";
+}
+
+function criteriaCountry(criteria: JobSyncCriteria | undefined): string {
+  if (criteria?.location === "remote-canada") return "Canada";
+  if (criteria?.location === "remote-us") return "United States";
   return "";
 }
 
