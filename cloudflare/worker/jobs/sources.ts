@@ -10,6 +10,7 @@ import type {
 } from "./types";
 
 type JsonRecord = Record<string, unknown>;
+type TemplateReplacement = string | number | boolean | null;
 
 const MAX_SOURCE_JOBS = 20;
 const MAX_DESCRIPTION_CHARS = 45_000;
@@ -323,7 +324,7 @@ function normalizeSourceLimit(sourceLimit: number | undefined, dailyLimit: numbe
 async function readProviderJson(response: Response, label: string): Promise<unknown> {
   if (!response.ok) {
     const message = await response.text().catch(() => "");
-    throw new Error(`${label} returned ${response.status}${message ? `: ${message.slice(0, 180)}` : ""}`);
+    throw new Error(`${label} returned ${response.status}${message ? `: ${summarizeProviderError(message)}` : ""}`);
   }
   return response.json();
 }
@@ -504,7 +505,7 @@ function salaryLowValue(salary: string): number | null {
   return value > 1000 ? Math.round(value / 1000) : value;
 }
 
-function buildRequestUrl(url: string, config: JobSourceConfig, replacements: Record<string, string>): string {
+function buildRequestUrl(url: string, config: JobSourceConfig, replacements: Record<string, TemplateReplacement>): string {
   const requestUrl = new URL(url);
   const queryParams = config.queryParams && typeof config.queryParams === "object" && !Array.isArray(config.queryParams)
     ? interpolateTemplateValues(config.queryParams, replacements)
@@ -518,7 +519,7 @@ function buildRequestUrl(url: string, config: JobSourceConfig, replacements: Rec
   return requestUrl.toString();
 }
 
-function buildRequestHeaders(config: JobSourceConfig, replacements: Record<string, string>): Headers {
+function buildRequestHeaders(config: JobSourceConfig, replacements: Record<string, TemplateReplacement>): Headers {
   const headers = new Headers();
   const sourceHeaders = config.headers
     ? interpolateTemplateValues(config.headers, replacements)
@@ -532,7 +533,7 @@ function buildRequestHeaders(config: JobSourceConfig, replacements: Record<strin
   return headers;
 }
 
-function buildCustomBody(config: JobSourceConfig, replacements: Record<string, string>): Record<string, unknown> {
+function buildCustomBody(config: JobSourceConfig, replacements: Record<string, TemplateReplacement>): Record<string, unknown> {
   const body = config.body && typeof config.body === "object" && !Array.isArray(config.body)
     ? config.body
     : config.input && typeof config.input === "object" && !Array.isArray(config.input)
@@ -567,7 +568,7 @@ function buildApifyInput(config: JobSourceConfig): Record<string, unknown> {
   return interpolateTemplateValues(input, templateReplacements(config)) as Record<string, unknown>;
 }
 
-function templateReplacements(config: JobSourceConfig, env?: JobSourceEnv): Record<string, string> {
+function templateReplacements(config: JobSourceConfig, env?: JobSourceEnv): Record<string, TemplateReplacement> {
   return {
     query: criteriaQuery(config.criteria),
     location: criteriaLocation(config.criteria),
@@ -576,12 +577,12 @@ function templateReplacements(config: JobSourceConfig, env?: JobSourceEnv): Reco
     seniority: config.criteria?.seniority && config.criteria.seniority !== "any" ? config.criteria.seniority : "",
     sponsorship: config.criteria?.sponsorship && config.criteria.sponsorship !== "any" ? config.criteria.sponsorship : "",
     salaryFloor: config.criteria?.salaryFloor && config.criteria.salaryFloor !== "none" ? config.criteria.salaryFloor : "",
-    limit: String(limitFor(config)),
+    limit: limitFor(config),
     ...envReplacements(env),
   };
 }
 
-function envReplacements(env: JobSourceEnv | undefined): Record<string, string> {
+function envReplacements(env: JobSourceEnv | undefined): Record<string, TemplateReplacement> {
   if (!env) return {};
   return Object.fromEntries(
     Object.entries(env as unknown as Record<string, unknown>)
@@ -590,9 +591,12 @@ function envReplacements(env: JobSourceEnv | undefined): Record<string, string> 
   );
 }
 
-function interpolateTemplateValues(value: unknown, replacements: Record<string, string>): unknown {
+function interpolateTemplateValues(value: unknown, replacements: Record<string, TemplateReplacement>): unknown {
   if (typeof value === "string") {
-    return value.replace(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g, (_, key: string) => replacements[key] ?? "");
+    const exactMatch = value.match(/^\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}$/);
+    if (exactMatch) return replacements[exactMatch[1]] ?? "";
+
+    return value.replace(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g, (_, key: string) => String(replacements[key] ?? ""));
   }
   if (Array.isArray(value)) {
     return value.map((item) => interpolateTemplateValues(item, replacements));
@@ -603,6 +607,17 @@ function interpolateTemplateValues(value: unknown, replacements: Record<string, 
     );
   }
   return value;
+}
+
+function summarizeProviderError(message: string): string {
+  const withoutMarkup = message
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return withoutMarkup.slice(0, 180);
 }
 
 function criteriaQuery(criteria: JobSyncCriteria | undefined): string {
