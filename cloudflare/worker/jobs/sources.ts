@@ -24,13 +24,14 @@ const adapters: Record<JobSourceProvider, SourceAdapter> = {
   custom: {
     provider: "custom",
     async fetchJobs(config, env) {
-      const url = cleanText(config.url, 1_000);
+      const replacements = templateReplacements(config, env);
+      const url = cleanText(interpolateTemplateValues(config.url, replacements), 1_000);
       if (!url) throw new Error("Custom job source requires url.");
 
       const method = config.method === "POST" ? "POST" : "GET";
-      const requestUrl = method === "GET" ? buildRequestUrl(url, config, env) : url;
-      const headers = buildRequestHeaders(config, env);
-      const body = method === "POST" ? JSON.stringify(buildCustomBody(config, env)) : undefined;
+      const requestUrl = method === "GET" ? buildRequestUrl(url, config, replacements) : url;
+      const headers = buildRequestHeaders(config, replacements);
+      const body = method === "POST" ? JSON.stringify(buildCustomBody(config, replacements)) : undefined;
       if (body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
       const response = await fetch(requestUrl, {
@@ -503,10 +504,10 @@ function salaryLowValue(salary: string): number | null {
   return value > 1000 ? Math.round(value / 1000) : value;
 }
 
-function buildRequestUrl(url: string, config: JobSourceConfig, env: JobSourceEnv): string {
+function buildRequestUrl(url: string, config: JobSourceConfig, replacements: Record<string, string>): string {
   const requestUrl = new URL(url);
   const queryParams = config.queryParams && typeof config.queryParams === "object" && !Array.isArray(config.queryParams)
-    ? interpolateTemplateValues(config.queryParams, templateReplacements(config, env))
+    ? interpolateTemplateValues(config.queryParams, replacements)
     : {};
 
   for (const [key, value] of Object.entries(asRecord(queryParams))) {
@@ -517,10 +518,10 @@ function buildRequestUrl(url: string, config: JobSourceConfig, env: JobSourceEnv
   return requestUrl.toString();
 }
 
-function buildRequestHeaders(config: JobSourceConfig, env: JobSourceEnv): Headers {
+function buildRequestHeaders(config: JobSourceConfig, replacements: Record<string, string>): Headers {
   const headers = new Headers();
   const sourceHeaders = config.headers
-    ? interpolateTemplateValues(config.headers, templateReplacements(config, env))
+    ? interpolateTemplateValues(config.headers, replacements)
     : {};
 
   for (const [key, value] of Object.entries(asRecord(sourceHeaders))) {
@@ -531,14 +532,14 @@ function buildRequestHeaders(config: JobSourceConfig, env: JobSourceEnv): Header
   return headers;
 }
 
-function buildCustomBody(config: JobSourceConfig, env: JobSourceEnv): Record<string, unknown> {
+function buildCustomBody(config: JobSourceConfig, replacements: Record<string, string>): Record<string, unknown> {
   const body = config.body && typeof config.body === "object" && !Array.isArray(config.body)
     ? config.body
     : config.input && typeof config.input === "object" && !Array.isArray(config.input)
       ? config.input
       : {};
 
-  return interpolateTemplateValues(body, templateReplacements(config, env)) as Record<string, unknown>;
+  return interpolateTemplateValues(body, replacements) as Record<string, unknown>;
 }
 
 function readItems(payload: unknown, itemsPath?: string): unknown[] {
