@@ -259,7 +259,7 @@ export default function JobsPage() {
       if (options.syncFirst) {
         try {
           const syncResponse = await syncJobs({ criteria: options.criteria });
-          if (syncResponse.errors.length > 0 && syncResponse.sources.length === 0) {
+          if (syncResponse.errors.length > 0) {
             syncError = syncResponse.errors
               .map((item) => `${item.source}: ${item.message}`)
               .join(" ");

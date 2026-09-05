@@ -570,9 +570,9 @@ function buildApifyInput(config: JobSourceConfig): Record<string, unknown> {
 
 function templateReplacements(config: JobSourceConfig, env?: JobSourceEnv): Record<string, TemplateReplacement> {
   return {
-    query: criteriaQuery(config.criteria),
-    location: criteriaLocation(config.criteria),
-    country: criteriaCountry(config.criteria),
+    query: criteriaQuery(config),
+    location: criteriaLocation(config.criteria) || cleanText(config.location, 160),
+    country: criteriaCountry(config.criteria) || countryFromLocation(config.location),
     workType: config.criteria?.workType && config.criteria.workType !== "any" ? config.criteria.workType : "",
     seniority: config.criteria?.seniority && config.criteria.seniority !== "any" ? config.criteria.seniority : "",
     sponsorship: config.criteria?.sponsorship && config.criteria.sponsorship !== "any" ? config.criteria.sponsorship : "",
@@ -620,10 +620,9 @@ function summarizeProviderError(message: string): string {
   return withoutMarkup.slice(0, 180);
 }
 
-function criteriaQuery(criteria: JobSyncCriteria | undefined): string {
-  const titles = criteria?.targetTitles?.map((title) => cleanText(title, 100)).filter(Boolean) ?? [];
-  if (titles.length === 0) return "";
-  return titles.join(" OR ");
+function criteriaQuery(config: JobSourceConfig): string {
+  const titles = config.criteria?.targetTitles?.map((title) => cleanText(title, 100)).filter(Boolean) ?? [];
+  return titles.length > 0 ? titles.join(" OR ") : cleanText(config.query, 200);
 }
 
 function criteriaLocation(criteria: JobSyncCriteria | undefined): string {
@@ -635,6 +634,13 @@ function criteriaLocation(criteria: JobSyncCriteria | undefined): string {
 function criteriaCountry(criteria: JobSyncCriteria | undefined): string {
   if (criteria?.location === "remote-canada") return "Canada";
   if (criteria?.location === "remote-us") return "United States";
+  return "";
+}
+
+function countryFromLocation(location: unknown): string {
+  const value = cleanText(location, 160).toLowerCase();
+  if (/\b(canada|toronto|vancouver|montreal|calgary|ottawa)\b/.test(value)) return "Canada";
+  if (/\b(united states|usa|us|new york|san francisco|seattle|chicago)\b/.test(value)) return "United States";
   return "";
 }
 
